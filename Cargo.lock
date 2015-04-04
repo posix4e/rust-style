@@ -1,0 +1,4 @@
+[root]
+name = "rustfmt"
+version = "0.0.1"
+

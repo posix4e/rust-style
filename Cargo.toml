@@ -1,0 +1,4 @@
+[package]
+name = "rustfmt"
+version = "0.0.1"
+authors = ["Seth Pink <sethpink@gmail.com>"]
