@@ -1,15 +1,24 @@
-use syntax::codemap::{Span, Pos};
+use syntax::codemap::{mk_sp, Span, Pos, BytePos};
 use syntax::parse::lexer::{StringReader, Reader};
 use syntax::parse::token::{self, Token};
-use format_style::FormatStyle;
+use style::FormatStyle;
+
+#[derive(Copy, Clone, Debug)]
+pub enum FormatDecision {
+  Unformatted,
+  Continue,
+  Break,
+}
 
 #[derive(Clone, Debug)]
 pub struct FormatToken {
     pub tok: Token,
-    pub sp: Span,
+    pub span: Span,
+    pub preceding_whitespace_span: Span,
     pub is_first_token: bool,
     pub newlines_before: u32,
     pub original_column: u32,
+    pub decision: FormatDecision,
 }
 
 impl FormatToken {
@@ -24,6 +33,7 @@ pub struct FormatTokenLexer<'s> {
     is_first_token: bool,
     column: u32,
     style: FormatStyle,
+    previous_token_span: Span,
 }
 
 impl<'s> FormatTokenLexer<'s> {
@@ -34,10 +44,15 @@ impl<'s> FormatTokenLexer<'s> {
             is_first_token: true,
             column: 0,
             style: style,
+            previous_token_span: mk_sp(BytePos(0), BytePos(0)),
         }
     }
 
     pub fn span_str(&self, sp: Span) -> &str {
+        if sp.lo.0 == sp.hi.0 {
+            return "";
+        }
+
         let local_begin = self.lexer.span_diagnostic.cm.lookup_byte_offset(sp.lo);
         let local_end = self.lexer.span_diagnostic.cm.lookup_byte_offset(sp.hi);
         let start_index = local_begin.pos.to_usize();
@@ -81,10 +96,12 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
 
         let token = FormatToken {
             tok: tok_sp.tok,
-            sp: tok_sp.sp,
+            span: tok_sp.sp,
+            preceding_whitespace_span: mk_sp(self.previous_token_span.hi, tok_sp.sp.lo),
             is_first_token: self.is_first_token,
             newlines_before: newlines_before,
             original_column: column,
+            decision: FormatDecision::Unformatted,
         };
 
         for _ in self.span_str(tok_sp.sp).chars() {
@@ -94,6 +111,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
         self.column = column;
         self.eof = token.tok == token::Eof;
         self.is_first_token = false;
+        self.previous_token_span = tok_sp.sp;
 
         Some(token)
     }

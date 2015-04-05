@@ -2,7 +2,7 @@ use std::mem;
 use syntax::codemap::{mk_sp, BytePos};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken};
-use token::{FormatToken, FormatTokenLexer};
+use token::{FormatToken, FormatTokenLexer, FormatDecision};
 
 // An unwrapped line is a sequence of FormatTokens, that we would like to
 // put on a single line if there was no column limit. Changing the formatting
@@ -18,13 +18,15 @@ impl UnwrappedLine {
         let mut parser = UnwrappedLineParser {
             lexer: lexer,
             output: vec![],
-
+            // FIXME: Placeholder token. Change to an Option?
             ftok: FormatToken {
                 tok: Token::Eof,
-                sp: mk_sp(BytePos(0), BytePos(0)),
+                span: mk_sp(BytePos(0), BytePos(0)),
+                preceding_whitespace_span: mk_sp(BytePos(0), BytePos(0)),
                 is_first_token: false,
                 newlines_before: 0,
                 original_column: 0,
+                decision: FormatDecision::Unformatted,
             },
             line: vec![],
             level_stack: vec![],
@@ -528,4 +530,3 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.read_token();
     }
 }
-

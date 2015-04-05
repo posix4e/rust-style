@@ -1,15 +1,17 @@
 pub struct Replacement {
-    pub offset: u32,
-    pub length: u32,
+    pub start_byte: usize,
+    pub end_byte: usize,
     pub text: String,
 }
 
-impl Replacement {
-    fn new(offset: u32, length: u32, text: String) -> Replacement {
-        Replacement {
-            offset: offset,
-            length: length,
-            text: text,
-        }
+pub fn apply(source: &str, replacements: &[Replacement]) -> String {
+    let source = source.as_bytes();
+    let mut output = vec![];
+    let mut i = 0;
+    for replacement in replacements {
+        output.push_all(&source[i..replacement.start_byte]);
+        output.push_all(&replacement.text.as_bytes());
+        i = replacement.end_byte;
     }
+    String::from_utf8(output).unwrap()
 }
