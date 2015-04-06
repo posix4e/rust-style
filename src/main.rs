@@ -15,21 +15,16 @@ mod whitespace;
 mod test;
 
 use annotated_line::AnnotatedLine;
-use style::{FormatStyle, UseTabs};
+use style::FormatStyle;
 use std::io::prelude::*;
 use std::io::{stdin, stdout};
 use token::FormatTokenLexer;
 use unwrapped_line::UnwrappedLine;
 use replacement::Replacement;
+use std::default::Default;
 
 fn main() {
-    let style = FormatStyle {
-        column_limit: 100,
-        indent_width: 4,
-        tab_width: 4,
-        use_tabs: UseTabs::Never,
-    };
-
+    let style = Default::default();
     let name = "<stdin>".to_string();
     let mut source = vec![];
     stdin().read_to_end(&mut source).unwrap();
@@ -37,6 +32,7 @@ fn main() {
 
     // FIXME: remove clone?
     let replacements = reformat(source.clone(), name, style);
+    // for r in &replacements { println!("{:?}", r); }
     let result = replacement::apply(&source, &replacements);
 
     write!(&mut stdout(), "{}", result).unwrap();
@@ -49,7 +45,8 @@ fn reformat(source: String, name: String, style: FormatStyle) -> Vec<Replacement
 
     let mut format_lexer = FormatTokenLexer::new(lexer, style);
     let unwrapped_lines = UnwrappedLine::parse_lines(&mut format_lexer);
-    let mut annotated_lines = AnnotatedLine::from_unwrapped_lines(unwrapped_lines);
+    let annotated_lines = &mut AnnotatedLine::from_unwrapped_lines(unwrapped_lines);
     // TODO: merge lines here (LineJoiner)
     format::format(style, annotated_lines)
 }
+

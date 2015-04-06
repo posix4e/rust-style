@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub struct Replacement {
     pub start_byte: usize,
     pub end_byte: usize,

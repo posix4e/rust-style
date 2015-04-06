@@ -14,8 +14,8 @@ struct Change {
     start_of_token_column: u32,
     newlines_before: u32,
 
-    // FIXME: These are often empty strings.
-    //        Allocations could easily be avoided.
+    // FIXME: These are often empty strings. Allocations could easily be avoided.
+    //        This is assuming empty strings cause allocations.
     previous_line_postfix: String,
     current_line_prefix: String,
 }
@@ -107,6 +107,8 @@ impl WhitespaceManager {
                 self.append_indent_text(&mut text, c.indent_level, cmp::max(0, c.spaces),
                                         c.start_of_token_column - cmp::max(0, c.spaces));
                 text.push_str(&c.current_line_prefix);
+                // TODO: Only add replacments if it is different to the source.
+                //       This could also be done by filtering them afterwards.
                 replacements.push(Replacement {
                     start_byte: c.preceding_whitespace_span.lo.0 as usize,
                     end_byte: c.preceding_whitespace_span.hi.0 as usize,
@@ -132,9 +134,12 @@ impl WhitespaceManager {
                     text.push_str(" ");
                 }
             },
-            _ => {
+            UseTabs::Always => {
                 unimplemented!();
-            }
+            },
+            UseTabs::ForIndentation => {
+                unimplemented!();
+            },
         }
     }
 }

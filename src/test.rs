@@ -1,14 +1,9 @@
 use replacement;
-use style::{UseTabs, FormatStyle};
+use std::default::Default;
 
 fn fmt(source: &str) -> String {
-    let style = FormatStyle {
-        column_limit: 100,
-        indent_width: 4,
-        tab_width: 4,
-        use_tabs: UseTabs::Never,
-    };
-
+    // TODO: tests using different style options
+    let style = Default::default();
     let replacements = super::reformat(source.to_string(), "<stdin>".to_string(), style);
     replacement::apply(source, &replacements)
 }
@@ -26,8 +21,56 @@ fn test_whitespace_only() {
 }
 
 #[test]
-fn test_single_newline_eof() {
-    assert_eq!(fmt("fn main() {}"), "fn main() {}\n");
-    assert_eq!(fmt("fn main() {}\n"), "fn main() {}\n");
-    assert_eq!(fmt("fn main() {}\n\n \n\t\t\n"), "fn main() {}\n");
+fn test_struct_declaration_trailing_comma() {
+    let input = "struct Foo { a: u32, b: u32, c: bool, }";
+    let expected = "struct Foo {
+    a: u32,
+    b: u32,
+    c: bool,
 }
+";
+    assert_eq!(fmt(input), expected);
+}
+
+#[test]
+fn test_struct_declaration() {
+    let input = "struct Foo { a: u32, b: u32, c: bool }";
+    let expected = "struct Foo {
+    a: u32,
+    b: u32,
+    c: bool
+}
+";
+    assert_eq!(fmt(input), expected);
+}
+
+// #[test]
+// fn test_single_newline_eof() {
+//     assert_eq!(fmt("fn main() {}"), "fn main() {}\n");
+//     assert_eq!(fmt("fn main() {}\n"), "fn main() {}\n");
+//     assert_eq!(fmt("fn main() {}\n\n \n\t\t\n"), "fn main() {}\n");
+// }
+//
+// #[test]
+// fn test_blankline_between_functions() {
+//     let input = "fn a() {} fn b() {}";
+//     let expected = "fn a() {}\n\nfn b() {}\n";
+//     assert_eq!(fmt(input), expected);
+// }
+
+// #[test]
+// fn test_fix_indentation() {
+//     let input = "fn main() { println!(\"Hi!\"); }";
+//     let expected = "fn main() {
+//         println!(\"Hi!\");
+// }
+// ";
+//     assert_eq!(fmt(input), expected);
+// }
+
+// #[test]
+// fn remove_blank_lines_first_lines() {
+//     let input = "\n\n\nfn main() {}\n";
+//     let expected = "fn main() {}\n";
+//     assert_eq!(fmt(input), expected);
+// }

@@ -248,6 +248,10 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.add_line();
                     break;
                 },
+                Token::CloseDelim(DelimToken::Brace) => {
+                    self.add_line();
+                    break;
+                },
                 Token::Lt => {
                     self.parse_generics();
                 },
