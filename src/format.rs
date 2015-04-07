@@ -30,17 +30,14 @@ impl LineFormatter {
             let (left, right) = lines.split_at_mut(i);
             let curr_line = right.first_mut().unwrap();
             let prev_line = left.last();
-
             assert!(curr_line.tokens.len() > 0);
-
             let indent = curr_line.level * self.style.indent_width;
-            let fix_indentation = indent != curr_line.tokens[0].original_column;
 
             if curr_line.tokens[0].tok == Token::Eof {
                 assert!(curr_line.tokens.len() == 1);
                 let newlines = cmp::min(1, curr_line.tokens[0].newlines_before);
                 self.whitespace.replace_whitespace(&mut curr_line.tokens[0], newlines, 0, 0, 0);
-            } else if fix_indentation {
+            } else {
                 self.format_first_token(curr_line, prev_line, indent);
             }
 
@@ -72,12 +69,13 @@ impl LineFormatter {
             newlines = 0;
         }
 
+        // FIXME: uncomment and test its working
         // Remove empty lines after "{"
-        if !self.style.keep_empty_lines_at_the_start_of_blocks {
-            if let Some(&Token::OpenDelim(DelimToken::Brace)) = prev_last_token {
-                newlines = 1;
-            }
-        }
+        // if !self.style.keep_empty_lines_at_the_start_of_blocks {
+        //     if let Some(&Token::OpenDelim(DelimToken::Brace)) = prev_last_token {
+        //         newlines = 1;
+        //     }
+        // }
 
         self.whitespace.replace_whitespace(token, newlines, curr_line.level, indent, indent);
     }

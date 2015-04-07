@@ -54,17 +54,16 @@ fn test_single_newline_eof() {
 #[test]
 fn test_fix_indentation_hello_world() {
     let input = "fn main() { println!(\"Hi!\"); }";
-    let expected =
-"fn main() {
+    let expected = "fn main() {
     println!(\"Hi!\");
 }
 ";
     assert_eq!(fmt(input), expected);
 }
 
-// #[test]
-// fn remove_blank_lines_first_lines() {
-//     let input = "\n\n\nfn main() {}\n";
-//     let expected = "fn main() {}\n";
-//     assert_eq!(fmt(input), expected);
-// }
+#[test]
+fn remove_blank_lines_first_lines() {
+    let input = "\n\n\nfn main() {}\n";
+    let expected = "fn main() {}\n";
+    assert_eq!(fmt(input), expected);
+}

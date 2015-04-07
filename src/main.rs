@@ -32,9 +32,7 @@ fn main() {
     let source = String::from_utf8(source).unwrap();
 
     let replacements = reformat(source.clone(), name, style);
-    // for r in &replacements { println!("{:?}", r); }
     let result = replacement::apply(&source, &replacements);
-
     write!(&mut stdout(), "{}", result).unwrap();
 }
 
@@ -47,6 +45,8 @@ fn reformat(source: String, name: String, style: FormatStyle) -> Vec<Replacement
     let lines = UnwrappedLine::parse_lines(lexer);
     let lines = AnnotatedLine::from_unwrapped_lines(lines);
     let mut lines = join::join_lines(&style, lines);
-    format::format(style, &mut lines)
+    let replacements = format::format(style, &mut lines);
+    // for r in &replacements { println!("{:?}", r); }
+    replacements
 }
 
