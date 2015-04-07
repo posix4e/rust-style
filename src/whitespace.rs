@@ -3,7 +3,7 @@ use replacement::Replacement;
 use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
 use syntax::codemap::{Span, BytePos};
-use token::{FormatToken, FormatDecision};
+use token::{FormatToken, FormatDecision, FormatTokenLexer};
 
 struct Change {
     create_replacement: bool,
@@ -107,8 +107,6 @@ impl WhitespaceManager {
                 self.append_indent_text(&mut text, c.indent_level, cmp::max(0, c.spaces),
                                         c.start_of_token_column - cmp::max(0, c.spaces));
                 text.push_str(&c.current_line_prefix);
-                // TODO: Only add replacments if it is different to the source.
-                //       This could also be done by filtering them afterwards.
                 replacements.push(Replacement {
                     start_byte: c.preceding_whitespace_span.lo.0 as usize,
                     end_byte: c.preceding_whitespace_span.hi.0 as usize,

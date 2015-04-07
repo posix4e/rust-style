@@ -45,8 +45,10 @@ fn reformat(source: String, name: String, style: FormatStyle) -> Vec<Replacement
     let lines = UnwrappedLine::parse_lines(lexer);
     let lines = AnnotatedLine::from_unwrapped_lines(lines);
     let mut lines = join::join_lines(&style, lines);
-    let replacements = format::format(style, &mut lines);
-    // for r in &replacements { println!("{:?}", r); }
+
+    let mut replacements = format::format(style, &mut lines);
+    // Remove replacements that do not change anything
+    replacements.retain(|r| r.text != lexer.src_str(r.start_byte, r.end_byte));
     replacements
 }
 

@@ -57,6 +57,10 @@ impl<'s> FormatTokenLexer<'s> {
         let local_end = self.lexer.span_diagnostic.cm.lookup_byte_offset(sp.hi);
         let start_index = local_begin.pos.to_usize();
         let end_index = local_end.pos.to_usize();
+        self.src_str(start_index, end_index)
+    }
+
+    pub fn src_str(&self, start_index: usize, end_index: usize) -> &str {
         &self.lexer.filemap.src.as_ref().unwrap()[start_index..end_index]
     }
 }
