@@ -4,9 +4,11 @@ use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
 use syntax::codemap::{Span, BytePos};
 use token::{FormatToken, FormatDecision, FormatTokenLexer};
+use syntax::parse::token::{Token, DelimToken, BinOpToken};
 
 struct Change {
     create_replacement: bool,
+    token: Token,
     token_span: Span,
     preceding_whitespace_span: Span,
     indent_level: u32,
@@ -72,6 +74,7 @@ impl WhitespaceManager {
 
         self.changes.push(Change {
             create_replacement: true,
+            token: tok.tok.clone(),
             token_span: tok.span,
             preceding_whitespace_span: tok.preceding_whitespace_span,
             indent_level: indent_level,
@@ -109,7 +112,8 @@ impl WhitespaceManager {
                 text.push_str(&c.current_line_prefix);
                 replacements.push(Replacement {
                     start_byte: c.preceding_whitespace_span.lo.0 as usize,
-                    end_byte: c.preceding_whitespace_span.hi.0 as usize,
+                    end_byte: if c.token == Token::Eof { c.token_span.hi.0 as usize }
+                              else { c.preceding_whitespace_span.hi.0 as usize },
                     text: text,
                 })
             }

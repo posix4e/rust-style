@@ -365,6 +365,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn parse_stmt_up_to<P>(&mut self, pred: P) -> bool where P: Fn(&Token) -> bool {
+        // FIXME: This is totally broken. Lots of blocks are considered to be
+        //        a struct init when they are not. For example: for a in b { }
         let mut may_be_struct_init = false;
 
         loop {

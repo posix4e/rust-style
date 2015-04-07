@@ -72,4 +72,3 @@ impl LineFormatter {
         self.whitespace.replace_whitespace(token, newlines, curr_line.level, indent, indent);
     }
 }
-

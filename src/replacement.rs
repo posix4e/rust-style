@@ -14,5 +14,9 @@ pub fn apply(source: &str, replacements: &[Replacement]) -> String {
         output.push_all(&replacement.text.as_bytes());
         i = replacement.end_byte;
     }
+
+    if i < source.len() {
+        output.push_all(&source[i..]);
+    }
     String::from_utf8(output).unwrap()
 }
