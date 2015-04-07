@@ -5,8 +5,9 @@ extern crate syntax;
 
 mod annotated_line;
 mod format;
-mod style;
+mod join;
 mod replacement;
+mod style;
 mod token;
 mod unwrapped_line;
 mod whitespace;
@@ -24,13 +25,12 @@ use replacement::Replacement;
 use std::default::Default;
 
 fn main() {
-    let style = Default::default();
+    let style = FormatStyle::default();
     let name = "<stdin>".to_string();
     let mut source = vec![];
     stdin().read_to_end(&mut source).unwrap();
     let source = String::from_utf8(source).unwrap();
 
-    // FIXME: remove clone?
     let replacements = reformat(source.clone(), name, style);
     // for r in &replacements { println!("{:?}", r); }
     let result = replacement::apply(&source, &replacements);
@@ -43,10 +43,10 @@ fn reformat(source: String, name: String, style: FormatStyle) -> Vec<Replacement
     let filemap = syntax::parse::string_to_filemap(&session, source, name);
     let lexer = syntax::parse::lexer::StringReader::new(&session.span_diagnostic, filemap);
 
-    let mut format_lexer = FormatTokenLexer::new(lexer, style);
-    let unwrapped_lines = UnwrappedLine::parse_lines(&mut format_lexer);
-    let annotated_lines = &mut AnnotatedLine::from_unwrapped_lines(unwrapped_lines);
-    // TODO: merge lines here (LineJoiner)
-    format::format(style, annotated_lines)
+    let lexer = &mut FormatTokenLexer::new(lexer, style.clone());
+    let lines = UnwrappedLine::parse_lines(lexer);
+    let lines = AnnotatedLine::from_unwrapped_lines(lines);
+    let mut lines = join::join_lines(&style, lines);
+    format::format(style, &mut lines)
 }
 

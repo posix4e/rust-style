@@ -7,7 +7,7 @@ use whitespace::WhitespaceManager;
 
 pub fn format(style: FormatStyle, lines: &mut [AnnotatedLine]) -> Vec<Replacement> {
     let mut formatter = LineFormatter {
-        style: style,
+        style: style.clone(),
         whitespace: WhitespaceManager::new(style),
     };
 

@@ -44,29 +44,23 @@ fn test_struct_declaration() {
     assert_eq!(fmt(input), expected);
 }
 
-// #[test]
-// fn test_single_newline_eof() {
-//     assert_eq!(fmt("fn main() {}"), "fn main() {}\n");
-//     assert_eq!(fmt("fn main() {}\n"), "fn main() {}\n");
-//     assert_eq!(fmt("fn main() {}\n\n \n\t\t\n"), "fn main() {}\n");
-// }
-//
-// #[test]
-// fn test_blankline_between_functions() {
-//     let input = "fn a() {} fn b() {}";
-//     let expected = "fn a() {}\n\nfn b() {}\n";
-//     assert_eq!(fmt(input), expected);
-// }
+#[test]
+fn test_single_newline_eof() {
+    assert_eq!(fmt("fn main() {}"), "fn main() {}\n");
+    assert_eq!(fmt("fn main() {}\n"), "fn main() {}\n");
+    assert_eq!(fmt("fn main() {}\n\n \n\t\t\n"), "fn main() {}\n");
+}
 
-// #[test]
-// fn test_fix_indentation() {
-//     let input = "fn main() { println!(\"Hi!\"); }";
-//     let expected = "fn main() {
-//         println!(\"Hi!\");
-// }
-// ";
-//     assert_eq!(fmt(input), expected);
-// }
+#[test]
+fn test_fix_indentation_hello_world() {
+    let input = "fn main() { println!(\"Hi!\"); }";
+    let expected =
+"fn main() {
+    println!(\"Hi!\");
+}
+";
+    assert_eq!(fmt(input), expected);
+}
 
 // #[test]
 // fn remove_blank_lines_first_lines() {

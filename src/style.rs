@@ -7,7 +7,7 @@ pub enum UseTabs {
     ForIndentation,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct FormatStyle {
     pub column_limit: u32,
     pub indent_width: u32,

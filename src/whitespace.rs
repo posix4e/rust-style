@@ -47,9 +47,9 @@ impl Ord for IsBeforeInFile {
 }
 
 pub struct WhitespaceManager {
+    changes: Vec<Change>,
     use_crlf: bool,
     style: FormatStyle,
-    changes: Vec<Change>,
 }
 
 impl WhitespaceManager {
