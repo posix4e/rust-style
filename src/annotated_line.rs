@@ -1,6 +1,7 @@
 use unwrapped_line::UnwrappedLine;
 use token::FormatToken;
 
+#[derive(Debug)]
 pub struct AnnotatedLine {
     pub tokens: Vec<FormatToken>,
     pub children: Vec<AnnotatedLine>,

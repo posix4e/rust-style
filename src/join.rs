@@ -25,12 +25,14 @@ pub fn join_lines(style: &FormatStyle, lines: Vec<AnnotatedLine>) -> Vec<Annotat
         for _ in 0..j {
             line = join(style, line, lines.next().unwrap());
         }
+        line.children = join_lines(style, line.children);
         out.push(line);
     }
 
     assert!(lines.next().is_none());
     out
 }
+
 
 fn try_join_empty_block(lines: &[AnnotatedLine]) -> Option<usize> {
     let join = lines.len() >= 2 &&
@@ -47,6 +49,6 @@ fn join(style: &FormatStyle, mut a: AnnotatedLine, mut b: AnnotatedLine) -> Anno
     AnnotatedLine {
         tokens: a.tokens,
         level: a.level,
-        children: join_lines(style, b.children),
+        children: b.children,
     }
 }

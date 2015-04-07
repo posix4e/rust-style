@@ -62,22 +62,34 @@ fn test_fix_indentation_hello_world() {
 }
 
 #[test]
-fn remove_blank_lines_at_start_of_file() {
+fn test_remove_blank_lines_at_start_of_file() {
     let input = "\n\n\nfn main() {}\n";
     let expected = "fn main() {}\n";
     assert_eq!(fmt(input), expected);
 }
 
 #[test]
-fn remove_blank_lines_at_start_of_block() {
+fn test_remove_blank_lines_at_start_of_block() {
     let input = "fn main() {\n\n\nlet a = 5;}";
     let expected = "fn main() {\n\n    let a = 5;\n}\n";
     assert_eq!(fmt(input), expected);
 }
 
 #[test]
-fn remove_blank_lines_at_end_of_block() {
+fn test_remove_blank_lines_at_end_of_block() {
     let input = "fn main() { let a = 5;\n\n}\n";
     let expected = "fn main() {\n    let a = 5;\n}\n";
+    assert_eq!(fmt(input), expected);
+}
+
+#[test]
+fn test_empty_match_block() {
+    let input = "match foo {Some(a) => (), Some(b) => {}, None => {}}";
+    let expected = "match foo {
+    Some(a) => (),
+    Some(b) => {},
+    None => {}
+}
+";
     assert_eq!(fmt(input), expected);
 }
