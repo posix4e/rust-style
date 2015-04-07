@@ -58,9 +58,9 @@ impl LineFormatter {
                                     self.style.max_empty_lines_to_keep + 1);
 
         // Remove empty lines before "}" where applicable.
-        // if token.tok == Token::CloseDelim(DelimToken::Brace) {
-        //     newlines = cmp::min(newlines, 1);
-        // }
+        if token.tok == Token::CloseDelim(DelimToken::Brace) {
+            newlines = cmp::min(newlines, 1);
+        }
 
         if newlines == 0 {
             newlines = 1;
@@ -68,14 +68,6 @@ impl LineFormatter {
         if token.is_first_token {
             newlines = 0;
         }
-
-        // FIXME: uncomment and test its working
-        // Remove empty lines after "{"
-        // if !self.style.keep_empty_lines_at_the_start_of_blocks {
-        //     if let Some(&Token::OpenDelim(DelimToken::Brace)) = prev_last_token {
-        //         newlines = 1;
-        //     }
-        // }
 
         self.whitespace.replace_whitespace(token, newlines, curr_line.level, indent, indent);
     }
