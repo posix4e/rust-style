@@ -120,6 +120,14 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) => {
                     self.next_token();
                 },
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
+                    self.parse_if_then_else();
+                    self.add_line();
+                },
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Match) => {
+                    self.parse_match();
+                    self.add_line();
+                },
                 _ => {
                     match block {
                         Block::StructOrEnum => self.parse_enum_variant_or_struct_field(),
@@ -197,7 +205,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             }
             self.try_parse_block(Block::Statements);
         }
-        self.add_line();
     }
 
     fn parse_match(&mut self) {

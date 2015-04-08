@@ -11,6 +11,12 @@ fn replacements(source: &str) -> Vec<Replacement> {
     super::reformat(source.to_string(), "test".to_string(), Default::default())
 }
 
+macro_rules! assert_eq_fmt {
+    ($s:expr) => (
+        assert_eq!(fmt($s), $s)
+    )
+}
+
 #[test]
 fn test_whitespace_only_pass_through() {
     assert_eq!(fmt(""), "");
@@ -118,9 +124,86 @@ fn test_no_unnecessary_replacements_eof() {
 
 #[test]
 fn test_format_array() {
-    let expected = "let mut a = [0; 4];";
-    assert_eq!(fmt(expected), expected);
+    assert_eq_fmt!("let mut a = [0; 4];");
+    assert_eq_fmt!("let mut a = [0; 4];\nlet mut a = [0; 4];");
+}
 
-    let expected = "let mut a = [0; 4];\nlet mut a = [0; 4];";
-    assert_eq!(fmt(expected), expected);
+#[test]
+fn test_comma_in_match_expr_arm() {
+    assert_eq_fmt!("match (a, b, c) {
+    (a, b, _) => (a, b, b),
+    (a, b, c) => (a, b, c),
+}");
+}
+
+#[test]
+fn test_semi_after_if_expr() {
+    assert_eq_fmt!("let c = if b.is_some() {
+    Some(55) // Comment so it doesn't collapse
+} else {
+    None // Comment so it doesn't collapse
+};");
+}
+
+#[test]
+fn test_if_expr_as_arg() {
+    assert_eq_fmt!("let a = function_call(if something {
+    Some(55) // Comment so it doesn't collapse
+} else {
+    None // Comment so it doesn't collapse
+});");
+}
+
+#[test]
+fn test_if_statements() {
+    assert_eq_fmt!("if something {
+    let a = 52;
+    let c = 72;
+}\n")
+}
+
+#[test]
+fn test_if_else_statement() {
+    assert_eq_fmt!("if something {
+    let a = 52;
+    let c = 72;
+} else {
+    let b = 12;
+    let j = 5122;
+}\n")
+}
+
+#[test]
+fn test_if_else_if_statement() {
+    assert_eq_fmt!("if something {
+    let a = 52;
+    let c = 72;
+} else if something_else {
+    let b = 12;
+    let j = 5122;
+} else {
+    let x = 12;
+}\n");
+}
+
+
+#[test]
+fn test_match_statement() {
+    assert_eq_fmt!("match Some(thing) {
+    Some(thing) => 5,
+    None => 6,
+}\n");
+}
+
+#[test]
+fn test_match_expr() {
+    assert_eq_fmt!("function_call(match Some(thing) {
+    Some(thing) => 5,
+    None => 6,
+});\n");
+
+    assert_eq_fmt!("let a = match Some(thing) {
+    Some(thing) => 5,
+    None => 6,
+};\n");
 }
