@@ -170,11 +170,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
         // Eat closing brace
         self.next_token();
-
-        // Eat trailing semicolons/commas
-        if self.ftok.tok == Token::Semi || self.ftok.tok == Token::Comma {
-            self.next_token();
-        }
         self.level = intial_level;
     }
 
@@ -222,7 +217,11 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::FatArrow => {
                     self.next_token();
-                    if !self.try_parse_block(Block::Statements) {
+                    if self.try_parse_block(Block::Statements) {
+                        if self.ftok.tok == Token::Comma {
+                            self.next_token();
+                        }
+                    } else {
                         if self.parse_stmt_up_to(|t| *t == Token::Comma) {
                             self.next_token();
                         }
@@ -308,23 +307,15 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         assert!(self.ftok.tok == open);
         self.next_token();
 
-        loop {
-            if self.ftok.tok == Token::Eof {
-                return false;
-            } else if self.ftok.tok == close {
-                self.next_token();
-                return true;
-            } else if let Token::OpenDelim(d) = self.ftok.tok {
-                if !self.parse_delim_pair(d) {
-                    return false;
-                }
-            } else if let Token::CloseDelim(..) = self.ftok.tok {
-                // unmatched delimeter error
-                return false;
-            } else {
-                self.next_token();
-            }
+        self.parse_stmt_up_to(|t| match t {
+            &Token::CloseDelim(_) => true,
+            _ => false,
+        });
+        if self.ftok.tok == close {
+            self.next_token();
+            return true;
         }
+        false
     }
 
     fn parse_decl(&mut self, block: Block) {
@@ -361,7 +352,10 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn parse_stmt(&mut self) {
-        self.parse_stmt_up_to(|_| false);
+        if self.parse_stmt_up_to(|t| *t == Token::Semi) {
+            self.next_token();
+            self.add_line();
+        }
     }
 
     fn parse_stmt_up_to<P>(&mut self, pred: P) -> bool where P: Fn(&Token) -> bool {
@@ -377,11 +371,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Eof => {
                     return false;
                 },
-                Token::Semi => {
-                    self.next_token();
-                    self.add_line();
-                    return false;
-                }
                 Token::CloseDelim(DelimToken::Brace) => {
                     self.add_line();
                     return false;
@@ -389,11 +378,16 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::OpenDelim(DelimToken::Brace) if may_be_struct_init => {
                     self.parse_block(Block::StructInit);
                     // Don't end line, allow more tokens to follow
-                }
+                },
                 Token::OpenDelim(DelimToken::Brace) => {
                     self.parse_block(Block::Statements);
-                    self.add_line();
-                }
+                },
+                Token::OpenDelim(DelimToken::Bracket) => {
+                    self.parse_delim_pair(DelimToken::Bracket);
+                },
+                Token::OpenDelim(DelimToken::Paren) => {
+                    self.parse_delim_pair(DelimToken::Paren);
+                },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
                     self.parse_if_then_else();
                 },

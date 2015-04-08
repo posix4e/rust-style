@@ -116,3 +116,11 @@ fn test_no_unnecessary_replacements_eof() {
     assert_eq!(1, replacements("fn main() {}\n   \t \t   \n\n  \t").len());
 }
 
+#[test]
+fn test_format_array() {
+    let expected = "let mut a = [0; 4];";
+    assert_eq!(fmt(expected), expected);
+
+    let expected = "let mut a = [0; 4];\nlet mut a = [0; 4];";
+    assert_eq!(fmt(expected), expected);
+}
