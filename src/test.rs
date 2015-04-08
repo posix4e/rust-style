@@ -12,16 +12,14 @@ fn replacements(source: &str) -> Vec<Replacement> {
 }
 
 #[test]
-fn test_whitespace_only() {
+fn test_whitespace_only_pass_through() {
     assert_eq!(fmt(""), "");
-    // FIXME: this is broken
-    // assert_eq!(fmt(" "), "");
-    // FIXME: this is broken
-    // assert_eq!(fmt("\t"), "");
+    assert_eq!(fmt(" "), " ");
+    assert_eq!(fmt("\t"), "\t");
     assert_eq!(fmt("\n"), "\n");
-    assert_eq!(fmt("\n\n"), "\n");
-    assert_eq!(fmt(" \n \n "), "\n");
-    assert_eq!(fmt(" \n \n \n\n\t        \t"), "\n");
+    assert_eq!(fmt("\n\n"), "\n\n");
+    assert_eq!(fmt(" \n \n "), " \n \n ");
+    assert_eq!(fmt(" \n \n \n\n\t        \t"), " \n \n \n\n\t        \t");
 }
 
 #[test]
