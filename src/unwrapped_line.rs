@@ -388,7 +388,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::OpenDelim(DelimToken::Brace) if may_be_struct_init => {
                     self.parse_block(Block::StructInit);
-                    self.add_line();
+                    // Don't end line, allow more tokens to follow
                 }
                 Token::OpenDelim(DelimToken::Brace) => {
                     self.parse_block(Block::Statements);

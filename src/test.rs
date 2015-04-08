@@ -94,6 +94,16 @@ fn test_empty_match_block() {
 }
 
 #[test]
+fn test_paren_after_struct_init() {
+    // FIXME: this could change if the struct is put on a single line in future
+    assert_eq!(fmt("let a = hello(Foo { a: 32, b: 50 });"),
+"let a = hello(Foo {
+    a: 32,
+    b: 50
+});");
+}
+
+#[test]
 fn test_no_unnecessary_replacements_eof() {
     assert_eq!(0, replacements("fn main() {}").len());
     assert_eq!(0, replacements("fn main() {}\n").len());
