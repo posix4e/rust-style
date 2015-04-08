@@ -1,14 +1,14 @@
 use replacement::{self, Replacement};
 use std::default::Default;
 
+// TODO: tests using different style options
+
 fn fmt(source: &str) -> String {
-    // TODO: tests using different style options
-    let replacements = super::reformat(source.to_string(), "<stdin>".to_string(), Default::default());
-    replacement::apply(source, &replacements)
+    replacement::apply(source, &replacements(source))
 }
 
 fn replacements(source: &str) -> Vec<Replacement> {
-    super::reformat(source.to_string(), "<stdin>".to_string(), Default::default())
+    super::reformat(source.to_string(), "test".to_string(), Default::default())
 }
 
 #[test]

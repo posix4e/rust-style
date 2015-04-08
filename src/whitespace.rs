@@ -3,8 +3,8 @@ use replacement::Replacement;
 use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
 use syntax::codemap::{Span, BytePos};
-use token::{FormatToken, FormatDecision, FormatTokenLexer};
-use syntax::parse::token::{Token, DelimToken, BinOpToken};
+use token::{FormatToken, FormatDecision};
+use syntax::parse::token::Token;
 
 struct Change {
     create_replacement: bool,
