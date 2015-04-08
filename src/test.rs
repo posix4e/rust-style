@@ -155,11 +155,19 @@ fn test_if_expr_as_arg() {
 }
 
 #[test]
-fn test_if_statements() {
+fn test_if_statement() {
     assert_eq_fmt!("if something {
     let a = 52;
     let c = 72;
 }\n")
+}
+
+#[test]
+fn test_statement_trailing_semi() {
+    assert_eq_fmt!("if something {
+    let a = 52;
+    let c = 72;
+};\n")
 }
 
 #[test]
@@ -203,6 +211,11 @@ fn test_match_expr() {
 });\n");
 
     assert_eq_fmt!("let a = match Some(thing) {
+    Some(thing) => 5,
+    None => 6,
+};\n");
+
+    assert_eq_fmt!("match Some(thing) {
     Some(thing) => 5,
     None => 6,
 };\n");

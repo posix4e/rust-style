@@ -122,10 +122,16 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
                     self.parse_if_then_else();
+                    if self.ftok.tok == Token::Semi {
+                        self.next_token();
+                    }
                     self.add_line();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Match) => {
                     self.parse_match();
+                    if self.ftok.tok == Token::Semi {
+                        self.next_token();
+                    }
                     self.add_line();
                 },
                 _ => {
