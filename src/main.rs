@@ -105,7 +105,10 @@ fn format_source_file(style: FormatStyle, name: String) -> Result<String, String
 fn format_stdin(style: FormatStyle) -> Result<String, String> {
     let name = "<stdin>".to_string();
     let mut source = String::new();
-    stdin().read_to_string(&mut source).unwrap();
+    match stdin().read_to_string(&mut source) {
+        Err(ref e) => return Err(format!("Failed to read stdin: {}", Error::description(e))),
+        Ok(_) => {},
+    }
 
     let replacements = reformat(source.clone(), name, style);
     Ok(replacement::apply(&source, &replacements))
