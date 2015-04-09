@@ -11,7 +11,7 @@ fn replacements(source: &str) -> Vec<Replacement> {
     super::reformat(source.to_string(), "test".to_string(), Default::default())
 }
 
-macro_rules! assert_eq_fmt {
+macro_rules! assert_fmt_eq {
     ($s:expr) => (
         assert_eq!(fmt($s), $s)
     )
@@ -19,13 +19,13 @@ macro_rules! assert_eq_fmt {
 
 #[test]
 fn test_whitespace_only_pass_through() {
-    assert_eq!(fmt(""), "");
-    assert_eq!(fmt(" "), " ");
-    assert_eq!(fmt("\t"), "\t");
-    assert_eq!(fmt("\n"), "\n");
-    assert_eq!(fmt("\n\n"), "\n\n");
-    assert_eq!(fmt(" \n \n "), " \n \n ");
-    assert_eq!(fmt(" \n \n \n\n\t        \t"), " \n \n \n\n\t        \t");
+    assert_fmt_eq!("");
+    assert_fmt_eq!(" ");
+    assert_fmt_eq!("\t");
+    assert_fmt_eq!("\n");
+    assert_fmt_eq!("\n\n");
+    assert_fmt_eq!(" \n \n ");
+    assert_fmt_eq!(" \n \n \n\n\t        \t");
 }
 
 #[test]
@@ -124,13 +124,13 @@ fn test_no_unnecessary_replacements_eof() {
 
 #[test]
 fn test_format_array() {
-    assert_eq_fmt!("let mut a = [0; 4];");
-    assert_eq_fmt!("let mut a = [0; 4];\nlet mut a = [0; 4];");
+    assert_fmt_eq!("let mut a = [0; 4];");
+    assert_fmt_eq!("let mut a = [0; 4];\nlet mut a = [0; 4];");
 }
 
 #[test]
 fn test_comma_in_match_expr_arm() {
-    assert_eq_fmt!("match (a, b, c) {
+    assert_fmt_eq!("match (a, b, c) {
     (a, b, _) => (a, b, b),
     (a, b, c) => (a, b, c),
 }");
@@ -138,7 +138,7 @@ fn test_comma_in_match_expr_arm() {
 
 #[test]
 fn test_semi_after_if_expr() {
-    assert_eq_fmt!("let c = if b.is_some() {
+    assert_fmt_eq!("let c = if b.is_some() {
     Some(55) // Comment so it doesn't collapse
 } else {
     None // Comment so it doesn't collapse
@@ -147,7 +147,7 @@ fn test_semi_after_if_expr() {
 
 #[test]
 fn test_if_expr_as_arg() {
-    assert_eq_fmt!("let a = function_call(if something {
+    assert_fmt_eq!("let a = function_call(if something {
     Some(55) // Comment so it doesn't collapse
 } else {
     None // Comment so it doesn't collapse
@@ -156,7 +156,7 @@ fn test_if_expr_as_arg() {
 
 #[test]
 fn test_if_statement() {
-    assert_eq_fmt!("if something {
+    assert_fmt_eq!("if something {
     let a = 52;
     let c = 72;
 }\n")
@@ -164,7 +164,7 @@ fn test_if_statement() {
 
 #[test]
 fn test_statement_trailing_semi() {
-    assert_eq_fmt!("if something {
+    assert_fmt_eq!("if something {
     let a = 52;
     let c = 72;
 };\n")
@@ -172,7 +172,7 @@ fn test_statement_trailing_semi() {
 
 #[test]
 fn test_if_else_statement() {
-    assert_eq_fmt!("if something {
+    assert_fmt_eq!("if something {
     let a = 52;
     let c = 72;
 } else {
@@ -183,7 +183,7 @@ fn test_if_else_statement() {
 
 #[test]
 fn test_if_else_if_statement() {
-    assert_eq_fmt!("if something {
+    assert_fmt_eq!("if something {
     let a = 52;
     let c = 72;
 } else if something_else {
@@ -197,7 +197,7 @@ fn test_if_else_if_statement() {
 
 #[test]
 fn test_match_statement() {
-    assert_eq_fmt!("match Some(thing) {
+    assert_fmt_eq!("match Some(thing) {
     Some(thing) => 5,
     None => 6,
 }\n");
@@ -205,17 +205,17 @@ fn test_match_statement() {
 
 #[test]
 fn test_match_expr() {
-    assert_eq_fmt!("function_call(match Some(thing) {
+    assert_fmt_eq!("function_call(match Some(thing) {
     Some(thing) => 5,
     None => 6,
 });\n");
 
-    assert_eq_fmt!("let a = match Some(thing) {
+    assert_fmt_eq!("let a = match Some(thing) {
     Some(thing) => 5,
     None => 6,
 };\n");
 
-    assert_eq_fmt!("match Some(thing) {
+    assert_fmt_eq!("match Some(thing) {
     Some(thing) => 5,
     None => 6,
 };\n");
