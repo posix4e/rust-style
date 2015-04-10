@@ -1,10 +1,10 @@
-use style::{UseTabs, FormatStyle};
 use replacement::Replacement;
 use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
+use style::{UseTabs, FormatStyle};
 use syntax::codemap::{Span, BytePos};
-use token::{FormatToken, FormatDecision};
 use syntax::parse::token::Token;
+use token::{FormatToken, FormatDecision};
 
 struct Change {
     create_replacement: bool,

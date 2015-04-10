@@ -1,7 +1,7 @@
+use style::FormatStyle;
 use syntax::codemap::{mk_sp, Span, Pos, BytePos};
 use syntax::parse::lexer::{StringReader, Reader};
 use syntax::parse::token::{self, Token};
-use style::FormatStyle;
 
 #[derive(Copy, Clone, Debug)]
 pub enum FormatDecision {

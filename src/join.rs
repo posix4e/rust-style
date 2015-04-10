@@ -42,6 +42,8 @@ fn try_join_empty_block(lines: &[AnnotatedLine]) -> Option<usize> {
     if join { Some(1) } else { None }
 }
 
+// TODO: more joins
+
 fn join(style: &FormatStyle, mut a: AnnotatedLine, mut b: AnnotatedLine) -> AnnotatedLine {
     assert!(a.children.len() == 0);
     a.tokens.append(&mut b.tokens);
