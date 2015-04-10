@@ -8,7 +8,7 @@ fn fmt(source: &str) -> String {
 }
 
 fn replacements(source: &str) -> Vec<Replacement> {
-    super::reformat(source.to_string(), "test".to_string(), Default::default())
+    super::reformat(source.to_string(), Default::default())
 }
 
 macro_rules! assert_fmt_eq {

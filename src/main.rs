@@ -71,9 +71,11 @@ fn main() {
         }
     } else {
         for name in args.arg_file {
-            match format_source_file(style.clone(), name) {
-                Ok(_) if args.flag_inplace => {
-                    unimplemented!()
+            let path = Path::new(&name);
+            match format_source_file(style.clone(), path) {
+                Ok(ref s) if args.flag_inplace => {
+                    let mut file = File::create(path).unwrap();
+                    write!(file, "{}", s).unwrap();
                 },
                 Ok(s) | Err(s) => {
                     write!(&mut stdout(), "{}", s).unwrap();
@@ -83,9 +85,8 @@ fn main() {
     }
 }
 
-fn format_source_file(style: FormatStyle, name: String) -> Result<String, String> {
+fn format_source_file(style: FormatStyle, path: &Path) -> Result<String, String> {
     let source = {
-        let path = Path::new(&name);
         let mut file = match File::open(path) {
             Err(_) => return Err(format!("Couldn't open file: {}", path.display())),
             Ok(file) => file,
@@ -98,27 +99,28 @@ fn format_source_file(style: FormatStyle, name: String) -> Result<String, String
         }
     };
 
-    let replacements = reformat(source.clone(), name, style);
+    let replacements = reformat(source.clone(), style);
     Ok(replacement::apply(&source, &replacements))
 }
 
 fn format_stdin(style: FormatStyle) -> Result<String, String> {
-    let name = "<stdin>".to_string();
     let mut source = String::new();
     match stdin().read_to_string(&mut source) {
         Err(ref e) => return Err(format!("Failed to read stdin: {}", Error::description(e))),
         Ok(_) => {},
     }
 
-    let replacements = reformat(source.clone(), name, style);
+    let replacements = reformat(source.clone(), style);
     Ok(replacement::apply(&source, &replacements))
 }
 
-fn reformat(source: String, name: String, style: FormatStyle) -> Vec<Replacement> {
+fn reformat(source: String, style: FormatStyle) -> Vec<Replacement> {
     if source.chars().all(char::is_whitespace) {
         return vec![];
     }
 
+    // FIXME: Determine if a real name is actually needed
+    let name = "".to_string();
     let session = syntax::parse::new_parse_sess();
     let filemap = syntax::parse::string_to_filemap(&session, source, name);
     let lexer = syntax::parse::lexer::StringReader::new(&session.span_diagnostic, filemap);
