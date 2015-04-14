@@ -2,15 +2,23 @@ use std::mem;
 use syntax::codemap::{mk_sp, BytePos};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken};
-use token::{FormatToken, FormatTokenLexer, FormatDecision};
+use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType};
 
 // An unwrapped line is a sequence of FormatTokens, that we would like to
 // put on a single line if there was no column limit. Changing the formatting
 // within an unwrapped line does not affect any other unwrapped lines.
+#[derive(Debug)]
 pub struct UnwrappedLine {
     pub tokens: Vec<FormatToken>,
     pub children: Vec<UnwrappedLine>,
     pub level: u32,
+    pub typ: LineType,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum LineType {
+    Use,
+    Unknown,
 }
 
 impl UnwrappedLine {
@@ -27,6 +35,12 @@ impl UnwrappedLine {
                 newlines_before: 0,
                 original_column: 0,
                 decision: FormatDecision::Unformatted,
+                split_penalty: 0,
+                column_width: 0,
+                spaces_required_before: 0,
+                typ: TokenType::Unknown,
+                can_break_before: false,
+                must_break_before: false,
             },
             line: vec![],
             level_stack: vec![],
@@ -40,6 +54,18 @@ impl UnwrappedLine {
         assert!(parser.comments_before_next_token.is_empty());
         assert!(parser.level_stack.is_empty());
         parser.output
+    }
+
+    pub fn next_non_comment_token(&self, index: usize) -> Option<&FormatToken> {
+        self.tokens[index + 1..].iter()
+            .filter(|t| match t.tok { Token::Comment => false, _ => true })
+            .next()
+    }
+
+    pub fn prev_non_comment_token(&self, index: usize) -> Option<&FormatToken> {
+        self.tokens[..index].iter().rev()
+            .filter(|t| match t.tok { Token::Comment => false, _ => true })
+            .next()
     }
 }
 
@@ -93,14 +119,24 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::CloseDelim(DelimToken::Brace) => {
                     break;
                 },
+                Token::OpenDelim(DelimToken::Brace) => {
+                    self.parse_block(Block::Statements);
+                    self.add_line();
+                },
                 Token::Pound => {
                     self.parse_attribute();
+                },
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Use) => {
+                    self.parse_use();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Loop) => {
                     self.parse_loop();
                 },
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Use) => {
-                    self.parse_use();
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::For) => {
+                    self.parse_loop();
+                },
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::While) => {
+                    self.parse_loop();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Fn) => {
                     self.parse_decl(Block::Statements);
@@ -184,6 +220,11 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
         // Eat closing brace
         self.next_token();
+
+        while self.ftok.tok == Token::Semi {
+            self.next_token();
+        }
+
         self.level = intial_level;
     }
 
@@ -288,10 +329,16 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn parse_loop(&mut self) {
-        assert!(self.ftok.tok.is_keyword(Keyword::Loop), "expected 'loop'");
+        let is_for = self.ftok.tok.is_keyword(Keyword::For);
+        let is_while = self.ftok.tok.is_keyword(Keyword::While);
+        let is_loop = self.ftok.tok.is_keyword(Keyword::Loop);
+        assert!(is_for || is_while || is_loop, "expected 'loop' or 'for' or 'while'");
+
         self.next_token();
-        if self.try_parse_block(Block::Statements) {
-            self.add_line();
+        if self.parse_stmt_up_to(|t| *t == Token::OpenDelim(DelimToken::Brace)) {
+            if self.try_parse_block(Block::Statements) {
+                self.add_line();
+            }
         }
     }
 
@@ -483,6 +530,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             tokens: mem::replace(&mut self.line, vec![]),
             level: self.level,
             children: vec![],
+            typ: LineType::Unknown,
         }
     }
 

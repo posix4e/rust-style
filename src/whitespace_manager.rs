@@ -100,7 +100,6 @@ impl WhitespaceManager {
         });
 
         // TODO:
-        // self.calculate_line_break_information(&mut changes);
         // self.align_trailing_comments();
 
         for c in changes {

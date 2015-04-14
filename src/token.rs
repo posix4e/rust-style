@@ -1,17 +1,29 @@
-use style::FormatStyle;
+use style::{FormatStyle, Penalty};
 use syntax::codemap::{mk_sp, Span, Pos, BytePos};
 use syntax::parse::lexer::{StringReader, Reader};
 use syntax::parse::token::{self, Token};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FormatDecision {
   Unformatted,
   Continue,
   Break,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TokenType {
+    Pointer,
+    BinaryOperator,
+    UnaryOperator,
+    LambdaArgsStart,
+    LambdaArgsEnd,
+    Unknown
+}
+
+
 #[derive(Clone, Debug)]
 pub struct FormatToken {
+    pub typ: TokenType,
     pub tok: Token,
     pub span: Span,
     pub preceding_whitespace_span: Span,
@@ -19,6 +31,11 @@ pub struct FormatToken {
     pub newlines_before: u32,
     pub original_column: u32,
     pub decision: FormatDecision,
+    pub split_penalty: Penalty,
+    pub column_width: u32,
+    pub spaces_required_before: u32,
+    pub can_break_before: bool,
+    pub must_break_before: bool,
 }
 
 impl FormatToken {
@@ -98,7 +115,13 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             }
         }
 
+        let mut column_width = 0;
+        for _ in self.span_str(tok_sp.sp).chars() {
+            column_width += 1;
+        }
+
         let token = FormatToken {
+            typ: TokenType::Unknown,
             tok: tok_sp.tok,
             span: tok_sp.sp,
             preceding_whitespace_span: mk_sp(self.previous_token_span.hi, tok_sp.sp.lo),
@@ -106,11 +129,14 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             newlines_before: newlines_before,
             original_column: column,
             decision: FormatDecision::Unformatted,
+            split_penalty: 0,
+            column_width: column_width,
+            spaces_required_before: 0,
+            can_break_before: false,
+            must_break_before: false,
         };
 
-        for _ in self.span_str(tok_sp.sp).chars() {
-            column += 1;
-        }
+        column += column_width;
 
         self.column = column;
         self.eof = token.tok == token::Eof;

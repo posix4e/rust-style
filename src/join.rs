@@ -1,8 +1,8 @@
-use annotated_line::AnnotatedLine;
 use style::FormatStyle;
 use syntax::parse::token::{Token, DelimToken};
+use unwrapped_line::UnwrappedLine;
 
-pub fn join_lines(style: &FormatStyle, lines: Vec<AnnotatedLine>) -> Vec<AnnotatedLine> {
+pub fn join_lines(style: &FormatStyle, lines: Vec<UnwrappedLine>) -> Vec<UnwrappedLine> {
     let mut joins = vec![];
     let mut i = 0;
     while i < lines.len() {
@@ -34,7 +34,7 @@ pub fn join_lines(style: &FormatStyle, lines: Vec<AnnotatedLine>) -> Vec<Annotat
 }
 
 
-fn try_join_empty_block(lines: &[AnnotatedLine]) -> Option<usize> {
+fn try_join_empty_block(lines: &[UnwrappedLine]) -> Option<usize> {
     let join = lines.len() >= 2 &&
         lines[0].children.is_empty() &&
         lines[0].tokens.last().unwrap().tok == Token::OpenDelim(DelimToken::Brace) &&
@@ -44,13 +44,15 @@ fn try_join_empty_block(lines: &[AnnotatedLine]) -> Option<usize> {
 
 // TODO: more joins
 
-fn join(style: &FormatStyle, mut a: AnnotatedLine, mut b: AnnotatedLine) -> AnnotatedLine {
+fn join(style: &FormatStyle, mut a: UnwrappedLine, mut b: UnwrappedLine) -> UnwrappedLine {
     assert!(a.children.len() == 0);
+    assert!(a.typ == b.typ);
     a.tokens.append(&mut b.tokens);
 
-    AnnotatedLine {
+    UnwrappedLine {
         tokens: a.tokens,
         level: a.level,
         children: b.children,
+        typ: a.typ
     }
 }

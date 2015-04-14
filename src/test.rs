@@ -11,11 +11,11 @@ fn replacements(source: &str) -> Vec<Replacement> {
     super::reformat(source.to_string(), Default::default())
 }
 
-macro_rules! assert_fmt_eq {
+macro_rules! assert_fmt_eq (
     ($s:expr) => (
         assert_eq!(fmt($s), $s)
     )
-}
+);
 
 #[test]
 fn test_whitespace_only_pass_through() {
@@ -219,4 +219,78 @@ fn test_match_expr() {
     Some(thing) => 5,
     None => 6,
 };\n");
+}
+
+#[test]
+fn test_code_block() {
+    assert_fmt_eq!("let a = 2;
+{
+    let b = 5;
+    let c = 6;
+    let d = 5;
+}
+let e = 5;");
+}
+
+#[test]
+fn test_token_spacing() {
+    assert_fmt_eq!("for i in 5..10 {\n    let b = i;\n}");
+    assert_fmt_eq!("let foo = bar.something;");
+    assert_fmt_eq!("let foo = bar.something();");
+    assert_fmt_eq!("let foo = bar.some.thing();");
+    assert_fmt_eq!("let foo = self.something();");
+    assert_fmt_eq!("self.ftok.tok == Token::Eof");
+    assert_fmt_eq!("use syntax::parse::token;");
+    assert_fmt_eq!("use syntax::parse::token::{Token, DelimToken, BinOpToken};");
+    assert_fmt_eq!("use syntax::parse::token::{self, DelimToken, BinOpToken};");
+    assert_fmt_eq!("pub use syntax::parse::token::{self, DelimToken, BinOpToken};");
+    assert_fmt_eq!("let foo: &mut u32 = &mut 5");
+    assert_fmt_eq!("let foo = &mut 5");
+    assert_fmt_eq!("let a: &u32 = &5;");
+    assert_fmt_eq!("let a = &5;");
+    assert_fmt_eq!("self.level += 1;");
+    assert_fmt_eq!("&63");
+    assert_fmt_eq!("let b = func(&3, &2)");
+    assert_fmt_eq!("Some(32).map(|a| a * 2)");
+    assert_fmt_eq!("fn foo() -> u32 {}");
+    assert_fmt_eq!("let a = 5 + 2 * 3 + 312. (5 * 2) / 1.5 / (123 + 62.21)");
+    assert_fmt_eq!("let a = *fred;");
+    assert_fmt_eq!("AnnotatingParser {
+    line: line,
+    context: vec![],
+}.parse_line();");
+    assert_fmt_eq!("token.is_any_keyword() && !token.is_keyword(Keyword::SelfType)");
+    assert_fmt_eq!("replacements.retain(|r| r.text != lexer.src_str(r.start_byte, r.end_byte));");
+    assert_fmt_eq!("a < b && c <= d && e > f && g >= h && i == j && k != l");
+    assert_fmt_eq!("fn hi<T>() {}");
+    assert_fmt_eq!("fn hi<T, Y>() {}");
+    assert_fmt_eq!("fn hi<'a>() {}");
+    assert_fmt_eq!("fn hi(something: Here<T>) {}");
+    assert_fmt_eq!("fn hi<'a>(something: Here<'a>) {}");
+    assert_fmt_eq!("struct Foo<T> {\n    something: Bar<T>\n");
+    assert_fmt_eq!("struct Foo<T, Y> {\n    something: Bar<T, Y>\n}");
+}
+
+#[test]
+fn test_for_loop_indentation() {
+    assert_fmt_eq!("for a in b {
+    let cccc = dd;
+    let ee = fffff;
+}
+let j = k;");
+}
+
+#[test]
+fn test_attribute_on_function() {
+    assert_fmt_eq!("#[test]\nfn test_attribute_on_function() {}");
+}
+
+#[test]
+fn test_unneeded_semi_after_while_loop_on_same_line() {
+    assert_fmt_eq!("while !g.load(SeqCst) {};");
+}
+
+#[test]
+fn test_crate_attributes() {
+    assert_fmt_eq!("#![feature(rustc_private)]\n#![feature(collections)]");
 }

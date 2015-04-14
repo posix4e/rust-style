@@ -1,23 +1,24 @@
 #![feature(rustc_private)]
 #![feature(collections)]
 
+extern crate arena;
 extern crate syntax;
 extern crate rustc_serialize;
 extern crate docopt;
 
-mod annotated_line;
+mod annotate;
+mod continuation_indenter;
 mod format;
 mod join;
 mod replacement;
 mod style;
 mod token;
 mod unwrapped_line;
-mod whitespace;
+mod whitespace_manager;
 
 #[cfg(test)]
 mod test;
 
-use annotated_line::AnnotatedLine;
 use docopt::Docopt;
 use replacement::Replacement;
 use std::default::Default;
@@ -126,11 +127,12 @@ fn reformat(source: String, style: FormatStyle) -> Vec<Replacement> {
     let lexer = syntax::parse::lexer::StringReader::new(&session.span_diagnostic, filemap);
 
     let lexer = &mut FormatTokenLexer::new(lexer, style.clone());
-    let lines = UnwrappedLine::parse_lines(lexer);
-    let lines = AnnotatedLine::from_unwrapped_lines(lines);
+    let mut lines = UnwrappedLine::parse_lines(lexer);
+    annotate::annotate_lines(&mut lines[..], &style);
     let mut lines = join::join_lines(&style, lines);
 
     let mut replacements = format::format(style, &mut lines);
+    // TODO: check for replacement duplicatess somewhere
     // Remove replacements that do not change anything
     replacements.retain(|r| r.text != lexer.src_str(r.start_byte, r.end_byte));
     replacements
