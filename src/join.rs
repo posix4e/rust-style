@@ -46,13 +46,13 @@ fn try_join_empty_block(lines: &[UnwrappedLine]) -> Option<usize> {
 
 fn join(style: &FormatStyle, mut a: UnwrappedLine, mut b: UnwrappedLine) -> UnwrappedLine {
     assert!(a.children.len() == 0);
-    assert!(a.typ == b.typ);
     a.tokens.append(&mut b.tokens);
 
     UnwrappedLine {
         tokens: a.tokens,
         level: a.level,
         children: b.children,
+        // FIXME: should the new type be something else? Or unknown?
         typ: a.typ
     }
 }

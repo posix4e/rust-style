@@ -18,6 +18,11 @@ pub struct UnwrappedLine {
 #[derive(Debug, Eq, PartialEq)]
 pub enum LineType {
     Use,
+    StructDecl,
+    EnumDecl,
+    ImplDecl,
+    TraitDecl,
+    FnDecl,
     Unknown,
 }
 

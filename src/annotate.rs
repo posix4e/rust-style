@@ -26,7 +26,9 @@ struct AnnotatingParser<'a> {
 
 #[derive(Eq, PartialEq)]
 enum Context {
-    LambdaArgs
+    LambdaArgs,
+    Generics,
+    Type,
 }
 
 impl<'a> AnnotatingParser<'a> {
@@ -43,6 +45,11 @@ impl<'a> AnnotatingParser<'a> {
             let tok = &ftok.tok;
             match tok {
                 &Token::Ident(..) if tok.is_keyword(Keyword::Use) => return LineType::Use,
+                &Token::Ident(..) if tok.is_keyword(Keyword::Struct) => return LineType::StructDecl,
+                &Token::Ident(..) if tok.is_keyword(Keyword::Enum) => return LineType::EnumDecl,
+                &Token::Ident(..) if tok.is_keyword(Keyword::Impl) => return LineType::ImplDecl,
+                &Token::Ident(..) if tok.is_keyword(Keyword::Trait) => return LineType::TraitDecl,
+                &Token::Ident(..) if tok.is_keyword(Keyword::Fn) => return LineType::FnDecl,
                 _ => {},
             }
         }
@@ -67,6 +74,37 @@ impl<'a> AnnotatingParser<'a> {
             (_, &Token::BinOp(BinOpToken::Or), _) if self.context.last() == Some(&Context::LambdaArgs) => {
                 self.context.pop();
                 TokenType::LambdaArgsEnd
+            }
+
+
+            (_, &Token::Lt, _) if self.line.typ == LineType::StructDecl ||
+                                  self.line.typ == LineType::EnumDecl  ||
+                                  self.line.typ == LineType::ImplDecl ||
+                                  self.line.typ == LineType::TraitDecl ||
+                                  self.line.typ == LineType::FnDecl ||
+                                  match prev_tok { Some(&Token::ModSep) => true, _ => false } ||
+                                  self.context.last() == Some(&Context::Type) ||
+                                  self.context.last() == Some(&Context::Generics) => {
+                self.context.push(Context::Generics);
+                TokenType::GenericBracket
+            }
+
+            (_, &Token::Gt, _) |
+            (_, &Token::BinOp(BinOpToken::Shr), _) if self.context.last() == Some(&Context::Generics) => {
+                self.context.pop();
+                TokenType::GenericBracket
+            }
+
+            (_, &Token::Colon, _) if self.context.last() != Some(&Context::Generics) => {
+                self.context.push(Context::Type);
+                TokenType::Unknown
+            }
+
+            (_, &Token::Semi, _) |
+            (_, &Token::Comma, _) |
+            (_, &Token::CloseDelim(..), _) if self.context.last() == Some(&Context::Type) => {
+                self.context.pop();
+                TokenType::Unknown
             }
 
             _ => TokenType::Unknown,
@@ -140,6 +178,15 @@ fn space_required_before(line: &UnwrappedLine,
         (_, &Token::DotDotDot) |
         (&Token::DotDotDot, _) => false,
 
+        (&Token::Lt, _) if prev.typ == TokenType::GenericBracket => false,
+        (_, &Token::Lt) if curr.typ == TokenType::GenericBracket => false,
+        (&Token::Gt, _) |
+        (&Token::BinOp(BinOpToken::Shr), _)
+            if prev.typ == TokenType::GenericBracket &&
+               curr.tok != Token::OpenDelim(DelimToken::Brace) => false,
+        (_, &Token::Gt) |
+        (_, &Token::BinOp(BinOpToken::Shr)) if curr.typ == TokenType::GenericBracket => false,
+
         (_, &Token::OpenDelim(DelimToken::Brace)) |
         (&Token::OpenDelim(DelimToken::Brace), _) |
         (_, &Token::CloseDelim(DelimToken::Brace)) |
@@ -186,7 +233,8 @@ fn space_required_before(line: &UnwrappedLine,
         (&Token::OrOr, _) |
         (_, &Token::OrOr) |
         (&Token::Literal(..), _) |
-        (_, &Token::Literal(..)) => true,
+        (_, &Token::Literal(..)) |
+        (&Token::Lifetime(..), &Token::Ident(..)) => true,
 
         (&Token::Ident(..), _) if is_spaced_keyword(&prev.tok) => true,
         (_, &Token::Ident(..)) if is_spaced_keyword(&curr.tok) => true,
@@ -226,7 +274,6 @@ fn can_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken
 
 fn split_penalty(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> Penalty {
     match (&prev.tok, &curr.tok) {
-        (&Token::Semi, _) => 0,
         (&Token::Comma, _) => 1,
         (&Token::Eq, &Token::OpenDelim(DelimToken::Brace)) => 100,
         (&Token::ModSep, _) => 500,

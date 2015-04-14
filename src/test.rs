@@ -264,11 +264,15 @@ fn test_token_spacing() {
     assert_fmt_eq!("a < b && c <= d && e > f && g >= h && i == j && k != l");
     assert_fmt_eq!("fn hi<T>() {}");
     assert_fmt_eq!("fn hi<T, Y>() {}");
+    assert_fmt_eq!("fn hi<T, Y: T>() {}");
     assert_fmt_eq!("fn hi<'a>() {}");
     assert_fmt_eq!("fn hi(something: Here<T>) {}");
     assert_fmt_eq!("fn hi<'a>(something: Here<'a>) {}");
-    assert_fmt_eq!("struct Foo<T> {\n    something: Bar<T>\n");
+    assert_fmt_eq!("struct Foo<T> {\n    something: Bar<T>\n}");
     assert_fmt_eq!("struct Foo<T, Y> {\n    something: Bar<T, Y>\n}");
+    assert_fmt_eq!("struct Foo<T, Y> {\n    something: Bar<T<Y>>\n}");
+    assert_fmt_eq!("let a = someting::<T>();");
+    assert_fmt_eq!("fn foot<'a>(t: &'a Bar) {}");
 }
 
 #[test]

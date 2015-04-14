@@ -17,6 +17,7 @@ pub enum TokenType {
     UnaryOperator,
     LambdaArgsStart,
     LambdaArgsEnd,
+    GenericBracket,
     Unknown
 }
 
