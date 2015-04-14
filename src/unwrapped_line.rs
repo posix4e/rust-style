@@ -220,11 +220,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
         // Eat closing brace
         self.next_token();
-
-        while self.ftok.tok == Token::Semi {
-            self.next_token();
-        }
-
         self.level = intial_level;
     }
 
@@ -321,6 +316,11 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     fn parse_attribute(&mut self) {
         assert!(self.ftok.tok == Token::Pound, "expected '#'");
         self.next_token();
+
+        if self.ftok.tok == Token::Not {
+            self.next_token();
+        }
+
         if self.ftok.tok == Token::OpenDelim(DelimToken::Bracket) {
             if self.parse_delim_pair(DelimToken::Bracket) {
                 self.add_line();

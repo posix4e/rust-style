@@ -286,11 +286,6 @@ fn test_attribute_on_function() {
 }
 
 #[test]
-fn test_unneeded_semi_after_while_loop_on_same_line() {
-    assert_fmt_eq!("while !g.load(SeqCst) {};");
-}
-
-#[test]
 fn test_crate_attributes() {
     assert_fmt_eq!("#![feature(rustc_private)]\n#![feature(collections)]");
 }
