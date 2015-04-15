@@ -292,4 +292,5 @@ fn test_attribute_on_function() {
 #[test]
 fn test_crate_attributes() {
     assert_fmt_eq!("#![feature(rustc_private)]\n#![feature(collections)]");
+    assert_fmt_eq!("#![feature(rustc_private)]\n#![feature(collections)]\n\nfn hi() {}");
 }
