@@ -115,6 +115,10 @@ impl<'a> AnnotatingParser<'a> {
         let prev_tok = prev.map(|t| &t.tok);
         let next_tok = next.map(|t| &t.tok);
 
+        // FIXME: match shouldnt be required, I think the compiler was bugging out
+        //        when I tried to use the == operator? Maybe not.
+        let prev_is_mod_sep = match prev_tok { Some(&Token::ModSep) => true, _ => false };
+
         match (prev_tok, &curr.tok, next_tok) {
             (_, &Token::BinOp(BinOpToken::And), _) if self.context_is(&Context::Type) => TokenType::Pointer,
             (_, &Token::BinOp(BinOpToken::Star), _) if unary_follows(prev) => TokenType::UnaryOperator,
@@ -134,7 +138,7 @@ impl<'a> AnnotatingParser<'a> {
                                   line.typ == LineType::ImplDecl ||
                                   line.typ == LineType::TraitDecl ||
                                   line.typ == LineType::FnDecl ||
-                                  match prev_tok { Some(&Token::ModSep) => true, _ => false } ||
+                                  prev_is_mod_sep ||
                                   self.context_is(&Context::Type) ||
                                   self.context_is(&Context::Generics) => {
                 self.push_context(Context::Generics);

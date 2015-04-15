@@ -302,6 +302,27 @@ fn test_extern_crate() {
 }
 
 #[test]
+fn test_mod() {
+    assert_fmt_eq!("mod abc;");
+    assert_fmt_eq!("mod abc;\nmod def;");
+    assert_fmt_eq!("mod aaa;\nmod bbb;\nmod ccc as ddd;");
+    assert_fmt_eq!("#[cfg(test)]
+mod tests {
+    extern crate test;
+    use self::test::Bencher;
+    use super::{Arena, TypedArena};
+
+    #[allow(dead_code)]
+    struct Point {
+        x: i32,
+        y: i32,
+        z: i32,
+    }
+
+}");
+}
+
+#[test]
 fn test_unsafe_fn() {
     assert_fmt_eq!("unsafe fn destroy_chunk(chunk: &Chunk) {
     let mut idx = 0;

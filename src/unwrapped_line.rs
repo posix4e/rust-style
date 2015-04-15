@@ -133,6 +133,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Pound => {
                     self.parse_attribute();
                 },
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Mod) => {
+                    self.parse_mod();
+                },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Use) => {
                     self.parse_use();
                 },
@@ -369,6 +372,24 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    fn parse_mod(&mut self) {
+        assert!(self.ftok.tok.is_keyword(Keyword::Mod), "expected 'mod'");
+        self.next_token();
+        self.parse_stmt_up_to(|t| {
+            *t == Token::OpenDelim(DelimToken::Brace) || *t == Token::Semi
+        });
+        match self.ftok.tok {
+            Token::Semi => {
+                self.next_token();
+                self.end_line();
+            },
+            Token::OpenDelim(DelimToken::Brace) => {
+                self.parse_block(Block::Statements);
+                self.end_line();
+            }
+            _ => {},
+        }
+    }
 
     fn parse_delim_pair(&mut self, delim: DelimToken) -> bool {
         let open = Token::OpenDelim(delim);
