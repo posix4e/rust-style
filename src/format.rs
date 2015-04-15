@@ -2,7 +2,7 @@ use arena::TypedArena;
 use continuation_indenter::ContinuationIndenter;
 use replacement::Replacement;
 use std::cmp::{self, Ordering};
-use std::collections::{VecMap, BinaryHeap, HashSet};
+use std::collections::{BinaryHeap, HashSet};
 use style::{FormatStyle, Penalty};
 use syntax::parse::token::{Token, DelimToken};
 use token::{FormatToken, FormatDecision};
