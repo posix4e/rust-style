@@ -269,6 +269,9 @@ fn space_required_before(line: &UnwrappedLine,
         (&Token::BinOp(BinOpToken::Or), _) if prev.typ == TokenType::LambdaArgsStart => false,
         (_, &Token::BinOp(BinOpToken::Or)) if curr.typ == TokenType::LambdaArgsEnd => false,
 
+        (_, &Token::BinOp(BinOpToken::Star)) if line.typ == LineType::Use => false,
+        (&Token::BinOp(BinOpToken::Star), _) if line.typ == LineType::Use => false,
+
         (&Token::OpenDelim(DelimToken::Brace), _) |
         (_, &Token::OpenDelim(DelimToken::Brace)) |
         (&Token::CloseDelim(DelimToken::Brace), _) |

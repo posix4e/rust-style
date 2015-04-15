@@ -276,6 +276,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("impl<T> TypedArenaChunk<T> {}");
     assert_fmt_eq!("fn foo(b: &Bar) -> &Baz {}");
     assert_fmt_eq!("let a = 5 & 6;");
+    assert_fmt_eq!("pub use self::Diagnostic::*;");
 }
 
 #[test]
