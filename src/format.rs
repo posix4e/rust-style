@@ -5,7 +5,7 @@ use std::cmp::{self, Ordering};
 use std::collections::{VecMap, BinaryHeap, HashSet};
 use style::{FormatStyle, Penalty};
 use syntax::parse::token::{Token, DelimToken};
-use token::FormatDecision;
+use token::{FormatToken, FormatDecision};
 use unwrapped_line::UnwrappedLine;
 use whitespace_manager::WhitespaceManager;
 
@@ -194,6 +194,13 @@ impl<'a> LineFormatter<'a> {
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub struct ParenState {
+    pub indent: u32,
+    pub indent_level: u32,
+    pub contains_line_break: bool,
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct LineState {
     // The index of the token that needs to be next formatted.
     pub next_token_index: usize,
@@ -201,11 +208,33 @@ pub struct LineState {
     pub column: u32,
     // The indent of the first token
     pub first_indent: u32,
+    // A stack keeping track of properties applying to parenthesis.
+    pub stack: Vec<ParenState>,
 }
 
 impl LineState {
     fn path_complete(&self, line: &UnwrappedLine) -> bool {
         self.next_token_index >= line.tokens.len()
+    }
+
+    pub fn stack_top(&self) -> &ParenState {
+        self.stack.last().unwrap()
+    }
+
+    pub fn stack_top_mut(&mut self) -> &mut ParenState {
+        self.stack.last_mut().unwrap()
+    }
+
+    pub fn current_mut<'a>(&self, line: &'a mut UnwrappedLine) -> &'a mut FormatToken {
+        &mut line.tokens[self.next_token_index]
+    }
+
+    pub fn current<'a>(&'a self, line: &'a UnwrappedLine) -> &'a FormatToken {
+        &line.tokens[self.next_token_index]
+    }
+
+    pub fn previous<'a>(&'a self, line: &'a UnwrappedLine) -> &'a FormatToken {
+        &line.tokens[self.next_token_index - 1]
     }
 }
 

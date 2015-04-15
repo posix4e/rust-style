@@ -37,6 +37,8 @@ pub struct FormatToken {
     pub spaces_required_before: u32,
     pub can_break_before: bool,
     pub must_break_before: bool,
+    pub binding_strength: Penalty,
+    pub matching_paren_index: Option<usize>,
 }
 
 impl FormatToken {
@@ -135,6 +137,8 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             spaces_required_before: 0,
             can_break_before: false,
             must_break_before: false,
+            binding_strength: 0,
+            matching_paren_index: None,
         };
 
         column += column_width;

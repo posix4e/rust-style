@@ -46,6 +46,8 @@ impl UnwrappedLine {
                 typ: TokenType::Unknown,
                 can_break_before: false,
                 must_break_before: false,
+                binding_strength: 0,
+                matching_paren_index: None,
             },
             line: vec![],
             level_stack: vec![],
