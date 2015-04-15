@@ -329,8 +329,9 @@ fn can_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken
         (&Token::BinOp(..), _) |
         (&Token::Comma, _) |
         (_, &Token::RArrow) |
-        (&Token::ModSep, _) |
-        (&Token::FatArrow, _) => true,
+        (&Token::FatArrow, _) |
+        // FIXME: dots should only break on method calls
+        (_, &Token::Dot) => true,
         _ => false,
     }
 }
@@ -339,7 +340,7 @@ fn split_penalty(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -
     match (&prev.tok, &curr.tok) {
         (&Token::Comma, _) => 1,
         (&Token::Eq, _) => 100,
-        (&Token::ModSep, _) => 500,
+        (_, &Token::Dot) => 10,
         (_, &Token::OpenDelim(DelimToken::Brace)) => 1,
         _ => 3,
     }
