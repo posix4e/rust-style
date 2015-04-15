@@ -163,6 +163,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) => {
                     self.next_token();
                 },
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Unsafe) => {
+                    self.next_token();
+                },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
                     self.parse_if_then_else();
                     if self.ftok.tok == Token::Semi {

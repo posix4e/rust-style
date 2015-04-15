@@ -294,3 +294,23 @@ fn test_crate_attributes() {
     assert_fmt_eq!("#![feature(rustc_private)]\n#![feature(collections)]");
     assert_fmt_eq!("#![feature(rustc_private)]\n#![feature(collections)]\n\nfn hi() {}");
 }
+
+#[test]
+fn test_extern_crate() {
+    assert_fmt_eq!("extern crate std;\nfn hello() {}");
+    assert_fmt_eq!("extern crate abc;\nextern crate def;\nfn hello() {}");
+}
+
+#[test]
+fn test_unsafe_fn() {
+    assert_fmt_eq!("unsafe fn destroy_chunk(chunk: &Chunk) {
+    let mut idx = 0;
+    let buf = chunk.as_ptr();
+    let fill = chunk.fill.get();
+}
+
+fn another_function() {
+    let a = 2;
+    let b = 5;
+}");
+}
