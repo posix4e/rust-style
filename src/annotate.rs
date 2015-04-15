@@ -132,7 +132,6 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::LambdaArgsEnd
             }
 
-
             (_, &Token::Lt, _) if line.typ == LineType::StructDecl ||
                                   line.typ == LineType::EnumDecl  ||
                                   line.typ == LineType::ImplDecl ||
@@ -151,6 +150,10 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::GenericBracket
             }
 
+            (_, &Token::RArrow, _) => {
+                self.push_context(Context::Type);
+                TokenType::Unknown
+            }
             (_, &Token::Colon, _) if !self.context_is(&Context::Generics) => {
                 self.push_context(Context::Type);
                 TokenType::Unknown
@@ -158,6 +161,7 @@ impl<'a> AnnotatingParser<'a> {
 
             (_, &Token::Semi, _) |
             (_, &Token::Comma, _) |
+            (_, &Token::OpenDelim(DelimToken::Brace), _) |
             (_, &Token::CloseDelim(..), _) if self.context_is(&Context::Type) => {
                 self.pop_context();
                 TokenType::Unknown
