@@ -273,6 +273,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("struct Foo<T, Y> {\n    something: Bar<T<Y>>\n}");
     assert_fmt_eq!("let a = someting::<T>();");
     assert_fmt_eq!("fn foot<'a>(t: &'a Bar) {}");
+    assert_fmt_eq!("impl<T> TypedArenaChunk<T> {}");
 }
 
 #[test]

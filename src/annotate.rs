@@ -249,7 +249,8 @@ fn space_required_before(line: &UnwrappedLine,
         (&Token::Gt, _) |
         (&Token::BinOp(BinOpToken::Shr), _)
             if prev.typ == TokenType::GenericBracket &&
-               curr.tok != Token::OpenDelim(DelimToken::Brace) => false,
+               curr.tok != Token::OpenDelim(DelimToken::Brace) &&
+               !curr.tok.is_ident()  => false,
         (_, &Token::Gt) |
         (_, &Token::BinOp(BinOpToken::Shr)) if curr.typ == TokenType::GenericBracket => false,
 
