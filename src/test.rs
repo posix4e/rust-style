@@ -338,3 +338,23 @@ fn another_function() {
     let b = 5;
 }");
 }
+
+#[test]
+fn test_static_value() {
+    assert_fmt_eq!("\
+extern {
+    pub static LLVMRustDebugMetadataVersion: u32;
+
+    pub fn LLVMRustAddModuleFlag(M: ModuleRef);
+}
+");
+}
+
+#[test]
+fn test_const_value() {
+    assert_fmt_eq!("\
+pub const INFINITY: f32 = 1;
+
+pub const NEG_INFINITY: f32 = 2;
+");
+}

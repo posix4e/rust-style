@@ -21,7 +21,6 @@ pub enum TokenType {
     Unknown
 }
 
-
 #[derive(Clone, Debug)]
 pub struct FormatToken {
     pub typ: TokenType,
