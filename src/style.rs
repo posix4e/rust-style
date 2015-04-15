@@ -17,7 +17,6 @@ pub struct FormatStyle {
     pub continuation_indent_width: u32,
     pub use_tabs: UseTabs,
     pub max_empty_lines_to_keep: u32,
-    pub keep_empty_lines_at_the_start_of_blocks: bool,
     pub penalty_excess_character: Penalty,
 }
 
@@ -30,7 +29,6 @@ impl Default for FormatStyle {
             continuation_indent_width: 4,
             use_tabs: UseTabs::Never,
             max_empty_lines_to_keep: 1,
-            keep_empty_lines_at_the_start_of_blocks: false,
             penalty_excess_character: 1000000,
         }
     }
