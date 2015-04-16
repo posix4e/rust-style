@@ -23,6 +23,7 @@ pub enum LineType {
     ImplDecl,
     TraitDecl,
     FnDecl,
+    TypeDecl,
     Unknown,
 }
 
@@ -494,7 +495,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.next_token();
                     may_be_struct_init = true;
                     continue;
-                }
+                },
                 Token::ModSep => {
                     self.next_token();
                     if self.ftok.tok == Token::Lt {

@@ -279,6 +279,9 @@ fn test_token_spacing() {
     assert_fmt_eq!("pub use self::Diagnostic::*;");
     assert_fmt_eq!("let a: Vec<u32> = vec![];");
     assert_fmt_eq!("let a: Vec<Vec<u32>> = vec![];");
+    assert_fmt_eq!("pub type NodeSet = FnvHashSet<ast::NodeId>;");
+    assert_fmt_eq!("type Foo<T> = Bar<T>;");
+    assert_fmt_eq!("type Foo<Bar<T, Y>> = Baz<T>;");
 }
 
 #[test]

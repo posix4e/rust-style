@@ -107,6 +107,7 @@ impl<'a> AnnotatingParser<'a> {
                 &Token::Ident(..) if tok.is_keyword(Keyword::Impl) => return LineType::ImplDecl,
                 &Token::Ident(..) if tok.is_keyword(Keyword::Trait) => return LineType::TraitDecl,
                 &Token::Ident(..) if tok.is_keyword(Keyword::Fn) => return LineType::FnDecl,
+                &Token::Ident(..) if tok.is_keyword(Keyword::Type) => return LineType::TypeDecl,
                 _ => {},
             }
         }
@@ -138,13 +139,14 @@ impl<'a> AnnotatingParser<'a> {
             }
 
             &Token::Lt if line.typ == LineType::StructDecl ||
-                                  line.typ == LineType::EnumDecl  ||
-                                  line.typ == LineType::ImplDecl ||
-                                  line.typ == LineType::TraitDecl ||
-                                  line.typ == LineType::FnDecl ||
-                                  prev_is_mod_sep ||
-                                  self.context_is(&Context::Type) ||
-                                  self.context_is(&Context::Generics) => {
+                          line.typ == LineType::EnumDecl  ||
+                          line.typ == LineType::ImplDecl ||
+                          line.typ == LineType::TraitDecl ||
+                          line.typ == LineType::FnDecl ||
+                          line.typ == LineType::TypeDecl ||
+                          prev_is_mod_sep ||
+                          self.context_is(&Context::Type) ||
+                          self.context_is(&Context::Generics) => {
                 self.push_context(Context::Generics);
                 TokenType::GenericBracket
             }
