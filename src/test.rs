@@ -359,3 +359,27 @@ pub const INFINITY: f32 = 1;
 pub const NEG_INFINITY: f32 = 2;
 ");
 }
+
+#[test]
+fn test_break_after_comment_trailing_comment() {
+    let input = "\
+let a = 3 +
+// hello
+5;";
+    let expected = "\
+let a = 3 + // hello
+    5;";
+    assert_eq!(fmt(input), expected);
+
+        let input = "\
+let a = 3 +
+/* hello */
+5;";
+    let expected = "let a = 3 + /* hello */ 5;";
+    assert_eq!(fmt(input), expected);
+}
+
+#[test]
+fn test_consecutive_comments() {
+    assert_fmt_eq!("// Comment 1\n// Comment 2");
+}

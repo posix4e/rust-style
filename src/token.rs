@@ -21,7 +21,24 @@ pub enum TokenType {
     Unknown
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum Precedence {
+    Unknown        = 0, // Not a binary operator.
+    Assignment     = 1, // =, +=, -=, *=, /=, <<=, >>=, &=, ^=, |=
+    LogicalOr      = 2, // ||
+    LogicalAnd     = 3, // &&
+    BitInclusiveOr = 4, // |
+    BitExclusiveOr = 5, // ^
+    BitAnd         = 6, // &
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum CommentType {
+    SlashSlash,
+    SlashStar,
+}
+
+#[derive(Clone, Debug, )]
 pub struct FormatToken {
     pub typ: TokenType,
     pub tok: Token,
@@ -38,6 +55,8 @@ pub struct FormatToken {
     pub must_break_before: bool,
     pub binding_strength: Penalty,
     pub matching_paren_index: Option<usize>,
+    pub precedence: Precedence,
+    pub comment_type: Option<CommentType>,
 }
 
 impl FormatToken {
@@ -122,6 +141,20 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             column_width += 1;
         }
 
+        let comment_type = match tok_sp.tok {
+            Token::Comment => {
+                let text = self.span_str(tok_sp.sp);
+                if text.starts_with("//") {
+                    Some(CommentType::SlashSlash)
+                } else if text.starts_with("/*") {
+                    Some(CommentType::SlashStar)
+                } else {
+                    panic!(format!("Unknown comment style: {}", text))
+                }
+            }
+            _ => None,
+        };
+
         let token = FormatToken {
             typ: TokenType::Unknown,
             tok: tok_sp.tok,
@@ -138,6 +171,8 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             must_break_before: false,
             binding_strength: 0,
             matching_paren_index: None,
+            precedence: Precedence::Unknown,
+            comment_type: comment_type,
         };
 
         column += column_width;

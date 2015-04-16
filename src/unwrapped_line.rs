@@ -2,12 +2,11 @@ use std::mem;
 use syntax::codemap::{mk_sp, BytePos};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken};
-use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType};
+use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType, Precedence};
 
 // An unwrapped line is a sequence of FormatTokens, that we would like to
 // put on a single line if there was no column limit. Changing the formatting
 // within an unwrapped line does not affect any other unwrapped lines.
-#[derive(Debug)]
 pub struct UnwrappedLine {
     pub tokens: Vec<FormatToken>,
     pub children: Vec<UnwrappedLine>,
@@ -48,6 +47,8 @@ impl UnwrappedLine {
                 must_break_before: false,
                 binding_strength: 0,
                 matching_paren_index: None,
+                precedence: Precedence::Unknown,
+                comment_type: None,
             },
             line: vec![],
             level_stack: vec![],

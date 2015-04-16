@@ -1,7 +1,7 @@
 use style::{FormatStyle, Penalty};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken};
-use token::{FormatToken, TokenType};
+use token::{FormatToken, TokenType, Precedence, CommentType};
 use unwrapped_line::{UnwrappedLine, LineType};
 
 pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
@@ -15,6 +15,10 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             binding_strength: 0,
             matched_parens: None,
         }.parse_line(line);
+        ExpressionParser {
+            style: style,
+            current: 0,
+        }.parse(line, Precedence::Unknown);
         calculate_formatting_information(line);
     }
 }
@@ -144,9 +148,16 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::GenericBracket
             }
 
-            (_, &Token::Gt, _) |
+            (_, &Token::Gt, _) if self.context_is(&Context::Generics) => {
+                self.pop_context();
+                TokenType::GenericBracket
+            }
+
             (_, &Token::BinOp(BinOpToken::Shr), _) if self.context_is(&Context::Generics) => {
                 self.pop_context();
+                if self.context_is(&Context::Generics) {
+                    self.pop_context();
+                }
                 TokenType::GenericBracket
             }
 
@@ -179,6 +190,17 @@ impl<'a> AnnotatingParser<'a> {
 
             _ => TokenType::Unknown,
         }
+    }
+}
+
+struct ExpressionParser<'a> {
+    style: &'a FormatStyle,
+    current: usize,
+}
+
+impl<'a> ExpressionParser<'a> {
+    fn parse(&mut self, line: &mut UnwrappedLine, precedence: Precedence) {
+
     }
 }
 
@@ -308,7 +330,8 @@ fn space_required_before(line: &UnwrappedLine,
         (_, &Token::OrOr) |
         (&Token::Literal(..), _) |
         (_, &Token::Literal(..)) |
-        (&Token::Lifetime(..), &Token::Ident(..)) => true,
+        (&Token::Lifetime(..), &Token::Ident(..)) |
+        (&Token::Ident(..), &Token::Ident(..)) => true,
 
         (&Token::Ident(..), _) if is_spaced_keyword(&prev.tok) => true,
         (_, &Token::Ident(..)) if is_spaced_keyword(&curr.tok) => true,
@@ -326,13 +349,21 @@ fn is_spaced_keyword(token: &Token) -> bool {
 }
 
 fn must_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> bool {
-    curr.newlines_before > 1
+    if curr.newlines_before > 1 {
+        return true;
+    }
+    if let Some(CommentType::SlashSlash) = prev.comment_type {
+        return true;
+    }
+    false
 }
 
 fn can_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> bool {
     match (&prev.tok, &curr.tok) {
         _ if prev.typ == TokenType::UnaryOperator => false,
         (&Token::OpenDelim(..), &Token::CloseDelim(..)) => false,
+
+        (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::If) => true,
 
         (&Token::Eq, _) |
         (&Token::EqEq, _) |
