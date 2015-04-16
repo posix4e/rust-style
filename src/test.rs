@@ -277,6 +277,8 @@ fn test_token_spacing() {
     assert_fmt_eq!("fn foo(b: &Bar) -> &Baz {}");
     assert_fmt_eq!("let a = 5 & 6;");
     assert_fmt_eq!("pub use self::Diagnostic::*;");
+    assert_fmt_eq!("let a: Vec<u32> = vec![];");
+    assert_fmt_eq!("let a: Vec<Vec<u32>> = vec![];");
 }
 
 #[test]
@@ -377,6 +379,20 @@ let a = 3 +
 5;";
     let expected = "let a = 3 + /* hello */ 5;";
     assert_eq!(fmt(input), expected);
+
+    // FIXME: the above tests should actually be more like:
+//     assert_fmt_eq!("\
+// let a = 3 + // hello
+//         5;");
+
+// assert_fmt_eq!("\
+// let a = 3 // hello
+//         + 5;");
+
+// assert_fmt_eq!("\
+// let a = 3
+//         /* hello */
+//         + 5;");
 }
 
 #[test]
