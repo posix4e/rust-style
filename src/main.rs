@@ -1,5 +1,6 @@
 #![feature(rustc_private)]
 #![feature(collections)]
+#![feature(core)]
 
 extern crate arena;
 extern crate syntax;

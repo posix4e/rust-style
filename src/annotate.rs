@@ -15,10 +15,11 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             binding_strength: 0,
             matched_parens: None,
         }.parse_line(line);
-        ExpressionParser {
-            style: style,
-            current: 0,
-        }.parse(line, Precedence::Unknown);
+        // ExpressionParser {
+        //     style: style,
+        //     current_index: 0,
+        //     line: line,
+        // }.parse(Precedence::Unknown);
         calculate_formatting_information(line);
     }
 }
@@ -123,20 +124,20 @@ impl<'a> AnnotatingParser<'a> {
         //        when I tried to use the == operator? Maybe not.
         let prev_is_mod_sep = match prev_tok { Some(&Token::ModSep) => true, _ => false };
 
-        match (prev_tok, &curr.tok, next_tok) {
-            (_, &Token::BinOp(BinOpToken::And), _) if self.context_is(&Context::Type) => TokenType::Pointer,
-            (_, &Token::BinOp(BinOpToken::Star), _) if unary_follows(prev) => TokenType::UnaryOperator,
-            (_, &Token::BinOp(BinOpToken::And), _) if unary_follows(prev) => TokenType::UnaryOperator,
-            (_, &Token::BinOp(BinOpToken::Or), _) if unary_follows(prev) => {
+        match &curr.tok {
+            &Token::BinOp(BinOpToken::And) if self.context_is(&Context::Type) => TokenType::Pointer,
+            &Token::BinOp(BinOpToken::Star) if unary_follows(prev) => TokenType::UnaryOperator,
+            &Token::BinOp(BinOpToken::And) if unary_follows(prev) => TokenType::UnaryOperator,
+            &Token::BinOp(BinOpToken::Or) if unary_follows(prev) => {
                 self.push_context(Context::LambdaArgs);
                 TokenType::LambdaArgsStart
             },
-            (_, &Token::BinOp(BinOpToken::Or), _) if self.context.last() == Some(&Context::LambdaArgs) => {
+            &Token::BinOp(BinOpToken::Or) if self.context.last() == Some(&Context::LambdaArgs) => {
                 self.pop_context();
                 TokenType::LambdaArgsEnd
             }
 
-            (_, &Token::Lt, _) if line.typ == LineType::StructDecl ||
+            &Token::Lt if line.typ == LineType::StructDecl ||
                                   line.typ == LineType::EnumDecl  ||
                                   line.typ == LineType::ImplDecl ||
                                   line.typ == LineType::TraitDecl ||
@@ -148,12 +149,12 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::GenericBracket
             }
 
-            (_, &Token::Gt, _) if self.context_is(&Context::Generics) => {
+            &Token::Gt if self.context_is(&Context::Generics) => {
                 self.pop_context();
                 TokenType::GenericBracket
             }
 
-            (_, &Token::BinOp(BinOpToken::Shr), _) if self.context_is(&Context::Generics) => {
+            &Token::BinOp(BinOpToken::Shr) if self.context_is(&Context::Generics) => {
                 self.pop_context();
                 if self.context_is(&Context::Generics) {
                     self.pop_context();
@@ -161,32 +162,44 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::GenericBracket
             }
 
-            (_, &Token::RArrow, _) => {
+            &Token::RArrow => {
                 self.push_context(Context::Type);
                 TokenType::Unknown
             }
-            (_, &Token::Colon, _) if !self.context_is(&Context::Generics) => {
+            &Token::Colon if !self.context_is(&Context::Generics) => {
                 self.push_context(Context::Type);
                 TokenType::Unknown
             }
 
-            (_, &Token::Semi, _) |
-            (_, &Token::Comma, _) |
-            (_, &Token::OpenDelim(DelimToken::Brace), _) |
-            (_, &Token::CloseDelim(..), _) if self.context_is(&Context::Type) => {
+            &Token::Semi |
+            &Token::Comma |
+            &Token::OpenDelim(DelimToken::Brace) |
+            &Token::CloseDelim(..) if self.context_is(&Context::Type) => {
                 self.pop_context();
                 TokenType::Unknown
             }
 
-            (_, &Token::OpenDelim(DelimToken::Paren), _) => {
+            &Token::OpenDelim(DelimToken::Paren) => {
                 self.push_context(Context::Parens);
                 TokenType::Unknown
             }
 
-            (_, &Token::CloseDelim(DelimToken::Paren), _) if self.context_is(&Context::Parens) => {
+            &Token::CloseDelim(DelimToken::Paren) if self.context_is(&Context::Parens) => {
                 self.pop_context();
                 TokenType::Unknown
             }
+
+            &Token::Eq |
+            &Token::Lt |
+            &Token::Le |
+            &Token::EqEq |
+            &Token::Ne |
+            &Token::Ge |
+            &Token::Gt |
+            &Token::AndAnd |
+            &Token::OrOr |
+            &Token::BinOp(..) |
+            &Token::BinOpEq(..) => TokenType::BinaryOperator,
 
             _ => TokenType::Unknown,
         }
@@ -195,12 +208,13 @@ impl<'a> AnnotatingParser<'a> {
 
 struct ExpressionParser<'a> {
     style: &'a FormatStyle,
-    current: usize,
+    line: &'a mut UnwrappedLine,
+    current_index: usize,
 }
 
 impl<'a> ExpressionParser<'a> {
-    fn parse(&mut self, line: &mut UnwrappedLine, precedence: Precedence) {
-
+    fn parse(&mut self, precedence: Precedence) {
+        unimplemented!();
     }
 }
 
@@ -257,81 +271,70 @@ fn space_required_before(line: &UnwrappedLine,
                          prev: &FormatToken,
                          curr: &FormatToken) -> bool {
     match (&prev.tok, &curr.tok) {
-        (_, &Token::Comma) |
-        (_, &Token::Semi) |
-        (_, &Token::CloseDelim(DelimToken::Paren)) |
-        (&Token::OpenDelim(DelimToken::Paren), _) |
-        (_, &Token::CloseDelim(DelimToken::Bracket)) |
-        (&Token::OpenDelim(DelimToken::Bracket), _) |
-        (_, &Token::Dot) |
-        (&Token::Dot, _) |
-        (_, &Token::DotDot) |
-        (&Token::DotDot, _) |
-        (_, &Token::DotDotDot) |
-        (&Token::DotDotDot, _) => false,
+        (_, &Token::Comma) => false,
+        (_, &Token::Semi) => false,
 
-        (&Token::Lt, _) if prev.typ == TokenType::GenericBracket => false,
-        (_, &Token::Lt) if curr.typ == TokenType::GenericBracket => false,
-        (&Token::Gt, _) |
-        (&Token::BinOp(BinOpToken::Shr), _)
-            if prev.typ == TokenType::GenericBracket &&
-               curr.tok != Token::OpenDelim(DelimToken::Brace) &&
-               curr.tok != Token::Eq &&
-               !curr.tok.is_ident()  => false,
-        (_, &Token::Gt) |
-        (_, &Token::BinOp(BinOpToken::Shr)) if curr.typ == TokenType::GenericBracket => false,
+        (_, &Token::CloseDelim(DelimToken::Paren)) => false,
+        (&Token::OpenDelim(DelimToken::Paren), _) => false,
 
-        (_, &Token::OpenDelim(DelimToken::Brace)) |
-        (&Token::OpenDelim(DelimToken::Brace), _) |
-        (_, &Token::CloseDelim(DelimToken::Brace)) |
+        (_, &Token::CloseDelim(DelimToken::Bracket)) => false,
+        (&Token::OpenDelim(DelimToken::Bracket), _) => false,
+
+        (_, &Token::OpenDelim(DelimToken::Brace)) if line.typ == LineType::Use => false,
+        (&Token::OpenDelim(DelimToken::Brace), _) if line.typ == LineType::Use => false,
+        (_, &Token::CloseDelim(DelimToken::Brace)) if line.typ == LineType::Use => false,
         (&Token::CloseDelim(DelimToken::Brace), _) if line.typ == LineType::Use => false,
-
-        (&Token::BinOp(BinOpToken::And), _) if prev.typ == TokenType::Pointer => false,
-        (&Token::BinOp(BinOpToken::And), _) if prev.typ == TokenType::UnaryOperator => false,
-        (&Token::BinOp(BinOpToken::Star), _) if prev.typ == TokenType::UnaryOperator => false,
-        (&Token::BinOp(BinOpToken::Or), _) if prev.typ == TokenType::LambdaArgsStart => false,
-        (_, &Token::BinOp(BinOpToken::Or)) if curr.typ == TokenType::LambdaArgsEnd => false,
-
         (_, &Token::BinOp(BinOpToken::Star)) if line.typ == LineType::Use => false,
         (&Token::BinOp(BinOpToken::Star), _) if line.typ == LineType::Use => false,
 
-        (&Token::OpenDelim(DelimToken::Brace), _) |
-        (_, &Token::OpenDelim(DelimToken::Brace)) |
-        (&Token::CloseDelim(DelimToken::Brace), _) |
-        (_, &Token::CloseDelim(DelimToken::Brace)) |
-        (&Token::FatArrow, _) |
-        (_, &Token::FatArrow) |
-        (&Token::RArrow, _) |
-        (_, &Token::RArrow) |
-        (&Token::Comma, _) |
-        (&Token::Semi, _) |
-        (_, &Token::Comment) |
-        (&Token::Colon, _) |
-        (&Token::BinOp(..), _) |
-        (_, &Token::BinOp(..)) |
-        (&Token::BinOpEq(..), _) |
-        (_, &Token::BinOpEq(..)) |
-        (&Token::Le, _) |
-        (_, &Token::Le) |
-        (&Token::Lt, _) |
-        (_, &Token::Lt) |
-        (&Token::Ge, _) |
-        (_, &Token::Ge) |
-        (&Token::Gt, _) |
-        (_, &Token::Gt) |
-        (&Token::Ne, _) |
-        (_, &Token::Ne) |
-        (&Token::Eq, _) |
-        (_, &Token::Eq) |
-        (&Token::EqEq, _) |
-        (_, &Token::EqEq) |
-        (&Token::AndAnd, _) |
-        (_, &Token::AndAnd) |
-        (&Token::OrOr, _) |
-        (_, &Token::OrOr) |
-        (&Token::Literal(..), _) |
-        (_, &Token::Literal(..)) |
-        (&Token::Lifetime(..), &Token::Ident(..)) |
+        (_, &Token::Dot) => false,
+        (&Token::Dot, _) => false,
+        (_, &Token::DotDot) => false,
+        (&Token::DotDot, _) => false,
+        (_, &Token::DotDotDot) => false,
+        (&Token::DotDotDot, _) => false,
+
+        (&Token::BinOp(BinOpToken::Shr), &Token::Eq) |
+        (&Token::Gt, &Token::Eq) if prev.typ == TokenType::GenericBracket => true,
+        (&Token::BinOp(BinOpToken::Shr), &Token::Ident(..)) |
+        (&Token::Gt, &Token::Ident(..)) if prev.typ == TokenType::GenericBracket => true,
+        (_, &Token::OpenDelim(DelimToken::Brace)) if prev.typ == TokenType::GenericBracket => true,
+        _ if prev.typ == TokenType::GenericBracket => false,
+        _ if curr.typ == TokenType::GenericBracket => false,
+
+        _ if prev.typ == TokenType::Pointer => false,
+        _ if prev.typ == TokenType::UnaryOperator => false,
+
+        _ if prev.typ == TokenType::LambdaArgsStart => false,
+        _ if prev.typ == TokenType::LambdaArgsEnd => true,
+        _ if curr.typ == TokenType::LambdaArgsEnd => false,
+
+        _ if prev.typ == TokenType::BinaryOperator => true,
+        _ if curr.typ == TokenType::BinaryOperator => true,
+
+        (&Token::OpenDelim(DelimToken::Brace), _) => true,
+        (_, &Token::OpenDelim(DelimToken::Brace)) => true,
+
+        (&Token::CloseDelim(DelimToken::Brace), _) => true,
+        (_, &Token::CloseDelim(DelimToken::Brace)) => true,
+
+        (&Token::FatArrow, _) => true,
+        (_, &Token::FatArrow) => true,
+
+        (&Token::RArrow, _) => true,
+        (_, &Token::RArrow) => true,
+
+        (&Token::Comma, _) => true,
+        (&Token::Semi, _) => true,
+        (&Token::Colon, _) => true,
+
+        (_, &Token::Comment) => true,
+        (&Token::Comment, _) => true,
+
+        (&Token::Literal(..), _) => true,
+        (_, &Token::Literal(..)) => true,
+
+        (&Token::Lifetime(..), &Token::Ident(..)) => true,
         (&Token::Ident(..), &Token::Ident(..)) => true,
 
         (&Token::Ident(..), _) if is_spaced_keyword(&prev.tok) => true,

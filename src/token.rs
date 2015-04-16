@@ -2,6 +2,7 @@ use style::{FormatStyle, Penalty};
 use syntax::codemap::{mk_sp, Span, Pos, BytePos};
 use syntax::parse::lexer::{StringReader, Reader};
 use syntax::parse::token::{self, Token};
+use std::num::FromPrimitive;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FormatDecision {
@@ -21,15 +22,28 @@ pub enum TokenType {
     Unknown
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, FromPrimitive)]
 pub enum Precedence {
-    Unknown        = 0, // Not a binary operator.
-    Assignment     = 1, // =, +=, -=, *=, /=, <<=, >>=, &=, ^=, |=
-    LogicalOr      = 2, // ||
-    LogicalAnd     = 3, // &&
-    BitInclusiveOr = 4, // |
-    BitExclusiveOr = 5, // ^
-    BitAnd         = 6, // &
+    Unknown        = 0,  // Not a binary operator.
+    Comma          = 1,  // ,
+    Assignment     = 2,  // = += -= *= /= <<= >>= &= ^= |=
+    LogicalOr      = 3,  // ||
+    LogicalAnd     = 4,  // &&
+    Equality       = 5,  // == != < > <= >=
+    BitInclusiveOr = 6,  // |
+    BitExclusiveOr = 7,  // ^
+    BitAnd         = 8,  // &
+    Shift          = 9,  // << >>
+    Additive       = 10, // + -
+    Multiplictive  = 11, // * / %
+    As             = 12, // as
+    Unary          = 13,
+}
+
+impl Precedence {
+    pub fn add(self, amount: u32) -> Precedence {
+        FromPrimitive::from_u32((self as u32) + amount).unwrap()
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
