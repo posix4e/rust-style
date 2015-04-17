@@ -167,10 +167,7 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::GenericBracket
             }
 
-            &Token::RArrow => {
-                self.push_context(Context::Type);
-                TokenType::Unknown
-            }
+            &Token::RArrow |
             &Token::Colon if !self.context_is(&Context::Generics) => {
                 self.push_context(Context::Type);
                 TokenType::Unknown
