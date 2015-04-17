@@ -2,7 +2,7 @@ use std::mem;
 use syntax::codemap::{mk_sp, BytePos};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken};
-use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType, Precedence};
+use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType};
 
 // An unwrapped line is a sequence of FormatTokens, that we would like to
 // put on a single line if there was no column limit. Changing the formatting
@@ -49,8 +49,14 @@ impl UnwrappedLine {
                 must_break_before: false,
                 binding_strength: 0,
                 matching_paren_index: None,
-                precedence: Precedence::Unknown,
                 comment_type: None,
+                index: 0,
+                last_operator: false,
+                operator_index: 0,
+                fake_lparens: vec![],
+                fake_rparens: 0,
+                starts_binary_expression: false,
+                ends_binary_expression: false,
             },
             line: vec![],
             level_stack: vec![],

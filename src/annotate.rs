@@ -1,7 +1,7 @@
 use style::{FormatStyle, Penalty};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken};
-use token::{FormatToken, TokenType, Precedence, CommentType};
+use token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY, PRECEDENCE_DOT};
 use unwrapped_line::{UnwrappedLine, LineType};
 
 pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
@@ -15,11 +15,11 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             binding_strength: 0,
             matched_parens: None,
         }.parse_line(line);
-        // ExpressionParser {
-        //     style: style,
-        //     current_index: 0,
-        //     line: line,
-        // }.parse(Precedence::Unknown);
+        ExpressionParser {
+            style: style,
+            current_index: 0,
+            line: line,
+        }.parse(0);
         calculate_formatting_information(line);
     }
 }
@@ -54,6 +54,9 @@ impl Context {
 
 impl<'a> AnnotatingParser<'a> {
     fn parse_line(&mut self, line: &mut UnwrappedLine) {
+        for i in 0..line.tokens.len() {
+            line.tokens[i].index = i;
+        }
         line.typ = self.determine_line_type(line);
         while self.current < line.tokens.len() {
             line.tokens[self.current].typ = self.determine_token_type(line);
@@ -215,8 +218,128 @@ struct ExpressionParser<'a> {
 }
 
 impl<'a> ExpressionParser<'a> {
-    fn parse(&mut self, precedence: Precedence) {
-        unimplemented!();
+    fn parse(&mut self, precedence: i32) {
+        while self.has_current() && self.current().tok.is_keyword(Keyword::Return) {
+            self.next();
+        }
+
+        if !self.has_current() { return; }
+        if precedence > PRECEDENCE_DOT { return; }
+
+        if precedence == PRECEDENCE_UNARY {
+            return self.parse_unary_operator();
+        }
+
+        let start_index = self.current_index;
+        let mut latest_operator_index = None;
+        let mut operator_index = 0;
+
+        while self.has_current() {
+            // Recursive call to consume operators with higher precedence.
+            self.parse(precedence + 1);
+
+            if !self.has_current() { break; }
+            if self.current().closes_scope() { break; }
+
+            // check if current operator has higher precedence
+            let current_precedence = self.current_precedence();
+            if current_precedence != -1 && current_precedence < precedence {
+                break;
+            }
+
+            if self.current().opens_scope() {
+                while self.has_current() && !self.current().closes_scope(){
+                    self.next();
+                    self.parse(0);
+                }
+                self.next();
+            } else {
+                if current_precedence == precedence {
+                    latest_operator_index = Some(self.current_index);
+                    self.current_mut().operator_index += operator_index;
+                    operator_index += 1;
+                }
+                self.next_skip_leading_comments(precedence > 0);
+            }
+        }
+
+        if let Some(latest_operator_index) = latest_operator_index {
+            if self.has_current() || precedence > 0 {
+                self.line.tokens[latest_operator_index].last_operator = true;
+                if precedence == PRECEDENCE_DOT {
+                    self.add_fake_parenthesis(start_index, Precedence::Unknown);
+                } else {
+                    self.add_fake_parenthesis(start_index, Precedence::from_u32(precedence).unwrap())
+                }
+            }
+        }
+    }
+
+    fn parse_unary_operator(&mut self) {
+        if !self.has_current() || self.current().typ != TokenType::UnaryOperator {
+            return self.parse(PRECEDENCE_DOT);
+        }
+
+        let start_index = self.current_index;
+        self.next();
+        self.parse_unary_operator();
+        self.add_fake_parenthesis(start_index, Precedence::Unknown);
+    }
+
+    fn add_fake_parenthesis(&mut self, start: usize, prec: Precedence) {
+        self.line.tokens[start].fake_lparens.push(prec);
+        if prec != Precedence::Unknown {
+            self.line.tokens[start].starts_binary_expression = true;
+        }
+
+        let mut previous = self.current_index - 1;
+        while self.line.tokens[previous].tok == Token::Comment && previous > 0 {
+            previous -= 1;
+        }
+        self.line.tokens[previous].fake_rparens += 1;
+        if prec != Precedence::Unknown {
+            self.line.tokens[previous].ends_binary_expression = true;
+        }
+    }
+
+    fn has_current(&self) -> bool {
+        self.current_index < self.line.tokens.len()
+    }
+
+    fn current(&self) -> &FormatToken {
+        &self.line.tokens[self.current_index]
+    }
+
+    fn current_mut(&mut self) -> &mut FormatToken {
+        &mut self.line.tokens[self.current_index]
+    }
+
+    fn current_precedence(&self) -> i32 {
+        if self.current().typ == TokenType::UnaryOperator {
+            PRECEDENCE_UNARY
+        } else if self.current().tok == Token::Dot {
+            PRECEDENCE_DOT
+        } else {
+            self.current()
+                .precedence()
+                .map(|p| p.to_i32())
+                .unwrap_or(-1)
+        }
+    }
+
+    fn next(&mut self) {
+        self.next_skip_leading_comments(true);
+    }
+
+    fn next_skip_leading_comments(&mut self, skip_leading_comments: bool) {
+        if self.has_current() {
+            self.current_index += 1;
+        }
+        while self.has_current() &&
+              (self.current().newlines_before == 0 || skip_leading_comments) &&
+              self.current().is_trailing_comment(self.line) {
+            self.current_index += 1;
+        }
     }
 }
 
@@ -358,7 +481,7 @@ fn must_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToke
     if curr.newlines_before > 1 {
         return true;
     }
-    if let Some(CommentType::SlashSlash) = prev.comment_type {
+    if prev.is_trailing_comment(line) {
         return true;
     }
     false

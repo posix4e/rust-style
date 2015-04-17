@@ -48,11 +48,16 @@ fn join(style: &FormatStyle, mut a: UnwrappedLine, mut b: UnwrappedLine) -> Unwr
     assert!(a.children.len() == 0);
     a.tokens.append(&mut b.tokens);
 
-    UnwrappedLine {
+    let mut line = UnwrappedLine {
         tokens: a.tokens,
         level: a.level,
         children: b.children,
-        // FIXME: should the new type be something else? Or unknown?
         typ: a.typ
+    };
+
+    for i in 0..line.tokens.len() {
+        line.tokens[i].index = i;
     }
+
+    line
 }

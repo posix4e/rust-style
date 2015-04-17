@@ -11,7 +11,7 @@ fn replacements(source: &str) -> Vec<Replacement> {
     super::reformat(source.to_string(), Default::default())
 }
 
-macro_rules! assert_fmt_eq (
+macro_rules! assert_fmt_eq(
     ($s:expr) => (
         assert_eq!(fmt($s), $s)
     )
@@ -380,7 +380,9 @@ let a = 3 + // hello
 let a = 3 +
 /* hello */
 5;";
-    let expected = "let a = 3 + /* hello */ 5;";
+    let expected = "\
+let a = 3 + /* hello */
+    5;";
     assert_eq!(fmt(input), expected);
 
     // FIXME: the above tests should actually be more like:
