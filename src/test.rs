@@ -1,3 +1,4 @@
+use reformat;
 use replacement::{self, Replacement};
 use std::default::Default;
 
@@ -8,7 +9,7 @@ fn fmt(source: &str) -> String {
 }
 
 fn replacements(source: &str) -> Vec<Replacement> {
-    super::reformat(source.to_string(), Default::default())
+    reformat::reformat(source.to_string(), Default::default())
 }
 
 macro_rules! assert_fmt_eq(
