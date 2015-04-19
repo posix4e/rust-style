@@ -36,8 +36,8 @@ struct Args {
 }
 
 fn main() {
-    // FIXME: version should include debug/release
-    let version = format!("rustfmt version {}", env!("CARGO_PKG_VERSION"));
+    let debug = if cfg!(debug_assertions) { " debug" } else { "" };
+    let version = format!("rustfmt version {}{}", env!("CARGO_PKG_VERSION"), debug);
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.version(Some(version)).help(true).decode())
         .unwrap_or_else(|e| e.exit());
