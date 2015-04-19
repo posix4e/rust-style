@@ -53,7 +53,7 @@ impl<'a> LineFormatter<'a> {
             self.format_first_token(curr_line, prev_line, indent);
             penalty += self.format_line(curr_line, indent);
 
-            // TODO: remove, and implement format_children
+            // TODO: remove direct recursive call, and implement format_children
             penalty += self.format(&mut curr_line.children);
         }
 

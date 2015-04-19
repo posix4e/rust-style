@@ -379,37 +379,17 @@ pub const NEG_INFINITY: f32 = 2;
 
 #[test]
 fn test_break_after_comment_trailing_comment() {
-    let input = "\
-let a = 3 +
-// hello
-5;";
-    let expected = "\
+    assert_fmt_eq!("\
 let a = 3 + // hello
-    5;";
-    assert_eq!(fmt(input), expected);
+        5;");
 
-        let input = "\
-let a = 3 +
-/* hello */
-5;";
-    let expected = "\
-let a = 3 + /* hello */
-    5;";
-    assert_eq!(fmt(input), expected);
+assert_fmt_eq!("\
+let a = 3 // hello
+        + 5;");
 
-    // FIXME: the above tests should actually be more like:
-//     assert_fmt_eq!("\
-// let a = 3 + // hello
-//         5;");
-
-// assert_fmt_eq!("\
-// let a = 3 // hello
-//         + 5;");
-
-// assert_fmt_eq!("\
-// let a = 3
-//         /* hello */
-//         + 5;");
+assert_fmt_eq!("\
+let a = 3 /* hello */
+        + 5;");
 }
 
 #[test]
@@ -418,7 +398,7 @@ fn test_consecutive_comments() {
 }
 
 #[test]
-fn test_precedence() {
+fn test_precedence_token() {
     let tok = &annotated_lines("53 + 21")[0].tokens;
     assert_eq!(tok[0].starts_binary_expression, true);
     assert_eq!(tok[1].starts_binary_expression, false);
@@ -487,3 +467,59 @@ fn test_precedence() {
     assert_eq!(tok[3].fake_rparens, 0);
     assert_eq!(tok[4].fake_rparens, 1);
 }
+
+#[test]
+fn test_precedence_format() {
+    assert_fmt_eq!("\
+let a = 111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 666 * 777;");
+
+    assert_fmt_eq!("\
+let a = (111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 555 + 666 + 777);");
+}
+
+#[test]
+fn test_continuation_indent() {
+    assert_fmt_eq!("\
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
+    bbbbbbbbbbbbbbbbbbbbbbbb");
+    assert_fmt_eq!("\
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb,
+                                            cccccccccccccc)");
+    assert_fmt_eq!("\
+aaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb, cccccccccccccc,
+                             ddddddddddddd)");
+    assert_fmt_eq!("\
+let join = lines.len() >= 2 && lines[0].children.is_empty() &&
+           lines[0].tokens.last().unwrap().tok ==
+               Token::OpenDelim(DelimToken::Brace) &&
+           lines[1].tokens.first().unwrap().tok ==
+               Token::CloseDelim(DelimToken::Brace);");
+}
+
+// // FIXME: these cases produce very bad input currently
+// #[test]
+// fn test_continuation_indent_control_structures() {
+//     assert_fmt_eq!("\
+// match something {
+//     &Token::Ident(..)) | (&Token::Gt, &Token::Ident(..))
+//         if prev.typ == TokenType::GenericBracket => true,
+// }
+// ");
+//     assert_fmt_eq!("\
+// if aaaaaaaaaaaaaaaaa == bbbbbbbbbbbbbbbbbbbbbbbbbbbb ||
+//    cccccccccccccccccc || ddddddddddddddddddddddddddddd {
+//     indent = state.column;
+// }");
+// }

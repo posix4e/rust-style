@@ -1,7 +1,9 @@
 use format::{LineState, ParenState};
 use std::cmp;
 use style::{FormatStyle, Penalty};
+use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken};
+use token::{FormatToken, Precedence};
 use unwrapped_line::UnwrappedLine;
 use whitespace_manager::WhitespaceManager;
 
@@ -87,8 +89,10 @@ impl ContinuationIndenter {
     fn move_state_to_next_token(&self, line: &UnwrappedLine, state: &mut LineState,
                                     dry_run: bool, newline: bool,
                                     whitespace: &mut WhitespaceManager) -> Penalty {
+        self.move_state_past_fake_lparens(line, state, newline);
         self.move_state_past_delim_open(line, state, newline);
         self.move_state_past_delim_close(line, state);
+        self.move_state_past_fake_rparens(line, state);
 
         let mut penalty = 0;
         let current = &line.tokens[state.next_token_index];
@@ -101,6 +105,38 @@ impl ContinuationIndenter {
         }
 
         penalty
+    }
+
+    fn move_state_past_fake_lparens(&self, line: &UnwrappedLine, state: &mut LineState, newline: bool) {
+        let current = &line.tokens[state.next_token_index];
+        let prev: Option<&FormatToken> = line.prev_non_comment_token(state.next_token_index);
+
+        let mut indent = state.column + self.style.continuation_indent_width;
+        if let Some(prev) = prev {
+            if prev.precedence() == Some(Precedence::Assignment) ||
+               prev.opens_scope() {
+                indent = state.column;
+            }
+        }
+
+        for prec in &current.fake_lparens {
+            let new_state = ParenState {
+                indent: indent,
+                indent_level: state.stack_top().indent_level,
+                contains_line_break: false,
+            };
+            state.stack.push(new_state);
+        }
+    }
+
+    fn move_state_past_fake_rparens(&self, line: &UnwrappedLine, state: &mut LineState) {
+        let current = &line.tokens[state.next_token_index];
+        for i in 0..current.fake_rparens {
+            if state.stack.len() == 1 {
+                break;
+            }
+            state.stack.pop().unwrap();
+        }
     }
 
     fn move_state_past_delim_open(&self, line: &UnwrappedLine, state: &mut LineState, newline: bool) {

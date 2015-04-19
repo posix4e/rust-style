@@ -508,7 +508,8 @@ fn can_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken
 fn split_penalty(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> Penalty {
     match (&prev.tok, &curr.tok) {
         (&Token::Comma, _) => 1,
-        (&Token::Eq, _) => 100,
+        (_, &Token::RArrow) => 1,
+        (&Token::Eq, _) | (&Token::BinOpEq(..), _) => 100,
         (_, &Token::Dot) => 10,
         (_, &Token::OpenDelim(DelimToken::Brace)) => 1,
         _ => 3,
