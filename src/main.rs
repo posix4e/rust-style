@@ -8,7 +8,7 @@ use std::default::Default;
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{stdin, stdout};
+use std::io::{stdin, stdout, stderr};
 use std::path::Path;
 
 static USAGE: &'static str = "
@@ -46,9 +46,8 @@ fn main() {
 
     if args.arg_file.is_empty() {
         match format_stdin(style) {
-            Ok(s) | Err(s) => {
-                write!(&mut stdout(), "{}", s).unwrap();
-            }
+            Ok(ref s)  => write!(&mut stdout(), "{}", s).unwrap(),
+            Err(ref s) => write!(&mut stderr(), "{}", s).unwrap(),
         }
     } else {
         for name in args.arg_file {
@@ -58,9 +57,8 @@ fn main() {
                     let mut file = File::create(path).unwrap();
                     write!(file, "{}", s).unwrap();
                 },
-                Ok(s) | Err(s) => {
-                    write!(&mut stdout(), "{}", s).unwrap();
-                }
+                Ok(ref s)  => write!(&mut stdout(), "{}", s).unwrap(),
+                Err(ref s) => write!(&mut stderr(), "{}", s).unwrap(),
             }
         }
     }
