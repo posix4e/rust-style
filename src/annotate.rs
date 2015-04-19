@@ -402,7 +402,7 @@ fn space_required_before(line: &UnwrappedLine,
         (_, &Token::CloseDelim(DelimToken::Bracket)) => false,
         (&Token::OpenDelim(DelimToken::Bracket), _) => false,
 
-        (_, &Token::OpenDelim(DelimToken::Brace)) if line.typ == LineType::Use => false,
+        (&Token::ModSep, &Token::OpenDelim(DelimToken::Brace)) if line.typ == LineType::Use => false,
         (&Token::OpenDelim(DelimToken::Brace), _) if line.typ == LineType::Use => false,
         (_, &Token::CloseDelim(DelimToken::Brace)) if line.typ == LineType::Use => false,
         (&Token::CloseDelim(DelimToken::Brace), _) if line.typ == LineType::Use => false,

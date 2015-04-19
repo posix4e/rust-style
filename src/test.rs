@@ -256,6 +256,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("use syntax::parse::token::{Token, DelimToken, BinOpToken};");
     assert_fmt_eq!("use syntax::parse::token::{self, DelimToken, BinOpToken};");
     assert_fmt_eq!("pub use syntax::parse::token::{self, DelimToken, BinOpToken};");
+    assert_fmt_eq!("use {syntax, annotate, join, format};");
     assert_fmt_eq!("let foo: &mut u32 = &mut 5");
     assert_fmt_eq!("let foo = &mut 5");
     assert_fmt_eq!("let a: &u32 = &5;");
