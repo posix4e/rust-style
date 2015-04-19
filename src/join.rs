@@ -23,7 +23,7 @@ pub fn join_lines(style: &FormatStyle, lines: Vec<UnwrappedLine>) -> Vec<Unwrapp
     for j in joins {
         let mut line = lines.next().unwrap();
         for _ in 0..j {
-            line = join(style, line, lines.next().unwrap());
+            line = join(line, lines.next().unwrap());
         }
         line.children = join_lines(style, line.children);
         out.push(line);
@@ -44,7 +44,7 @@ fn try_join_empty_block(lines: &[UnwrappedLine]) -> Option<usize> {
 
 // TODO: more joins
 
-fn join(style: &FormatStyle, mut a: UnwrappedLine, mut b: UnwrappedLine) -> UnwrappedLine {
+fn join(mut a: UnwrappedLine, mut b: UnwrappedLine) -> UnwrappedLine {
     assert!(a.children.len() == 0);
     a.tokens.append(&mut b.tokens);
 

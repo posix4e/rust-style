@@ -35,6 +35,7 @@ struct Args {
     flag_inplace: bool,
 }
 
+#[allow(dead_code)]
 fn main() {
     let debug = if cfg!(debug_assertions) { " debug" } else { "" };
     let version = format!("rustfmt version {}{}", env!("CARGO_PKG_VERSION"), debug);

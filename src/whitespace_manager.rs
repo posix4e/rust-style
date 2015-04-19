@@ -127,6 +127,7 @@ impl WhitespaceManager {
         }
     }
 
+    #[allow(unused_variables)]
     fn append_indent_text(&self, text: &mut String, indent_level: u32,
                           spaces: u32, whitespace_start_column: u32) {
         match self.style.use_tabs {

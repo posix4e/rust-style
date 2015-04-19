@@ -179,14 +179,6 @@ impl FormatToken {
         line.tokens.get(self.index + 1)
     }
 
-    pub fn prev<'a>(&self, line: &'a UnwrappedLine) -> Option<&'a FormatToken> {
-        if self.index == 0 {
-            None
-        } else {
-            line.tokens.get(self.index - 1)
-        }
-    }
-
     pub fn is_trailing_comment(&self, line: &UnwrappedLine) -> bool {
         match self.comment_type {
             None => false,
@@ -200,6 +192,7 @@ impl FormatToken {
 }
 
 pub struct FormatTokenLexer<'s> {
+    #[allow(dead_code)]
     session: &'s ParseSess,
     lexer: StringReader<'s>,
     eof: bool,

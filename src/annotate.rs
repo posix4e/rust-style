@@ -25,6 +25,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
 }
 
 struct AnnotatingParser<'a> {
+    #[allow(dead_code)]
     style: &'a FormatStyle,
     current: usize,
     context: Vec<Context>,
@@ -120,9 +121,7 @@ impl<'a> AnnotatingParser<'a> {
     fn determine_token_type(&mut self, line: &mut UnwrappedLine) -> TokenType {
         let curr = &line.tokens[self.current];
         let prev = line.prev_non_comment_token(self.current);
-        let next = line.next_non_comment_token(self.current);
         let prev_tok = prev.map(|t| &t.tok);
-        let next_tok = next.map(|t| &t.tok);
 
         // FIXME: match shouldnt be required, I think the compiler was bugging out
         //        when I tried to use the == operator? Maybe not.
@@ -209,6 +208,7 @@ impl<'a> AnnotatingParser<'a> {
 }
 
 struct ExpressionParser<'a> {
+    #[allow(dead_code)]
     style: &'a FormatStyle,
     line: &'a mut UnwrappedLine,
     current_index: usize,
@@ -354,8 +354,8 @@ fn calculate_formatting_information(line: &mut UnwrappedLine) {
                 spaces_required_before = 1;
             }
             must_break_before_ = must_break_before(line, prev, curr);
-            can_break_before_ = must_break_before_ || can_break_before(line, prev, curr);
-            split_penalty_ = 20 * curr.binding_strength + split_penalty(line, prev, curr);
+            can_break_before_ = must_break_before_ || can_break_before(prev, curr);
+            split_penalty_ = 20 * curr.binding_strength + split_penalty(prev, curr);
         }
 
         let curr = &mut line.tokens[i];
@@ -484,7 +484,7 @@ fn must_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToke
     false
 }
 
-fn can_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> bool {
+fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
     match (&prev.tok, &curr.tok) {
         _ if prev.typ == TokenType::UnaryOperator => false,
         (&Token::OpenDelim(..), &Token::CloseDelim(..)) => false,
@@ -505,7 +505,7 @@ fn can_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken
     }
 }
 
-fn split_penalty(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> Penalty {
+fn split_penalty(prev: &FormatToken, curr: &FormatToken) -> Penalty {
     match (&prev.tok, &curr.tok) {
         (&Token::Comma, _) => 1,
         (_, &Token::RArrow) => 1,

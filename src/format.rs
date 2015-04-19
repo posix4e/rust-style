@@ -33,9 +33,7 @@ impl<'a> LineFormatter<'a> {
         let mut penalty = 0;
 
         for i in 0..lines.len() {
-            let (left, right) = lines.split_at_mut(i);
-            let curr_line = right.first_mut().unwrap();
-            let prev_line = left.last();
+            let curr_line = &mut lines[i];
             assert!(curr_line.tokens.len() > 0);
             let indent = curr_line.level * self.style.indent_width;
 
@@ -50,7 +48,7 @@ impl<'a> LineFormatter<'a> {
             // If everything fits on a single line, just put it there,
             // instead of going through the line breaking algorithm.
 
-            self.format_first_token(curr_line, prev_line, indent);
+            self.format_first_token(curr_line, indent);
             penalty += self.format_line(curr_line, indent);
 
             // TODO: remove direct recursive call, and implement format_children
@@ -60,8 +58,7 @@ impl<'a> LineFormatter<'a> {
         penalty
     }
 
-    fn format_first_token(&mut self, curr_line: &mut UnwrappedLine,
-                          prev_line: Option<&UnwrappedLine>, indent: u32) {
+    fn format_first_token(&mut self, curr_line: &mut UnwrappedLine, indent: u32) {
         let token = &mut curr_line.tokens[0];
         let mut newlines = cmp::min(token.newlines_before,
             self.style.max_empty_lines_to_keep + 1);
@@ -86,9 +83,8 @@ impl<'a> LineFormatter<'a> {
         let mut queue = BinaryHeap::<QueueItem>::new();
         let mut penalty = 0;
         let mut count = 0;
-        let dry_run = true;
 
-        let initial_state = self.indenter.get_initial_state(line, indent, dry_run, &mut self.whitespace);
+        let initial_state = self.indenter.get_initial_state(line, indent);
         let mut node = &*self.arena.alloc(StateNode {
             newline: false,
             previous: None,
@@ -187,6 +183,8 @@ impl<'a> LineFormatter<'a> {
     }
 
     // TODO
+
+    #[allow(unused_variables)]
     fn format_children(&mut self, newline: bool, dry_run: bool, penalty: &mut Penalty,
                        state: &mut LineState) -> bool {
         true
@@ -231,10 +229,6 @@ impl LineState {
 
     pub fn current<'a>(&'a self, line: &'a UnwrappedLine) -> &'a FormatToken {
         &line.tokens[self.next_token_index]
-    }
-
-    pub fn previous<'a>(&'a self, line: &'a UnwrappedLine) -> &'a FormatToken {
-        &line.tokens[self.next_token_index - 1]
     }
 }
 

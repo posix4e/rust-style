@@ -72,12 +72,6 @@ impl UnwrappedLine {
         parser.output
     }
 
-    pub fn next_non_comment_token(&self, index: usize) -> Option<&FormatToken> {
-        self.tokens[index + 1..].iter()
-            .filter(|t| match t.tok { Token::Comment => false, _ => true })
-            .next()
-    }
-
     pub fn prev_non_comment_token(&self, index: usize) -> Option<&FormatToken> {
         self.tokens[..index].iter().rev()
             .filter(|t| match t.tok { Token::Comment => false, _ => true })
