@@ -1,15 +1,15 @@
 use reformat;
-use replacement::{self, Replacement};
+use replacement::Replacement;
 use std::default::Default;
 
 // TODO: tests using different style options
 
 fn fmt(source: &str) -> String {
-    replacement::apply(source, &replacements(source))
+    Replacement::apply_all(&replacements(source), source)
 }
 
 fn replacements(source: &str) -> Vec<Replacement> {
-    reformat::reformat(source.to_string(), Default::default())
+    super::reformat(source.to_string(), Default::default())
 }
 
 macro_rules! assert_fmt_eq(

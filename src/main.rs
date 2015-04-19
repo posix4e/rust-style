@@ -3,8 +3,7 @@ extern crate rustc_serialize;
 extern crate rustfmt;
 
 use docopt::Docopt;
-use rustfmt::style::FormatStyle;
-use rustfmt::{reformat, replacement};
+use rustfmt::{reformat, Replacement, FormatStyle};
 use std::default::Default;
 use std::error::Error;
 use std::fs::File;
@@ -81,8 +80,8 @@ fn format_source_file(style: FormatStyle, path: &Path) -> Result<String, String>
         }
     };
 
-    let replacements = reformat::reformat(source.clone(), style);
-    Ok(replacement::apply(&source, &replacements))
+    let replacements = rustfmt::reformat(source.clone(), style);
+    Ok(Replacement::apply_all(&replacements, &source))
 }
 
 fn format_stdin(style: FormatStyle) -> Result<String, String> {
@@ -92,6 +91,6 @@ fn format_stdin(style: FormatStyle) -> Result<String, String> {
         Ok(_) => {},
     }
 
-    let replacements = reformat::reformat(source.clone(), style);
-    Ok(replacement::apply(&source, &replacements))
+    let replacements = rustfmt::reformat(source.clone(), style);
+    Ok(Replacement::apply_all(&replacements, &source))
 }

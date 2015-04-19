@@ -97,7 +97,7 @@ pub struct FormatToken {
     // operator precedence, parenthesis nesting, etc.
     // Used to calculate split_penalty.
     pub binding_strength: Penalty,
-    // If the matching paren token, if this is a paren token.
+    // The matching paren token, if this is a paren token.
     pub matching_paren_index: Option<usize>,
     // The type of comment, if this is a comment token.
     pub comment_type: Option<CommentType>,
