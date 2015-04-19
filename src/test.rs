@@ -524,3 +524,20 @@ let join = lines.len() >= 2 && lines[0].children.is_empty() &&
 //     indent = state.column;
 // }");
 // }
+
+#[test]
+fn test_exern_block() {
+    assert_fmt_eq!("\
+extern {
+    fn fopen() -> FILE;
+}
+
+fn foo() {}");
+
+    assert_fmt_eq!("\
+extern \"stdcall\" {
+    fn fopen() -> FILE;
+}
+
+fn foo() {}");
+}

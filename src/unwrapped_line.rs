@@ -1,7 +1,7 @@
 use std::mem;
 use syntax::codemap::{mk_sp, BytePos};
 use syntax::parse::token::keywords::Keyword;
-use syntax::parse::token::{Token, DelimToken, BinOpToken};
+use syntax::parse::token::{Token, DelimToken, BinOpToken, Lit};
 use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType};
 
 // An unwrapped line is a sequence of FormatTokens, that we would like to
@@ -97,6 +97,7 @@ enum Block {
     StructOrEnum,
     TopLevel,
     Trait,
+    Extern,
     StructInit,
 }
 
@@ -174,6 +175,12 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Extern) => {
                     self.next_token();
+                    if let Token::Literal(Lit::Str_(..), _) = self.ftok.tok {
+                        self.next_token();
+                        if self.try_parse_block(Block::Extern) {
+                            self.add_line();
+                        }
+                    }
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
                     self.parse_if_then_else();
@@ -197,7 +204,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                         Block::Statements |
                         Block::TopLevel |
                         Block::Trait |
-                        Block::Impl => self.parse_stmt(),
+                        Block::Impl |
+                        Block::Extern => self.parse_stmt(),
                     }
                 }
             }
