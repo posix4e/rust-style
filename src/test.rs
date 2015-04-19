@@ -1,6 +1,9 @@
 use reformat;
 use replacement::Replacement;
 use std::default::Default;
+use syntax;
+use token::{FormatTokenLexer, Precedence};
+use unwrapped_line::UnwrappedLine;
 
 // TODO: tests using different style options
 
@@ -9,7 +12,15 @@ fn fmt(source: &str) -> String {
 }
 
 fn replacements(source: &str) -> Vec<Replacement> {
-    super::reformat(source.to_string(), Default::default())
+    let style = Default::default();
+    super::reformat(source, &style)
+}
+
+fn annotated_lines(source: &str) -> Vec<UnwrappedLine> {
+    let session = syntax::parse::new_parse_sess();
+    let style = Default::default();
+    let lexer = &mut FormatTokenLexer::new(source, &session, &style);
+    super::internal::annotated_lines(lexer, &style)
 }
 
 macro_rules! assert_fmt_eq(
@@ -404,4 +415,75 @@ let a = 3 + /* hello */
 #[test]
 fn test_consecutive_comments() {
     assert_fmt_eq!("// Comment 1\n// Comment 2");
+}
+
+#[test]
+fn test_precedence() {
+    let tok = &annotated_lines("53 + 21")[0].tokens;
+    assert_eq!(tok[0].starts_binary_expression, true);
+    assert_eq!(tok[1].starts_binary_expression, false);
+    assert_eq!(tok[2].starts_binary_expression, false);
+
+    assert_eq!(tok[0].ends_binary_expression, false);
+    assert_eq!(tok[1].ends_binary_expression, false);
+    assert_eq!(tok[2].ends_binary_expression, true);
+
+    assert_eq!(tok[0].fake_lparens, &[Precedence::Additive]);
+    assert_eq!(tok[1].fake_lparens, &[]);
+    assert_eq!(tok[2].fake_lparens, &[]);
+
+    assert_eq!(tok[0].fake_rparens, 0);
+    assert_eq!(tok[1].fake_rparens, 0);
+    assert_eq!(tok[2].fake_rparens, 1);
+
+
+    let tok = &annotated_lines("1 + 3 * 6")[0].tokens;
+    assert_eq!(tok[0].starts_binary_expression, true);
+    assert_eq!(tok[1].starts_binary_expression, false);
+    assert_eq!(tok[2].starts_binary_expression, true);
+    assert_eq!(tok[3].starts_binary_expression, false);
+    assert_eq!(tok[4].starts_binary_expression, false);
+
+    assert_eq!(tok[0].ends_binary_expression, false);
+    assert_eq!(tok[1].ends_binary_expression, false);
+    assert_eq!(tok[2].ends_binary_expression, false);
+    assert_eq!(tok[3].ends_binary_expression, false);
+    assert_eq!(tok[4].ends_binary_expression, true);
+
+    assert_eq!(tok[0].fake_lparens, &[Precedence::Additive]);
+    assert_eq!(tok[1].fake_lparens, &[]);
+    assert_eq!(tok[2].fake_lparens, &[Precedence::Multiplictive]);
+    assert_eq!(tok[3].fake_lparens, &[]);
+    assert_eq!(tok[4].fake_lparens, &[]);
+
+    assert_eq!(tok[0].fake_rparens, 0);
+    assert_eq!(tok[1].fake_rparens, 0);
+    assert_eq!(tok[2].fake_rparens, 0);
+    assert_eq!(tok[3].fake_rparens, 0);
+    assert_eq!(tok[4].fake_rparens, 2);
+
+    let tok = &annotated_lines("1 * 3 + 6")[0].tokens;
+    assert_eq!(tok[0].starts_binary_expression, true);
+    assert_eq!(tok[1].starts_binary_expression, false);
+    assert_eq!(tok[2].starts_binary_expression, false);
+    assert_eq!(tok[3].starts_binary_expression, false);
+    assert_eq!(tok[4].starts_binary_expression, false);
+
+    assert_eq!(tok[0].ends_binary_expression, false);
+    assert_eq!(tok[1].ends_binary_expression, false);
+    assert_eq!(tok[2].ends_binary_expression, true);
+    assert_eq!(tok[3].ends_binary_expression, false);
+    assert_eq!(tok[4].ends_binary_expression, true);
+
+    assert_eq!(tok[0].fake_lparens, &[Precedence::Multiplictive, Precedence::Additive]);
+    assert_eq!(tok[1].fake_lparens, &[]);
+    assert_eq!(tok[2].fake_lparens, &[]);
+    assert_eq!(tok[3].fake_lparens, &[]);
+    assert_eq!(tok[4].fake_lparens, &[]);
+
+    assert_eq!(tok[0].fake_rparens, 0);
+    assert_eq!(tok[1].fake_rparens, 0);
+    assert_eq!(tok[2].fake_rparens, 1);
+    assert_eq!(tok[3].fake_rparens, 0);
+    assert_eq!(tok[4].fake_rparens, 1);
 }

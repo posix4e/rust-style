@@ -80,7 +80,7 @@ fn format_source_file(style: FormatStyle, path: &Path) -> Result<String, String>
         }
     };
 
-    let replacements = rustfmt::reformat(source.clone(), style);
+    let replacements = rustfmt::reformat(&source, &style);
     Ok(Replacement::apply_all(&replacements, &source))
 }
 
@@ -91,6 +91,6 @@ fn format_stdin(style: FormatStyle) -> Result<String, String> {
         Ok(_) => {},
     }
 
-    let replacements = rustfmt::reformat(source.clone(), style);
+    let replacements = rustfmt::reformat(&source, &style);
     Ok(Replacement::apply_all(&replacements, &source))
 }

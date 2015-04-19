@@ -1,7 +1,9 @@
 use std::num::FromPrimitive;
 use style::{FormatStyle, Penalty};
+use syntax;
 use syntax::codemap::{mk_sp, Span, Pos, BytePos};
 use syntax::parse::lexer::{StringReader, Reader};
+use syntax::parse::ParseSess;
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{self, Token, BinOp, BinOpToken};
 use unwrapped_line::UnwrappedLine;
@@ -198,18 +200,25 @@ impl FormatToken {
 }
 
 pub struct FormatTokenLexer<'s> {
+    session: &'s ParseSess,
     lexer: StringReader<'s>,
     eof: bool,
     is_first_token: bool,
     column: u32,
-    style: FormatStyle,
+    style: &'s FormatStyle,
     previous_token_span: Span,
 }
 
 impl<'s> FormatTokenLexer<'s> {
-    pub fn new(lexer: StringReader, style: FormatStyle) -> FormatTokenLexer {
+    pub fn new<'a>(source: &'a str, session: &'a ParseSess, style: &'a FormatStyle) -> FormatTokenLexer<'a> {
+        // TODO: Determine if a real name is actually needed
+        let name = "".to_string();
+        let filemap = syntax::parse::string_to_filemap(&session, source.to_string(), name);
+        let lexer = syntax::parse::lexer::StringReader::new(&session.span_diagnostic, filemap);
+
         FormatTokenLexer {
             lexer: lexer,
+            session: session,
             eof: false,
             is_first_token: true,
             column: 0,
