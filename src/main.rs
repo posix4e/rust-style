@@ -49,7 +49,7 @@ fn main() {
 
     let actions = get_actions(&args);
 
-    for action in actions.iter() {
+    for action in &actions {
         match perform_input(action) {
             Ok(ref source) => {
                 let replacements = reformat(source, &style);
@@ -67,43 +67,34 @@ fn get_actions(args: &Args) -> Vec<Action> {
     let mut actions = Vec::new();
 
     if args.arg_file.is_empty() {
-        actions.push(Action::new(Input::StdIn, Output::StdOut));
+        actions.push(Action { input: Input::StdIn, output: Output::StdOut });
     } else {
-        for file in args.arg_file.iter() {
+        for file in &args.arg_file {
             let output = if args.flag_inplace {
-                Output::File(file.clone())
+                Output::File(file)
             } else {
                 Output::StdOut
             };
-            actions.push(Action::new(Input::File(file.clone()), output));
+            actions.push(Action { input: Input::File(file), output: output });
         }
     }
 
     actions
 }
 
-struct Action {
-    input: Input,
-    output: Output,
+struct Action<'a> {
+    input: Input<'a>,
+    output: Output<'a>,
 }
 
-impl Action {
-    pub fn new(input: Input, output: Output) -> Action {
-        Action {
-            input: input,
-            output: output,
-        }
-    }
-}
-
-enum Input {
+enum Input<'a> {
     StdIn,
-    File(String),
+    File(&'a str),
 }
 
-enum Output {
+enum Output<'a> {
     StdOut,
-    File(String),
+    File(&'a str),
 }
 
 fn perform_input(action: &Action) -> Result<String, String> {
