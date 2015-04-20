@@ -134,7 +134,8 @@ impl<'a> AnnotatingParser<'a> {
                    self.context_is(&Context::Type) => TokenType::Pointer,
 
             &Token::BinOp(BinOpToken::Star) |
-            &Token::BinOp(BinOpToken::And)
+            &Token::BinOp(BinOpToken::And) |
+            &Token::BinOp(BinOpToken::Minus)
                 if unary_follows(prev) => TokenType::UnaryOperator,
 
             &Token::BinOp(BinOpToken::Or) if unary_follows(prev) => {
@@ -380,6 +381,7 @@ fn unary_follows(prev: Option<&FormatToken>) -> bool {
 
     match prev.tok {
         Token::Eq |
+        Token::EqEq |
         Token::OpenDelim(..) |
         Token::Comma |
         Token::Semi => return true,

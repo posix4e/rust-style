@@ -556,3 +556,8 @@ match &self {
     Context::LambdaArgs => 10,
 }");
 }
+
+#[test]
+fn test_unary_negation() {
+    assert_fmt_eq!("let a = -3;");
+}
