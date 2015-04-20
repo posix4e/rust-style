@@ -295,6 +295,9 @@ fn test_token_spacing() {
     assert_fmt_eq!("pub type NodeSet = FnvHashSet<ast::NodeId>;");
     assert_fmt_eq!("type Foo<T> = Bar<T>;");
     assert_fmt_eq!("type Foo<Bar<T, Y>> = Baz<T>;");
+    assert_fmt_eq!("unsafe fn as_ptr(&self) -> *const u8 {}");
+    assert_fmt_eq!("head.fill.set(round_up(end, mem::align_of::<*const TyDesc>()));");
+    assert_fmt_eq!("unsafe fn new(next: *mut A<T>, f: usize) -> *mut B<T>");
 }
 
 #[test]

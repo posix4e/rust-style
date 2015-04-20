@@ -128,9 +128,15 @@ impl<'a> AnnotatingParser<'a> {
         let prev_is_mod_sep = match prev_tok { Some(&Token::ModSep) => true, _ => false };
 
         match &curr.tok {
-            &Token::BinOp(BinOpToken::And) if self.context_is(&Context::Type) => TokenType::Pointer,
-            &Token::BinOp(BinOpToken::Star) if unary_follows(prev) => TokenType::UnaryOperator,
-            &Token::BinOp(BinOpToken::And) if unary_follows(prev) => TokenType::UnaryOperator,
+            &Token::BinOp(BinOpToken::Star) |
+            &Token::BinOp(BinOpToken::And)
+                if self.context_is(&Context::Generics) ||
+                   self.context_is(&Context::Type) => TokenType::Pointer,
+
+            &Token::BinOp(BinOpToken::Star) |
+            &Token::BinOp(BinOpToken::And)
+                if unary_follows(prev) => TokenType::UnaryOperator,
+
             &Token::BinOp(BinOpToken::Or) if unary_follows(prev) => {
                 self.push_context(Context::LambdaArgs);
                 TokenType::LambdaArgsStart
