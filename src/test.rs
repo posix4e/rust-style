@@ -560,4 +560,6 @@ match &self {
 #[test]
 fn test_unary_negation() {
     assert_fmt_eq!("let a = -3;");
+    assert_fmt_eq!("x + -3;");
+    assert_fmt_eq!("if x == -3;");
 }
