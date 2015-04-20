@@ -3,6 +3,7 @@
 #![feature(core)]
 
 extern crate arena;
+extern crate rustc_serialize;
 extern crate syntax;
 
 mod annotate;
