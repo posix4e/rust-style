@@ -47,57 +47,93 @@ fn main() {
 
     let style = FormatStyle::default();
 
-    if args.arg_file.is_empty() {
-        match format_stdin(&style) {
-            Ok(ref s)  => write!(&mut stdout(), "{}", s).unwrap(),
-            Err(ref s) => {
-                write!(&mut stderr(), "{}", s).unwrap();
+    let actions = get_actions(&args);
+
+    for action in &actions {
+        match perform_input(action) {
+            Ok(ref source) => {
+                let replacements = reformat(source, &style);
+                perform_output(action, source, &replacements);
+            },
+            Err(ref msg) => {
+                write!(&mut stderr(), "{}", msg).unwrap();
                 std::env::set_exit_status(1);
             },
         }
+    }
+}
+
+fn get_actions(args: &Args) -> Vec<Action> {
+    let mut actions = Vec::new();
+
+    if args.arg_file.is_empty() {
+        actions.push(Action { input: Input::StdIn, output: Output::StdOut });
     } else {
-        for name in args.arg_file {
-            let path = Path::new(&name);
-            match format_source_file(&style, path) {
-                Ok(ref s) if args.flag_inplace => {
-                    let mut file = File::create(path).unwrap();
-                    write!(file, "{}", s).unwrap();
-                },
-                Ok(ref s)  => write!(&mut stdout(), "{}", s).unwrap(),
-                Err(ref s) => {
-                    write!(&mut stderr(), "{}", s).unwrap();
-                    std::env::set_exit_status(1);
-                },
+        for file in &args.arg_file {
+            let output = if args.flag_inplace {
+                Output::File(file)
+            } else {
+                Output::StdOut
+            };
+            actions.push(Action { input: Input::File(file), output: output });
+        }
+    }
+
+    actions
+}
+
+struct Action<'a> {
+    input: Input<'a>,
+    output: Output<'a>,
+}
+
+enum Input<'a> {
+    StdIn,
+    File(&'a str),
+}
+
+enum Output<'a> {
+    StdOut,
+    File(&'a str),
+}
+
+fn perform_input(action: &Action) -> Result<String, String> {
+    let mut source_input = String::new();
+
+    match action.input {
+        Input::StdIn => {
+            match stdin().read_to_string(&mut source_input) {
+                Err(ref e) => Err(format!("Failed to read stdin: {}", Error::description(e))),
+                Ok(_) => Ok(source_input),
+            }
+        },
+        Input::File(ref path_string) => {
+            let path = Path::new(path_string);
+
+            let mut file = match File::open(path) {
+                Err(_) => return Err(format!("Couldn't open file: {}", path.display())),
+                Ok(file) => file,
+            };
+            
+            match file.read_to_string(&mut source_input) {
+                Err(_) => Err(format!("Couldn't read file: {}", path.display())),
+                Ok(_) => Ok(source_input),
             }
         }
     }
 }
 
-fn format_source_file(style: &FormatStyle, path: &Path) -> Result<String, String> {
-    let source = {
-        let mut file = match File::open(path) {
-            Err(_) => return Err(format!("Couldn't open file: {}", path.display())),
-            Ok(file) => file,
-        };
+// TODO: handle output errors encountered?
+fn perform_output(action: &Action, source: &String, replacements: &Vec<Replacement>) {
+    let output = Replacement::apply_all(replacements, source);
 
-        let mut source = String::new();
-        match file.read_to_string(&mut source) {
-            Err(_) => return Err(format!("Couldn't read file: {}", path.display())),
-            Ok(_) => source,
-        }
-    };
-
-    let replacements = rustfmt::reformat(&source, style);
-    Ok(Replacement::apply_all(&replacements, &source))
-}
-
-fn format_stdin(style: &FormatStyle) -> Result<String, String> {
-    let mut source = String::new();
-    match stdin().read_to_string(&mut source) {
-        Err(ref e) => return Err(format!("Failed to read stdin: {}", Error::description(e))),
-        Ok(_) => {},
+    match action.output {
+        Output::StdOut => {
+            write!(&mut stdout(), "{}", output).unwrap();
+        },
+        Output::File(ref path_string) => {
+            let mut file = File::create(path_string).unwrap();
+            write!(file, "{}", output).unwrap();
+        },
     }
-
-    let replacements = rustfmt::reformat(&source, style);
-    Ok(Replacement::apply_all(&replacements, &source))
 }
