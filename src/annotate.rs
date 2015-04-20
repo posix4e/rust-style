@@ -383,7 +383,10 @@ fn unary_follows(prev: Option<&FormatToken>) -> bool {
         Token::OpenDelim(..) |
         Token::Comma |
         Token::Semi => return true,
-        Token::Ident(..) if prev.tok.is_keyword(Keyword::Return) => return true,
+        Token::Ident(..)
+            if prev.tok.is_keyword(Keyword::Return) ||
+               prev.tok.is_keyword(Keyword::Match) ||
+               prev.tok.is_keyword(Keyword::If) => return true,
         _ => {},
     }
 

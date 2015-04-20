@@ -544,3 +544,15 @@ extern \"stdcall\" {
 
 fn foo() {}");
 }
+
+#[test]
+fn test_dereference_spacing_in_match() {
+    assert_fmt_eq!("\
+match *self {
+    Context::LambdaArgs => 10,
+}");
+    assert_fmt_eq!("\
+match &self {
+    Context::LambdaArgs => 10,
+}");
+}
