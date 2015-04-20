@@ -2,7 +2,7 @@
 
 # rustfmt should never ever destroy working source code.
 # To test against regressions this shell script tests for various rust source
-# files in src/regression_tests/unformatted.
+# files in src/test_src/unformatted.
 
 # TODO: Add more test files.
 
