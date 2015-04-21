@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, RustcEncodable)]
 pub struct Replacement {
     pub start_byte: usize,
     pub end_byte: usize,
