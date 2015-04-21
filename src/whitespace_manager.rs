@@ -2,9 +2,9 @@ use replacement::Replacement;
 use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
 use style::{UseTabs, FormatStyle};
-use syntax::codemap::{Span, BytePos};
+use syntax::codemap::{mk_sp, Span, BytePos};
 use syntax::parse::token::Token;
-use token::{FormatToken, FormatDecision};
+use token::{FormatTokenLexer, FormatToken, FormatDecision};
 
 struct Change {
     create_replacement: bool,
@@ -87,7 +87,7 @@ impl WhitespaceManager {
     }
 
 
-    pub fn generate_replacements(mut self) -> Vec<Replacement> {
+    pub fn generate_replacements(mut self, lexer: &FormatTokenLexer) -> Vec<Replacement> {
         let mut replacements = vec![];
         let mut changes = mem::replace(&mut self.changes, vec![]);
 
@@ -102,6 +102,10 @@ impl WhitespaceManager {
         // TODO:
         // self.align_trailing_comments();
 
+        // for counting character indices
+        let mut character_index = 0;
+        let mut character_span = mk_sp(BytePos(0), BytePos(0));
+
         for c in changes {
             if c.create_replacement {
                 let mut text = c.previous_line_postfix;
@@ -109,12 +113,33 @@ impl WhitespaceManager {
                 self.append_indent_text(&mut text, c.indent_level, cmp::max(0, c.spaces),
                                         c.start_of_token_column - cmp::max(0, c.spaces));
                 text.push_str(&c.current_line_prefix);
+
+                let start_byte = c.preceding_whitespace_span.lo.0;
+                let end_byte = if c.token == Token::Eof {
+                    c.token_span.hi.0
+                } else {
+                    c.preceding_whitespace_span.hi.0
+                };
+
+                // measures chars from previous measure to start_byte
+                character_span.lo = character_span.hi;
+                character_span.hi.0 = start_byte;
+                character_index += lexer.span_str(character_span).chars().count();
+                let start_character = character_index;
+
+                // measures chars from start_byte to end_byte
+                character_span.lo = character_span.hi;
+                character_span.hi.0 = end_byte;
+                character_index += lexer.span_str(character_span).chars().count();
+                let end_character = character_index;
+
                 replacements.push(Replacement {
-                    start_byte: c.preceding_whitespace_span.lo.0 as usize,
-                    end_byte: if c.token == Token::Eof { c.token_span.hi.0 as usize }
-                              else { c.preceding_whitespace_span.hi.0 as usize },
+                    start_byte:  start_byte as usize,
+                    end_byte: end_byte as usize,
+                    start_character: start_character,
+                    end_character: end_character,
                     text: text,
-                })
+                });
             }
         }
 
