@@ -146,6 +146,43 @@ fn test_replacement_bytes() {
     assert_eq!(r[2].start_byte, 11);
     assert_eq!(r[2].end_byte, 11);
     assert_eq!(r[2].text, "\n");
+    // 䶵 = 3 bytes
+    let r = replacements("let 䶵  =\n3;let 䶵 = 2;");
+    assert_eq!(r[0].start_byte, 7);
+    assert_eq!(r[0].end_byte, 9);
+    assert_eq!(r[0].text, " ");
+    assert_eq!(r[1].start_byte, 10);
+    assert_eq!(r[1].end_byte, 11);
+    assert_eq!(r[1].text, " ");
+    assert_eq!(r[2].start_byte, 13);
+    assert_eq!(r[2].end_byte, 13);
+    assert_eq!(r[2].text, "\n");
+}
+
+#[test]
+fn test_replacement_characters() {
+    // same as bytes
+    let r = replacements("let a  =\n3;let a = 2;");
+    assert_eq!(r[0].start_character, 5);
+    assert_eq!(r[0].end_character, 7);
+    assert_eq!(r[0].text, " ");
+    assert_eq!(r[1].start_character, 8);
+    assert_eq!(r[1].end_character, 9);
+    assert_eq!(r[1].text, " ");
+    assert_eq!(r[2].start_character, 11);
+    assert_eq!(r[2].end_character, 11);
+    assert_eq!(r[2].text, "\n");
+    // 䶵 = 3 bytes
+    let r = replacements("let 䶵  =\n3;let 䶵 = 2;");
+    assert_eq!(r[0].start_character, 5);
+    assert_eq!(r[0].end_character, 7);
+    assert_eq!(r[0].text, " ");
+    assert_eq!(r[1].start_character, 8);
+    assert_eq!(r[1].end_character, 9);
+    assert_eq!(r[1].text, " ");
+    assert_eq!(r[2].start_character, 11);
+    assert_eq!(r[2].end_character, 11);
+    assert_eq!(r[2].text, "\n");
 }
 
 #[test]

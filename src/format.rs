@@ -5,11 +5,11 @@ use std::cmp::{self, Ordering};
 use std::collections::{BinaryHeap, HashSet};
 use style::{FormatStyle, Penalty};
 use syntax::parse::token::{Token, DelimToken};
-use token::{FormatToken, FormatDecision};
+use token::{FormatTokenLexer, FormatToken, FormatDecision};
 use unwrapped_line::UnwrappedLine;
 use whitespace_manager::WhitespaceManager;
 
-pub fn format(style: FormatStyle, lines: &mut [UnwrappedLine]) -> Vec<Replacement> {
+pub fn format(lexer: &FormatTokenLexer, style: FormatStyle, lines: &mut [UnwrappedLine]) -> Vec<Replacement> {
     let mut formatter = LineFormatter {
         style: style.clone(),
         whitespace: WhitespaceManager::new(style.clone()),
@@ -18,7 +18,7 @@ pub fn format(style: FormatStyle, lines: &mut [UnwrappedLine]) -> Vec<Replacemen
     };
 
     formatter.format(lines);
-    formatter.whitespace.generate_replacements()
+    formatter.whitespace.generate_replacements(lexer)
 }
 
 struct LineFormatter<'a> {

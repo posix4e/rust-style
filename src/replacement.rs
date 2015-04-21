@@ -2,6 +2,8 @@
 pub struct Replacement {
     pub start_byte: usize,
     pub end_byte: usize,
+    pub start_character: usize,
+    pub end_character: usize,
     pub text: String,
 }
 
