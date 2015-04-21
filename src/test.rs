@@ -135,6 +135,20 @@ fn test_no_unnecessary_replacements_eof() {
 }
 
 #[test]
+fn test_replacement_bytes() {
+    let r = replacements("let a  =\n3;let a = 2;");
+    assert_eq!(r[0].start_byte, 5);
+    assert_eq!(r[0].end_byte, 7);
+    assert_eq!(r[0].text, " ");
+    assert_eq!(r[1].start_byte, 8);
+    assert_eq!(r[1].end_byte, 9);
+    assert_eq!(r[1].text, " ");
+    assert_eq!(r[2].start_byte, 11);
+    assert_eq!(r[2].end_byte, 11);
+    assert_eq!(r[2].text, "\n");
+}
+
+#[test]
 fn test_format_array() {
     assert_fmt_eq!("let mut a = [0; 4];");
     assert_fmt_eq!("let mut a = [0; 4];\nlet mut a = [0; 4];");
