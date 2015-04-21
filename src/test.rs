@@ -577,3 +577,21 @@ fn test_unary_negation() {
     assert_fmt_eq!("x + -3;");
     assert_fmt_eq!("if x == -3;");
 }
+
+#[test]
+fn test_use_brace_break_indentation() {
+    assert_fmt_eq!("use token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY}");
+    assert_fmt_eq!("\
+use token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
+            PRECEDENCE_DOT}");
+    assert_fmt_eq!("\
+use super::token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
+                   PRECEDENCE_DOT}");
+    assert_fmt_eq!("\
+use {Something, More, FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
+     PRECEDENCE_DOT, Foo, Bar, Baz}");
+    assert_fmt_eq!("\
+use {Something, More, FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
+     PRECEDENCE_DOT, Foo, Bar, Baz, Box, Biz, Ben, What, Else, Can, I, Write,
+     Just, A, Few, More}");
+}

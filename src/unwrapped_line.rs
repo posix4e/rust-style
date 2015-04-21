@@ -374,6 +374,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.next_token();
         loop {
             match self.ftok.tok {
+                Token::Eof => {
+                    break;
+                }
                 Token::Semi => {
                     self.next_token();
                     self.add_line();

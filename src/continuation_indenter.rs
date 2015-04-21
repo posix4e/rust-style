@@ -3,7 +3,7 @@ use std::cmp;
 use style::{FormatStyle, Penalty};
 use syntax::parse::token::{Token, DelimToken};
 use token::{FormatToken, Precedence};
-use unwrapped_line::UnwrappedLine;
+use unwrapped_line::{UnwrappedLine, LineType};
 use whitespace_manager::WhitespaceManager;
 
 pub struct ContinuationIndenter {
@@ -137,24 +137,24 @@ impl ContinuationIndenter {
 
     fn move_state_past_delim_open(&self, line: &UnwrappedLine, state: &mut LineState) {
         let current = &line.tokens[state.next_token_index];
-        let new_paren_state = match current.tok {
-            Token::OpenDelim(DelimToken::Brace) => {
-                let top = state.stack_top();
-                ParenState {
-                    indent: top.indent + self.style.continuation_indent_width,
-                    indent_level: top.indent_level + 1,
-                    contains_line_break: false,
-                }
-            },
-            Token::OpenDelim(DelimToken::Paren) => {
-                let top = state.stack_top();
+        let new_paren_state = {
+            let top = state.stack_top();
+            if current.tok == Token::OpenDelim(DelimToken::Paren) ||
+               current.tok == Token::OpenDelim(DelimToken::Brace) && line.typ == LineType::Use {
                 ParenState {
                     indent: state.column + 1,
                     indent_level: top.indent_level,
                     contains_line_break: false,
                 }
-            },
-            _ => return,
+            } else if current.tok == Token::OpenDelim(DelimToken::Brace) {
+                ParenState {
+                    indent: top.indent + self.style.continuation_indent_width,
+                    indent_level: top.indent_level + 1,
+                    contains_line_break: false,
+                }
+            } else {
+                return;
+            }
         };
 
         state.stack.push(new_paren_state);
