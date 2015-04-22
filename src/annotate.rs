@@ -502,6 +502,7 @@ fn unary_follows(prev: Option<&FormatToken>) -> bool {
         Token::Ident(..)
             if prev.tok.is_keyword(Keyword::Return) ||
                prev.tok.is_keyword(Keyword::Match) ||
+               prev.tok.is_keyword(Keyword::As) ||
                prev.tok.is_keyword(Keyword::If) => return true,
         _ => false,
     }

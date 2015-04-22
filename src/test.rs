@@ -632,3 +632,9 @@ use {Something, More, FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
      PRECEDENCE_DOT, Foo, Bar, Baz, Box, Biz, Ben, What, Else, Can, I, Write,
      Just, A, Few, More}");
 }
+
+
+#[test]
+fn test_spacing_after_as() {
+    assert_fmt_eq!("foo as &mut Bar<T>");
+}
