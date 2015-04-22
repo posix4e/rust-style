@@ -10,7 +10,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
         AnnotatingParser {
             style: style,
             current: 0,
-            binding_strength: 0,
+            // binding_strength: 0,
             matched_parens: None,
         }.parse_line(line);
 
@@ -35,7 +35,7 @@ struct AnnotatingParser<'a> {
     #[allow(dead_code)]
     style: &'a FormatStyle,
     current: usize,
-    binding_strength: Penalty,
+    //binding_strength: Penalty, // FIXME: what is it for?
     matched_parens: Option<(usize, usize)>,
 }
 
