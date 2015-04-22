@@ -7,7 +7,7 @@ use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType};
 // An unwrapped line is a sequence of FormatTokens, that we would like to
 // put on a single line if there was no column limit. Changing the formatting
 // within an unwrapped line does not affect any other unwrapped lines.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnwrappedLine {
     pub tokens: Vec<FormatToken>,
     pub children: Vec<UnwrappedLine>,
@@ -15,7 +15,7 @@ pub struct UnwrappedLine {
     pub typ: LineType,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum LineType {
     Use,
     StructDecl,

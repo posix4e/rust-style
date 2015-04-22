@@ -63,7 +63,7 @@ pub enum CommentType {
     Block,
 }
 
-#[derive(Clone, Debug, )]
+#[derive(Debug, Clone)]
 pub struct FormatToken {
     // The index of the token in the unwrapped line
     pub index: usize,
