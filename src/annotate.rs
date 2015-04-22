@@ -13,15 +13,6 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             // binding_strength: 0,
             matched_parens: None,
         }.parse_line(line);
-
-        // debug
-        /*
-        for i in 0..line.tokens.len() {
-            print!("{:?}", line.tokens[i].tok);
-            println!("    {:?}", line.tokens[i].typ);
-        }
-        */
-
         ExpressionParser {
             style: style,
             current_index: 0,
