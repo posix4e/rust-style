@@ -633,8 +633,14 @@ use {Something, More, FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
      Just, A, Few, More}");
 }
 
-
 #[test]
 fn test_spacing_after_as() {
     assert_fmt_eq!("foo as &mut Bar<T>");
 }
+
+
+#[test]
+fn test_operator_spacing_generics() {
+    assert_fmt_eq!("impl<Unit, T: Add<T, Output = T>+ Clone + Copy> Add<Length<Unit, T>>");
+}
+

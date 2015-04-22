@@ -143,9 +143,16 @@ impl<'a> AnnotatingParser<'a> {
                 }
                 // this symbols are unliky in generics
                 &Token::AndAnd |
-                &Token::OrOr |
-                &Token::BinOpEq(..) => {
+                &Token::OrOr => {
                     return false;
+                }
+
+                &Token::Eq |
+                &Token::EqEq |
+                &Token::Ne |
+                &Token::BinOp(..) |
+                &Token::BinOpEq(..) => {
+                    line.tokens[self.current].typ = TokenType::BinaryOperator;
                 }
                 _ => {
                     line.tokens[self.current].typ = TokenType::Unknown;
