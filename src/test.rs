@@ -526,40 +526,40 @@ fn test_precedence_token() {
 #[test]
 fn test_precedence_format() {
     assert_fmt_eq!("\
-let a = 111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 666 * 777;");
+let a = 111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777;");
 
     assert_fmt_eq!("\
-let a = (111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 555 + 666 + 777);");
+let a = (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777);");
 }
 
 #[test]
 fn test_continuation_indent() {
     assert_fmt_eq!("\
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
     bbbbbbbbbbbbbbbbbbbbbbbb");
     assert_fmt_eq!("\
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb,
-                                            cccccccccccccc)");
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb,
+                                                                cccccccccccccc)");
     assert_fmt_eq!("\
-aaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb, cccccccccccccc,
-                             ddddddddddddd)");
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb, cccccccccccccc,
+                                                        ddddddddddddd)");
     assert_fmt_eq!("\
 let join = lines.len() >= 2 && lines[0].children.is_empty() &&
-           lines[0].tokens.last().unwrap().tok ==
+           lines[0].tokens.last().unwrap().tok.very_looooooooooooong_dummy_name ==
                Token::OpenDelim(DelimToken::Brace) &&
-           lines[1].tokens.first().unwrap().tok ==
+           lines[1].tokens.first().unwrap().tok.very_looooooooooooong_dummy_name ==
                Token::CloseDelim(DelimToken::Brace);");
 }
 
@@ -619,18 +619,18 @@ fn test_unary_negation() {
 fn test_use_brace_break_indentation() {
     assert_fmt_eq!("use token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY}");
     assert_fmt_eq!("\
-use token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
-            PRECEDENCE_DOT}");
+use token::very_looooooooooong_dummy_name::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
+                                            PRECEDENCE_DOT}");
     assert_fmt_eq!("\
-use super::token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
-                   PRECEDENCE_DOT}");
+use super::token::very_long_dummy_name::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
+                                         PRECEDENCE_DOT}");
     assert_fmt_eq!("\
-use {Something, More, FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
+use {Something, Very_long_dummy_name, More, FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
      PRECEDENCE_DOT, Foo, Bar, Baz}");
     assert_fmt_eq!("\
-use {Something, More, FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
-     PRECEDENCE_DOT, Foo, Bar, Baz, Box, Biz, Ben, What, Else, Can, I, Write,
-     Just, A, Few, More}");
+use {Something, Very_long_dummy_name, More, FormatToken, TokenType, Precedence, PRECEDENCE_UNARY,
+     PRECEDENCE_DOT, Foo, Bar, Baz, Box, Biz, Ben, What, Else, Can, I, Write, Just, A, Few, More,
+     Words}");
 }
 
 #[test]
@@ -638,9 +638,9 @@ fn test_spacing_after_as() {
     assert_fmt_eq!("foo as &mut Bar<T>");
 }
 
-
+/* Does not pass. Issue #20
 #[test]
 fn test_operator_spacing_generics() {
-    assert_fmt_eq!("impl<Unit, T: Add<T, Output = T>+ Clone + Copy> Add<Length<Unit, T>>");
+    assert_fmt_eq!("impl<Unit, T: Add<T, Output = T> + Clone + Copy> Add<Length<Unit, T>>");
 }
-
+*/

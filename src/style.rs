@@ -23,7 +23,7 @@ pub struct FormatStyle {
 impl Default for FormatStyle {
     fn default() -> FormatStyle {
         FormatStyle {
-            column_limit: 80,
+            column_limit: 99,
             indent_width: 4,
             tab_width: 4,
             continuation_indent_width: 4,
