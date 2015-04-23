@@ -31,7 +31,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
 }
 
 // The following definitions are used in the annotation parser.
-
+//
 // The contexts the annotating parser currently disambiguates.
 enum ContextType {
     // (...)
@@ -43,7 +43,6 @@ enum ContextType {
 }
 
 struct Context {
-    typ: ContextType,
     binding_strength: Penalty,
 }
 
@@ -99,7 +98,6 @@ impl<'a> AnnotatingParser<'a> {
                 ContextType::Generics => 10,
                 ContextType::LambdaParams => 10,
             },
-            typ: typ,
         };
 
         self.context_stack.push(new_context);
