@@ -9,10 +9,9 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
         annotate_lines(&mut line.children, style);
         AnnotatingParser {
             style: style,
-            current: 0,
-            // binding_strength: 0,
-            matched_parens: None,
-        }.parse_line(line);
+            current_index: 0,
+            line: line,
+        }.parse_line();
         ExpressionParser {
             style: style,
             current_index: 0,
@@ -25,47 +24,58 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
 struct AnnotatingParser<'a> {
     #[allow(dead_code)]
     style: &'a FormatStyle,
-    current: usize,
-    //binding_strength: Penalty, // FIXME: what is it for?
-    matched_parens: Option<(usize, usize)>,
+    current_index: usize,
+    line: &'a mut UnwrappedLine,
 }
 
 
 impl<'a> AnnotatingParser<'a> {
+    fn current(&self) -> &FormatToken {
+        &self.line.tokens[self.current_index]
+    }
+
+    fn current_mut(&mut self) -> &mut FormatToken {
+        &mut self.line.tokens[self.current_index]
+    }
+
+    fn has_current(&self) -> bool {
+        self.current_index < self.line.tokens.len()
+    }
+
+    fn current_is_unary(&self) -> bool {
+        unary_follows(self.line.prev_non_comment_token(self.current_index))
+    }
+
+    fn next(&mut self) {
+        self.current_index += 1;
+    }
 
     // The base parse function
-    fn parse_line(&mut self, line: &mut UnwrappedLine) {
-        let local_line = line.clone();
-
-        for i in 0..line.tokens.len() {
-            line.tokens[i].index = i;
+    fn parse_line(&mut self) {
+        for i in 0..self.line.tokens.len() {
+            self.line.tokens[i].index = i;
         }
-        line.typ = self.determine_line_type(&local_line);
+        self.line.typ = self.determine_line_type();
 
-        loop {
-            if self.current >= line.tokens.len() { break; }
-
-            let ref curr = local_line.tokens[self.current];
-            let ref prev = local_line.prev_non_comment_token(self.current);
-
-            match &curr.tok {
+        while self.has_current() {
+            match &self.current().tok {
                 &Token::BinOp(BinOpToken::Star) |
                 &Token::BinOp(BinOpToken::And) |
-                &Token::BinOp(BinOpToken::Minus) if unary_follows(*prev) => {
-                    line.tokens[self.current].typ = TokenType::UnaryOperator;
+                &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
+                    self.current_mut().typ = TokenType::UnaryOperator;
                 }
-                &Token::BinOp(BinOpToken::Or) if unary_follows(*prev) => {
-                    line.tokens[self.current].typ = TokenType::LambdaArgsStart;
-                    self.parse_lambda(line);
+                &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
+                    self.current_mut().typ = TokenType::LambdaArgsStart;
+                    self.parse_lambda();
                 },
                 &Token::OpenDelim(DelimToken::Paren) => {
-                    self.parse_paren(line);
+                    self.parse_paren();
                 },
                 &Token::Lt => {
-                    let safepoint = self.current;
-                    if !self.parse_angle_bracket(line) {
-                        self.current = safepoint;
-                        line.tokens[self.current].typ = TokenType::BinaryOperator;
+                    let safepoint = self.current_index;
+                    if !self.parse_angle_bracket() {
+                        self.current_index = safepoint;
+                        self.current_mut().typ = TokenType::BinaryOperator;
                     }
                 }
                 &Token::Eq |
@@ -78,67 +88,55 @@ impl<'a> AnnotatingParser<'a> {
                 &Token::OrOr |
                 &Token::BinOp(..) |
                 &Token::BinOpEq(..) => {
-                    line.tokens[self.current].typ = TokenType::BinaryOperator;
+                    self.current_mut().typ = TokenType::BinaryOperator;
                 }
                 _ => {
-                    line.tokens[self.current].typ = TokenType::Unknown;
+                    self.current_mut().typ = TokenType::Unknown;
                 }
             }
 
-            if self.current >= line.tokens.len() { break; }
-
-            line.tokens[self.current].binding_strength = 1;
-            if let Some((l, r)) = self.matched_parens.take() {
-                line.tokens[l].matching_paren_index = Some(r);
-                line.tokens[r].matching_paren_index = Some(l);
-            }
-            self.current += 1;
+            if !self.has_current() { break; }
+            self.current_mut().binding_strength = 1;
+            self.next()
         }
     }
 
-    fn parse_angle_bracket(&mut self, line: &mut UnwrappedLine) -> bool {
-
-        let local_line = line.clone();
+    fn parse_angle_bracket(&mut self) -> bool {
         let mut is_first_token = true;
-        let ref prev = local_line.prev_non_comment_token(self.current);
 
-        loop {
-            if self.current >= line.tokens.len() { break; }
-
-            let ref curr = &local_line.tokens[self.current];
-
-            match &curr.tok {
+        while self.has_current() {
+            match &self.current().tok {
                 &Token::BinOp(BinOpToken::Star) |
                 &Token::BinOp(BinOpToken::And) |
-                &Token::BinOp(BinOpToken::Minus) if unary_follows(*prev) => {
-                    line.tokens[self.current].typ = TokenType::UnaryOperator;
+                &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
+                    self.current_mut().typ = TokenType::UnaryOperator;
                 }
                 &Token::Lt if is_first_token => {
                     is_first_token = false;
-                    line.tokens[self.current].typ = TokenType::GenericBracket;
+                    self.current_mut().typ = TokenType::GenericBracket;
                 }
                 &Token::Lt => {
                     // if a nestes angle bracket parse fails, this must fail too
-                    if !self.parse_angle_bracket(line) {
+                    if !self.parse_angle_bracket() {
                         return false;
                     }
 
                     // Test if the child parse call ended with a ">>" symbol. In that case, this
                     // parse function must exit too.
-                    if line.tokens[self.current].tok == Token::BinOp(BinOpToken::Shr) {
+                    if self.current().tok == Token::BinOp(BinOpToken::Shr) {
                         return true;
                     }
 
                 }
                 &Token::Gt => {
-                    line.tokens[self.current].typ = TokenType::GenericBracket;
+                    self.current_mut().typ = TokenType::GenericBracket;
                     return true;
                 }
 
                 // The last token in "Foo<Bar<Baz>>" is ">>". We must terminate the parent
                 // parse_angle_bracket too.
                 &Token::BinOp(BinOpToken::Shr) => {
-                    line.tokens[self.current].typ = TokenType::GenericBracket;
+                    self.current_mut().typ = TokenType::GenericBracket;
                     return true;
                 }
                 // this symbols are unliky in generics
@@ -152,62 +150,51 @@ impl<'a> AnnotatingParser<'a> {
                 &Token::Ne |
                 &Token::BinOp(..) |
                 &Token::BinOpEq(..) => {
-                    line.tokens[self.current].typ = TokenType::BinaryOperator;
+                    self.current_mut().typ = TokenType::BinaryOperator;
                 }
                 _ => {
-                    line.tokens[self.current].typ = TokenType::Unknown;
+                    self.current_mut().typ = TokenType::Unknown;
                 }
             };
 
-            if self.current >= line.tokens.len() { break; }
-
-            line.tokens[self.current].binding_strength = 10;
-            if let Some((l, r)) = self.matched_parens.take() {
-                line.tokens[l].matching_paren_index = Some(r);
-                line.tokens[r].matching_paren_index = Some(l);
-            }
-            self.current += 1;
+            if !self.has_current() { break; }
+            self.current_mut().binding_strength = 10;
+            self.next()
         }
         true
     }
 
-    fn parse_paren(&mut self, line: &mut UnwrappedLine) {
-        self.current += 1; // advance over the starting paren
+    fn parse_paren(&mut self) {
+        assert_eq!(self.current().tok, Token::OpenDelim(DelimToken::Paren));
+        self.next(); // advance over the starting paren
 
-        let local_line = line.clone();
-
-        loop {
-            if self.current >= line.tokens.len() { return; }
-
-            let ref curr = local_line.tokens[self.current];
-            let ref prev = local_line.prev_non_comment_token(self.current);
-
-            match &curr.tok {
+        while self.has_current() {
+            match &self.current().tok {
                 &Token::BinOp(BinOpToken::Star) |
                 &Token::BinOp(BinOpToken::And) |
-                &Token::BinOp(BinOpToken::Minus) if unary_follows(*prev) => {
-                    line.tokens[self.current].typ = TokenType::UnaryOperator;
+                &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
+                    self.current_mut().typ = TokenType::UnaryOperator;
                 }
-                &Token::BinOp(BinOpToken::Or) if unary_follows(*prev) => {
-                    line.tokens[self.current].typ = TokenType::LambdaArgsStart;
-                    self.parse_lambda(line);
+                &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
+                    self.current_mut().typ = TokenType::LambdaArgsStart;
+                    self.parse_lambda();
                 }
                 // this is a nested paren block
                 &Token::OpenDelim(DelimToken::Paren) => {
-                    self.parse_paren(line);
-                    line.tokens[self.current].typ = TokenType::Unknown;
+                    self.parse_paren();
+                    self.current_mut().typ = TokenType::Unknown;
                 }
                 &Token::Lt => {
-                    let safepoint = self.current;
-                    if !self.parse_angle_bracket(line) {
-                        self.current = safepoint;
-                        line.tokens[self.current].typ = TokenType::BinaryOperator;
+                    let safepoint = self.current_index;
+                    if !self.parse_angle_bracket() {
+                        self.current_index = safepoint;
+                        self.current_mut().typ = TokenType::BinaryOperator;
                     }
                 }
 
                 // end the paren parsing
                 &Token::CloseDelim(DelimToken::Paren) => {
-                    line.tokens[self.current].typ = TokenType::Unknown;
+                    self.current_mut().typ = TokenType::Unknown;
                     return;
                 }
 
@@ -221,50 +208,39 @@ impl<'a> AnnotatingParser<'a> {
                 &Token::OrOr |
                 &Token::BinOp(..) |
                 &Token::BinOpEq(..) => {
-                    line.tokens[self.current].typ = TokenType::BinaryOperator;
+                    self.current_mut().typ = TokenType::BinaryOperator;
                 }
                 _ => {
-                    line.tokens[self.current].typ = TokenType::Unknown;
+                    self.current_mut().typ = TokenType::Unknown;
                 }
             }
 
-            if self.current >= line.tokens.len() { break; }
-
-            line.tokens[self.current].binding_strength = 10;
-            if let Some((l, r)) = self.matched_parens.take() {
-                line.tokens[l].matching_paren_index = Some(r);
-                line.tokens[r].matching_paren_index = Some(l);
-            }
-            self.current += 1;
+            if !self.has_current() { break; }
+            self.current_mut().binding_strength = 10;
+            self.next();
         }
     }
 
-    fn parse_lambda(&mut self, line: &mut UnwrappedLine) {
-        self.current += 1; // advance over the first pipe
-        let local_line = line.clone();
+    fn parse_lambda(&mut self) {
+        self.next(); // advance over the first pipe
 
-        loop {
-            if self.current >= line.tokens.len() { break; }
-
-            let ref curr = local_line.tokens[self.current];
-            let ref prev = local_line.prev_non_comment_token(self.current);
-
-            match &curr.tok {
+        while self.has_current() {
+            match &self.current().tok {
                 &Token::BinOp(BinOpToken::Star) |
                 &Token::BinOp(BinOpToken::And) |
-                &Token::BinOp(BinOpToken::Minus) if unary_follows(*prev) => {
-                    line.tokens[self.current].typ = TokenType::UnaryOperator;
+                &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
+                    self.current_mut().typ = TokenType::UnaryOperator;
                 }
                 // end lambda parsing
                 &Token::BinOp(BinOpToken::Or) => {
-                    line.tokens[self.current].typ = TokenType::LambdaArgsEnd;
+                    self.current_mut().typ = TokenType::LambdaArgsEnd;
                     return
                 },
                 &Token::Lt => {
-                    let safepoint = self.current;
-                    if !self.parse_angle_bracket(line) {
-                        self.current = safepoint;
-                        line.tokens[self.current].typ = TokenType::BinaryOperator;
+                    let safepoint = self.current_index;
+                    if !self.parse_angle_bracket() {
+                        self.current_index = safepoint;
+                        self.current_mut().typ = TokenType::BinaryOperator;
                     }
                 }
                 &Token::Eq |
@@ -277,26 +253,21 @@ impl<'a> AnnotatingParser<'a> {
                 &Token::OrOr |
                 &Token::BinOp(..) |
                 &Token::BinOpEq(..) => {
-                    line.tokens[self.current].typ = TokenType::BinaryOperator;
+                    self.current_mut().typ = TokenType::BinaryOperator;
                 }
                 _ => {
-                    line.tokens[self.current].typ = TokenType::Unknown;
+                    self.current_mut().typ = TokenType::Unknown;
                 }
             }
 
-            if self.current >= line.tokens.len() { break; }
-
-            line.tokens[self.current].binding_strength = 10;
-            if let Some((l, r)) = self.matched_parens.take() {
-                line.tokens[l].matching_paren_index = Some(r);
-                line.tokens[r].matching_paren_index = Some(l);
-            }
-            self.current += 1;
+            if !self.has_current() { break; }
+            self.current_mut().binding_strength = 10;
+            self.next()
         }
     }
 
-    fn determine_line_type(&self, line: &UnwrappedLine) -> LineType {
-        for ftok in &line.tokens {
+    fn determine_line_type(&self) -> LineType {
+        for ftok in &self.line.tokens {
             let tok = &ftok.tok;
             match tok {
                 &Token::Ident(..) if tok.is_keyword(Keyword::Use) => return LineType::Use,
