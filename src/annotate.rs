@@ -232,7 +232,7 @@ impl<'a> AnnotatingParser<'a> {
                 };
                 this.next()
             }
-            GenericsReturn::Success
+            GenericsReturn::Fail
         })
     }
 

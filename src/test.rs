@@ -690,3 +690,8 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
 fn test_deeply_nested_generics() {
     assert_fmt_eq!("type Something = Foo<T<U<V<W>>>, X>;");
 }
+
+#[test]
+fn test_spacing_single_bigger_than() {
+    assert_fmt_eq!("self.current_index < self.line.tokens.len()");
+}
