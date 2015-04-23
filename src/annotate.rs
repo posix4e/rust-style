@@ -195,8 +195,8 @@ impl<'a> AnnotatingParser<'a> {
                             GenericsReturn::Fail => {
                                 return GenericsReturn::Fail;
                             }
-                            // Test if the child parse call ended with a ">>" symbol. In that case, this
-                            // parse function must exit too.
+                            // Test if the child parse call ended with a ">>" symbol. In that case
+                            // this parse function must exit too.
                             GenericsReturn::SuccessDouble => {
                                 return GenericsReturn::Success;
                             }
