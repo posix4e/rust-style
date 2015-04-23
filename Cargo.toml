@@ -1,7 +1,7 @@
 [package]
 name = "rustfmt"
 version = "0.0.1"
-authors = ["Seth Pink <sethpink@gmail.com>"]
+authors = ["Seth Pink <sethpink@gmail.com>", madmalik <matthias.tellen@gmail.com>]
 license = "MIT"
 
 [dependencies]
