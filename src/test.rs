@@ -349,6 +349,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("unsafe fn as_ptr(&self) -> *const u8 {}");
     assert_fmt_eq!("head.fill.set(round_up(end, mem::align_of::<*const TyDesc>()));");
     assert_fmt_eq!("unsafe fn new(next: *mut A<T>, f: usize) -> *mut B<T>");
+    assert_fmt_eq!("for ftok in &self.line.tokens {");
 }
 
 #[test]
