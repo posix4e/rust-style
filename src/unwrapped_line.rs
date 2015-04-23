@@ -143,22 +143,16 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Use) => {
                     self.parse_use();
                 },
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Loop) => {
-                    self.parse_loop();
-                },
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::For) => {
-                    self.parse_loop();
-                },
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::While) => {
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Loop) ||
+                    self.ftok.tok.is_keyword(Keyword::For) ||
+                    self.ftok.tok.is_keyword(Keyword::While) => {
                     self.parse_loop();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Fn) => {
                     self.parse_decl(Block::Statements);
                 },
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Struct) => {
-                    self.parse_decl(Block::StructOrEnum);
-                },
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Enum) => {
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Struct)  ||
+                    self.ftok.tok.is_keyword(Keyword::Enum) => {
                     self.parse_decl(Block::StructOrEnum);
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Impl) => {
@@ -167,10 +161,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Trait) => {
                     self.parse_decl(Block::Trait);
                 },
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) => {
-                    self.next_token();
-                },
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Unsafe) => {
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) ||
+                    self.ftok.tok.is_keyword(Keyword::Unsafe) => {
                     self.next_token();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Extern) => {
