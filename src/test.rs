@@ -638,12 +638,11 @@ fn test_spacing_after_as() {
     assert_fmt_eq!("foo as &mut Bar<T>");
 }
 
-/* FIXME: Does not pass. Issue #20
 #[test]
 fn test_operator_spacing_generics() {
     assert_fmt_eq!("impl<Unit, T: Add<T, Output = T> + Clone + Copy> Add<Length<Unit, T>>");
 }
-*/
+
 
 #[test]
 fn test_binding_strength_cumulative_effect() {

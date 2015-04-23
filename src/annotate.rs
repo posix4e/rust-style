@@ -576,6 +576,8 @@ fn space_required_before(line: &UnwrappedLine,
         (&Token::BinOp(BinOpToken::Shr), &Token::Eq) |
         (&Token::Gt, &Token::Eq) if prev.typ == TokenType::GenericBracket => true,
         (&Token::BinOp(BinOpToken::Shr), &Token::Ident(..)) |
+        (&Token::Gt, &Token::BinOp(..)) |
+        (&Token::BinOp(BinOpToken::Shr), &Token::BinOp(..)) |
         (&Token::Gt, &Token::Ident(..)) if prev.typ == TokenType::GenericBracket => true,
         (_, &Token::OpenDelim(DelimToken::Brace)) if prev.typ == TokenType::GenericBracket => true,
         _ if prev.typ == TokenType::GenericBracket => false,
