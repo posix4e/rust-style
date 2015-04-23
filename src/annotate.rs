@@ -11,6 +11,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             style: style,
             current_index: 0,
             line: line,
+            context_stack: vec![],
         }.parse_line();
         ExpressionParser {
             style: style,
@@ -21,13 +22,24 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
     }
 }
 
+enum ContextType {
+    Parens,
+    Generics,
+    LambdaParams,
+}
+
+struct Context {
+    typ: ContextType,
+    binding_strength: Penalty,
+}
+
 struct AnnotatingParser<'a> {
     #[allow(dead_code)]
     style: &'a FormatStyle,
     current_index: usize,
     line: &'a mut UnwrappedLine,
+    context_stack: Vec<Context>,
 }
-
 
 impl<'a> AnnotatingParser<'a> {
     fn current(&self) -> &FormatToken {
@@ -47,7 +59,30 @@ impl<'a> AnnotatingParser<'a> {
     }
 
     fn next(&mut self) {
-        self.current_index += 1;
+        if self.has_current() {
+            self.current_mut().binding_strength = self.context_binding_strength();
+            self.current_index += 1;
+        }
+    }
+
+    fn context_binding_strength(&self) -> Penalty {
+        self.context_stack.last().map(|c| c.binding_strength).unwrap_or(0)
+    }
+
+    fn using_context<R, F: Fn(&mut Self) -> R>(&mut self, typ: ContextType, f: F) -> R {
+        let new_context = Context {
+            binding_strength: self.context_binding_strength() + match typ {
+                ContextType::Parens => 1,
+                ContextType::Generics => 10,
+                ContextType::LambdaParams => 10,
+            },
+            typ: typ,
+        };
+
+        self.context_stack.push(new_context);
+        let result = f(self);
+        self.context_stack.pop();
+        result
     }
 
     // The base parse function
@@ -66,10 +101,13 @@ impl<'a> AnnotatingParser<'a> {
                 }
                 &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
                     self.current_mut().typ = TokenType::LambdaParamsStart;
-                    self.parse_lambda();
+                    self.parse_lambda_params();
                 },
                 &Token::OpenDelim(DelimToken::Paren) => {
                     self.parse_paren();
+                    // parse_paren consumes the closing parens
+                    // We don't want to call next again.
+                    continue;
                 },
                 &Token::Lt => {
                     let safepoint = self.current_index;
@@ -95,175 +133,179 @@ impl<'a> AnnotatingParser<'a> {
                 }
             }
 
-            if !self.has_current() { break; }
-            self.current_mut().binding_strength = 1;
             self.next()
         }
     }
 
     fn parse_angle_bracket(&mut self) -> bool {
-        let mut is_first_token = true;
+        self.using_context(ContextType::Generics, |this| {
+            let mut is_first_token = true;
 
-        while self.has_current() {
-            match &self.current().tok {
-                &Token::BinOp(BinOpToken::Star) |
-                &Token::BinOp(BinOpToken::And) |
-                &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
-                    self.current_mut().typ = TokenType::UnaryOperator;
-                }
-                &Token::Lt if is_first_token => {
-                    is_first_token = false;
-                    self.current_mut().typ = TokenType::GenericBracket;
-                }
-                &Token::Lt => {
-                    // if a nestes angle bracket parse fails, this must fail too
-                    if !self.parse_angle_bracket() {
-                        return false;
+            while this.has_current() {
+                match &this.current().tok {
+                    &Token::BinOp(BinOpToken::Star) |
+                    &Token::BinOp(BinOpToken::And) |
+                    &Token::BinOp(BinOpToken::Minus) if this.current_is_unary() => {
+                        this.current_mut().typ = TokenType::UnaryOperator;
                     }
+                    &Token::Lt if is_first_token => {
+                        is_first_token = false;
+                        this.current_mut().typ = TokenType::GenericBracket;
+                    }
+                    &Token::Lt => {
+                        // if a nested angle bracket parse fails, this must fail too
+                        if !this.parse_angle_bracket() {
+                            return false;
+                        }
 
-                    // Test if the child parse call ended with a ">>" symbol. In that case, this
-                    // parse function must exit too.
-                    if self.current().tok == Token::BinOp(BinOpToken::Shr) {
+                        // Test if the child parse call ended with a ">>" symbol. In that case, this
+                        // parse function must exit too.
+                        if this.current().tok == Token::BinOp(BinOpToken::Shr) {
+                            return true;
+                        }
+
+                    }
+                    &Token::Gt => {
+                        this.current_mut().typ = TokenType::GenericBracket;
                         return true;
                     }
 
-                }
-                &Token::Gt => {
-                    self.current_mut().typ = TokenType::GenericBracket;
-                    return true;
-                }
+                    // The last token in "Foo<Bar<Baz>>" is ">>". We must terminate the parent
+                    // parse_angle_bracket too.
+                    &Token::BinOp(BinOpToken::Shr) => {
+                        this.current_mut().typ = TokenType::GenericBracket;
+                        return true;
+                    }
+                    // These symbols are unliky in generics
+                    &Token::AndAnd |
+                    &Token::OrOr => {
+                        return false;
+                    }
 
-                // The last token in "Foo<Bar<Baz>>" is ">>". We must terminate the parent
-                // parse_angle_bracket too.
-                &Token::BinOp(BinOpToken::Shr) => {
-                    self.current_mut().typ = TokenType::GenericBracket;
-                    return true;
-                }
-                // this symbols are unliky in generics
-                &Token::AndAnd |
-                &Token::OrOr => {
-                    return false;
-                }
+                    &Token::Eq |
+                    &Token::EqEq |
+                    &Token::Ne |
+                    &Token::BinOp(..) |
+                    &Token::BinOpEq(..) => {
+                        this.current_mut().typ = TokenType::BinaryOperator;
+                    }
+                    _ => {
+                        this.current_mut().typ = TokenType::Unknown;
+                    }
+                };
 
-                &Token::Eq |
-                &Token::EqEq |
-                &Token::Ne |
-                &Token::BinOp(..) |
-                &Token::BinOpEq(..) => {
-                    self.current_mut().typ = TokenType::BinaryOperator;
-                }
-                _ => {
-                    self.current_mut().typ = TokenType::Unknown;
-                }
-            };
-
-            if !self.has_current() { break; }
-            self.current_mut().binding_strength = 10;
-            self.next()
-        }
-        true
+                this.next()
+            }
+            true
+        })
     }
 
     fn parse_paren(&mut self) {
         assert_eq!(self.current().tok, Token::OpenDelim(DelimToken::Paren));
         self.next(); // advance over the starting paren
 
-        while self.has_current() {
-            match &self.current().tok {
-                &Token::BinOp(BinOpToken::Star) |
-                &Token::BinOp(BinOpToken::And) |
-                &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
-                    self.current_mut().typ = TokenType::UnaryOperator;
-                }
-                &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
-                    self.current_mut().typ = TokenType::LambdaParamsStart;
-                    self.parse_lambda();
-                }
-                // this is a nested paren block
-                &Token::OpenDelim(DelimToken::Paren) => {
-                    self.parse_paren();
-                    self.current_mut().typ = TokenType::Unknown;
-                }
-                &Token::Lt => {
-                    let safepoint = self.current_index;
-                    if !self.parse_angle_bracket() {
-                        self.current_index = safepoint;
-                        self.current_mut().typ = TokenType::BinaryOperator;
+        self.using_context(ContextType::Parens, |this| {
+            while this.has_current() {
+                match &this.current().tok {
+                    &Token::BinOp(BinOpToken::Star) |
+                    &Token::BinOp(BinOpToken::And) |
+                    &Token::BinOp(BinOpToken::Minus) if this.current_is_unary() => {
+                        this.current_mut().typ = TokenType::UnaryOperator;
+                    }
+                    &Token::BinOp(BinOpToken::Or) if this.current_is_unary() => {
+                        this.current_mut().typ = TokenType::LambdaParamsStart;
+                        this.parse_lambda_params();
+                    }
+                    // this is a nested paren block
+                    &Token::OpenDelim(DelimToken::Paren) => {
+                        this.parse_paren();
+                        this.current_mut().typ = TokenType::Unknown;
+                        // parse_paren consumes the closing parens
+                        // We don't want to call next again.
+                        continue;
+                    }
+                    &Token::Lt => {
+                        let safepoint = this.current_index;
+                        if !this.parse_angle_bracket() {
+                            this.current_index = safepoint;
+                            this.current_mut().typ = TokenType::BinaryOperator;
+                        }
+                    }
+
+                    // end the paren parsing
+                    &Token::CloseDelim(DelimToken::Paren) => {
+                        this.current_mut().typ = TokenType::Unknown;
+                        // consume the closing parens in this context
+                        this.next();
+                        return;
+                    }
+
+                    &Token::Eq |
+                    &Token::Le |
+                    &Token::EqEq |
+                    &Token::Ne |
+                    &Token::Ge |
+                    &Token::Gt |
+                    &Token::AndAnd |
+                    &Token::OrOr |
+                    &Token::BinOp(..) |
+                    &Token::BinOpEq(..) => {
+                        this.current_mut().typ = TokenType::BinaryOperator;
+                    }
+                    _ => {
+                        this.current_mut().typ = TokenType::Unknown;
                     }
                 }
 
-                // end the paren parsing
-                &Token::CloseDelim(DelimToken::Paren) => {
-                    self.current_mut().typ = TokenType::Unknown;
-                    return;
-                }
-
-                &Token::Eq |
-                &Token::Le |
-                &Token::EqEq |
-                &Token::Ne |
-                &Token::Ge |
-                &Token::Gt |
-                &Token::AndAnd |
-                &Token::OrOr |
-                &Token::BinOp(..) |
-                &Token::BinOpEq(..) => {
-                    self.current_mut().typ = TokenType::BinaryOperator;
-                }
-                _ => {
-                    self.current_mut().typ = TokenType::Unknown;
-                }
+                this.next();
             }
-
-            if !self.has_current() { break; }
-            self.current_mut().binding_strength = 10;
-            self.next();
-        }
+        })
     }
 
-    fn parse_lambda(&mut self) {
+    fn parse_lambda_params(&mut self) {
+        assert_eq!(self.current().tok, Token::BinOp(BinOpToken::Or));
         self.next(); // advance over the first pipe
 
-        while self.has_current() {
-            match &self.current().tok {
-                &Token::BinOp(BinOpToken::Star) |
-                &Token::BinOp(BinOpToken::And) |
-                &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
-                    self.current_mut().typ = TokenType::UnaryOperator;
-                }
-                // end lambda parsing
-                &Token::BinOp(BinOpToken::Or) => {
-                    self.current_mut().typ = TokenType::LambdaParamsEnd;
-                    return
-                },
-                &Token::Lt => {
-                    let safepoint = self.current_index;
-                    if !self.parse_angle_bracket() {
-                        self.current_index = safepoint;
-                        self.current_mut().typ = TokenType::BinaryOperator;
+        self.using_context(ContextType::LambdaParams, |this| {
+            while this.has_current() {
+                match &this.current().tok {
+                    &Token::BinOp(BinOpToken::Star) |
+                    &Token::BinOp(BinOpToken::And) |
+                    &Token::BinOp(BinOpToken::Minus) if this.current_is_unary() => {
+                        this.current_mut().typ = TokenType::UnaryOperator;
+                    }
+                    // end lambda parsing
+                    &Token::BinOp(BinOpToken::Or) => {
+                        this.current_mut().typ = TokenType::LambdaParamsEnd;
+                        return
+                    },
+                    &Token::Lt => {
+                        let safepoint = this.current_index;
+                        if !this.parse_angle_bracket() {
+                            this.current_index = safepoint;
+                            this.current_mut().typ = TokenType::BinaryOperator;
+                        }
+                    }
+                    &Token::Eq |
+                    &Token::Le |
+                    &Token::EqEq |
+                    &Token::Ne |
+                    &Token::Ge |
+                    &Token::Gt |
+                    &Token::AndAnd |
+                    &Token::OrOr |
+                    &Token::BinOp(..) |
+                    &Token::BinOpEq(..) => {
+                        this.current_mut().typ = TokenType::BinaryOperator;
+                    }
+                    _ => {
+                        this.current_mut().typ = TokenType::Unknown;
                     }
                 }
-                &Token::Eq |
-                &Token::Le |
-                &Token::EqEq |
-                &Token::Ne |
-                &Token::Ge |
-                &Token::Gt |
-                &Token::AndAnd |
-                &Token::OrOr |
-                &Token::BinOp(..) |
-                &Token::BinOpEq(..) => {
-                    self.current_mut().typ = TokenType::BinaryOperator;
-                }
-                _ => {
-                    self.current_mut().typ = TokenType::Unknown;
-                }
-            }
 
-            if !self.has_current() { break; }
-            self.current_mut().binding_strength = 10;
-            self.next()
-        }
+                this.next()
+            }
+        })
     }
 
     fn determine_line_type(&self) -> LineType {
@@ -476,7 +518,6 @@ fn unary_follows(prev: Option<&FormatToken>) -> bool {
         _ => false,
     }
 }
-
 
 fn space_required_before(line: &UnwrappedLine,
                          prev: &FormatToken,

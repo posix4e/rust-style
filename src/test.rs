@@ -526,22 +526,22 @@ fn test_precedence_token() {
 #[test]
 fn test_precedence_format() {
     assert_fmt_eq!("\
-let a = 111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777 +
-        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 * 555 * 666 * 777;");
+let a = 111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 +
+        111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444;");
 
     assert_fmt_eq!("\
-let a = (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777) *
-        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555 + 666 + 777);");
+let a = (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555) *
+        (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555);");
 }
 
 #[test]
@@ -644,3 +644,45 @@ fn test_operator_spacing_generics() {
     assert_fmt_eq!("impl<Unit, T: Add<T, Output = T> + Clone + Copy> Add<Length<Unit, T>>");
 }
 */
+
+#[test]
+fn test_binding_strength_cumulative_effect() {
+    let tok = &annotated_lines("53 + 21")[0].tokens;
+    assert_eq!(0, tok[0].binding_strength);
+    assert_eq!(0, tok[1].binding_strength);
+    assert_eq!(0, tok[2].binding_strength);
+
+    let tok = &annotated_lines("(53 + 21) + 0")[0].tokens;
+    let paren_strength = tok[2].binding_strength;
+    assert!(paren_strength > 0);
+    assert_eq!(tok[0].binding_strength, 0);
+    assert_eq!(tok[1].binding_strength, paren_strength);
+    assert_eq!(tok[2].binding_strength, paren_strength);
+    assert_eq!(tok[3].binding_strength, paren_strength);
+    assert_eq!(tok[4].binding_strength, paren_strength);
+    assert_eq!(tok[5].binding_strength, 0);
+    assert_eq!(tok[6].binding_strength, 0);
+
+    let tok = &annotated_lines("(53 + (5 + 2)) + 2")[0].tokens;
+    assert_eq!(tok[0].binding_strength, 0);
+    assert_eq!(tok[1].binding_strength, paren_strength);
+    assert_eq!(tok[2].binding_strength, paren_strength);
+    assert_eq!(tok[3].binding_strength, paren_strength);
+    assert_eq!(tok[4].binding_strength, paren_strength * 2);
+    assert_eq!(tok[5].binding_strength, paren_strength * 2);
+    assert_eq!(tok[6].binding_strength, paren_strength * 2);
+    assert_eq!(tok[7].binding_strength, paren_strength * 2);
+    assert_eq!(tok[8].binding_strength, paren_strength);
+    assert_eq!(tok[9].binding_strength, 0);
+    assert_eq!(tok[10].binding_strength, 0);
+}
+
+#[test]
+fn test_binding_strength_affects_split_penalty() {
+    // The split penalty between dddd and eeee should be higher, because it has
+    // a higher level of nesting. It should break between bbbb and cccc instead.
+    assert_fmt_eq!("\
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
+                              cccccccccccccccccc(ddddddddddddddd, eeeeeeeeeee));
+");
+}
