@@ -118,6 +118,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
     fn parse_level(&mut self, block: Block) {
         loop {
+            let is_macro_invocation = self.is_macro_invocation();
             match self.ftok.tok {
                 Token::Eof => {
                     break;
@@ -188,6 +189,11 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     }
                     self.add_line();
                 },
+                // Check for macros
+                Token::Ident(..) if is_macro_invocation => {
+                    println!("found macro!!!");
+                    self.parse_stmt()
+                }
                 _ => {
                     match block {
                         Block::StructOrEnum => self.parse_enum_variant_or_struct_field(),
@@ -616,6 +622,11 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         if new_line_before_next && just_comments {
             self.add_line();
         }
+    }
+
+    // just checks for the "!" token
+    fn is_macro_invocation(&mut self) -> bool{
+        self.lexer.is_peek_a_not_token()
     }
 
     fn next_token(&mut self) {
