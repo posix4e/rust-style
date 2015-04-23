@@ -638,7 +638,7 @@ fn test_spacing_after_as() {
     assert_fmt_eq!("foo as &mut Bar<T>");
 }
 
-/* Does not pass. Issue #20
+/* FIXME: Does not pass. Issue #20
 #[test]
 fn test_operator_spacing_generics() {
     assert_fmt_eq!("impl<Unit, T: Add<T, Output = T> + Clone + Copy> Add<Length<Unit, T>>");
@@ -685,4 +685,9 @@ fn test_binding_strength_affects_split_penalty() {
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
                               cccccccccccccccccc(ddddddddddddddd, eeeeeeeeeee));
 ");
+}
+
+#[test]
+fn test_deeply_nested_generics() {
+    assert_fmt_eq!("type Something = Foo<T<U<V<W>>>, X>;");
 }

@@ -41,6 +41,14 @@ struct AnnotatingParser<'a> {
     context_stack: Vec<Context>,
 }
 
+// the return value of the parse_angle_bracket
+enum GenericsReturn {
+    Fail,
+    Success,
+    // this is the case when a ">>" token is found that also terminates the parent parse function
+    SuccessDouble,
+}
+
 impl<'a> AnnotatingParser<'a> {
     fn current(&self) -> &FormatToken {
         &self.line.tokens[self.current_index]
@@ -111,9 +119,16 @@ impl<'a> AnnotatingParser<'a> {
                 },
                 &Token::Lt => {
                     let safepoint = self.current_index;
-                    if !self.parse_angle_bracket() {
-                        self.current_index = safepoint;
-                        self.current_mut().typ = TokenType::BinaryOperator;
+                    match self.parse_generics() {
+                        // If a nested angle bracket parse fails, we must backtrack and reparse
+                        GenericsReturn::Fail => {
+                            self.current_index = safepoint;
+                            self.current_mut().typ = TokenType::BinaryOperator;
+                        }
+                        // SuccessDouble has to be an error in the source, but i think it's the most
+                        // robust solution to handle this parse as if it was valid
+                        GenericsReturn::SuccessDouble |
+                        GenericsReturn::Success => {}
                     }
                 }
                 &Token::Eq |
@@ -137,7 +152,7 @@ impl<'a> AnnotatingParser<'a> {
         }
     }
 
-    fn parse_angle_bracket(&mut self) -> bool {
+    fn parse_generics(&mut self) -> GenericsReturn {
         self.using_context(ContextType::Generics, |this| {
             let mut is_first_token = true;
 
@@ -153,33 +168,33 @@ impl<'a> AnnotatingParser<'a> {
                         this.current_mut().typ = TokenType::GenericBracket;
                     }
                     &Token::Lt => {
-                        // if a nested angle bracket parse fails, this must fail too
-                        if !this.parse_angle_bracket() {
-                            return false;
+                        match this.parse_generics() {
+                            // if a nested angle bracket parse fails, this must fail too
+                            GenericsReturn::Fail => {
+                                return GenericsReturn::Fail;
+                            }
+                            // Test if the child parse call ended with a ">>" symbol. In that case, this
+                            // parse function must exit too.
+                            GenericsReturn::SuccessDouble => {
+                                return GenericsReturn::Success;
+                            }
+                            GenericsReturn::Success => {}
                         }
-
-                        // Test if the child parse call ended with a ">>" symbol. In that case, this
-                        // parse function must exit too.
-                        if this.current().tok == Token::BinOp(BinOpToken::Shr) {
-                            return true;
-                        }
-
                     }
                     &Token::Gt => {
                         this.current_mut().typ = TokenType::GenericBracket;
-                        return true;
+                        return GenericsReturn::Success;
                     }
-
                     // The last token in "Foo<Bar<Baz>>" is ">>". We must terminate the parent
                     // parse_angle_bracket too.
                     &Token::BinOp(BinOpToken::Shr) => {
                         this.current_mut().typ = TokenType::GenericBracket;
-                        return true;
+                        return GenericsReturn::SuccessDouble;
                     }
                     // These symbols are unliky in generics
                     &Token::AndAnd |
                     &Token::OrOr => {
-                        return false;
+                        return GenericsReturn::Fail;
                     }
 
                     &Token::Eq |
@@ -193,10 +208,9 @@ impl<'a> AnnotatingParser<'a> {
                         this.current_mut().typ = TokenType::Unknown;
                     }
                 };
-
                 this.next()
             }
-            true
+            GenericsReturn::Success
         })
     }
 
@@ -216,7 +230,7 @@ impl<'a> AnnotatingParser<'a> {
                         this.current_mut().typ = TokenType::LambdaParamsStart;
                         this.parse_lambda_params();
                     }
-                    // this is a nested paren block
+                    // A nested paren block
                     &Token::OpenDelim(DelimToken::Paren) => {
                         this.parse_paren();
                         this.current_mut().typ = TokenType::Unknown;
@@ -226,12 +240,18 @@ impl<'a> AnnotatingParser<'a> {
                     }
                     &Token::Lt => {
                         let safepoint = this.current_index;
-                        if !this.parse_angle_bracket() {
-                            this.current_index = safepoint;
-                            this.current_mut().typ = TokenType::BinaryOperator;
+                        match this.parse_generics() {
+                            // If a nested angle bracket parse fails, we must backtrack and reparse
+                            GenericsReturn::Fail => {
+                                this.current_index = safepoint;
+                                this.current_mut().typ = TokenType::BinaryOperator;
+                            }
+                            // SuccessDouble has to be an error in the source, but i think it's the most
+                            // robust solution to handle this parse as if it was valid
+                            GenericsReturn::SuccessDouble |
+                            GenericsReturn::Success => {}
                         }
                     }
-
                     // end the paren parsing
                     &Token::CloseDelim(DelimToken::Paren) => {
                         this.current_mut().typ = TokenType::Unknown;
@@ -281,9 +301,16 @@ impl<'a> AnnotatingParser<'a> {
                     },
                     &Token::Lt => {
                         let safepoint = this.current_index;
-                        if !this.parse_angle_bracket() {
-                            this.current_index = safepoint;
-                            this.current_mut().typ = TokenType::BinaryOperator;
+                        match this.parse_generics() {
+                            // If a nested angle bracket parse fails, we must backtrack and reparse
+                            GenericsReturn::Fail => {
+                                this.current_index = safepoint;
+                                this.current_mut().typ = TokenType::BinaryOperator;
+                            }
+                            // SuccessDouble has to be an error in the source, but i think it's the most
+                            // robust solution to handle this parse as if it was valid
+                            GenericsReturn::SuccessDouble |
+                            GenericsReturn::Success => {}
                         }
                     }
                     &Token::Eq |
