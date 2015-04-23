@@ -6,25 +6,39 @@ use unwrapped_line::{UnwrappedLine, LineType};
 
 pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
     for line in lines {
+        // Recursive call to annotate child lines
         annotate_lines(&mut line.children, style);
+        // The annotating parser disambiguate specific tokens.
+        // For example derefenciation vs. multiplication, angle brackets in generics vs.
+        // greater/smaller signs and so on.
         AnnotatingParser {
             style: style,
             current_index: 0,
             line: line,
             context_stack: vec![],
         }.parse_line();
+        // The expression parser adds invisible braces to the tokens in respect to their precedence.
+        // This is used later to retain logical units in the line breaking process.
         ExpressionParser {
             style: style,
             current_index: 0,
             line: line,
         }.parse(0);
+        // Decide if tokens must be set with whitespace in between them using the information
+        // the annotating parser put in.
         calculate_formatting_information(line);
     }
 }
 
+// The following definitions are used in the annotation parser.
+
+// The contexts the annotating parser currently disambiguates.
 enum ContextType {
+    // (...)
     Parens,
+    // <...>
     Generics,
+    // |...|
     LambdaParams,
 }
 
@@ -45,11 +59,12 @@ struct AnnotatingParser<'a> {
 enum GenericsReturn {
     Fail,
     Success,
-    // this is the case when a ">>" token is found that also terminates the parent parse function
+    // This is the case when a ">>" token is found that also terminates the parent parse function.
     SuccessDouble,
 }
 
 impl<'a> AnnotatingParser<'a> {
+    // Helper functions.
     fn current(&self) -> &FormatToken {
         &self.line.tokens[self.current_index]
     }
@@ -93,7 +108,10 @@ impl<'a> AnnotatingParser<'a> {
         result
     }
 
-    // The base parse function
+    // The base parse function. It's pretty similar to parse_paren, but it doesn't exit on any
+    // closing delimiters, so the line is annoted until the end under all circumstances.
+    // The parser is implemented as an recursive descent parser. The parse functions are relativly
+    // similar and there is some code duplication.
     fn parse_line(&mut self) {
         for i in 0..self.line.tokens.len() {
             self.line.tokens[i].index = i;
@@ -102,11 +120,13 @@ impl<'a> AnnotatingParser<'a> {
 
         while self.has_current() {
             match &self.current().tok {
+                // Unary operators
                 &Token::BinOp(BinOpToken::Star) |
                 &Token::BinOp(BinOpToken::And) |
                 &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
                     self.current_mut().typ = TokenType::UnaryOperator;
                 }
+                // Lambda parameter "|...|"
                 &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
                     self.current_mut().typ = TokenType::LambdaParamsStart;
                     self.parse_lambda_params();
@@ -117,6 +137,9 @@ impl<'a> AnnotatingParser<'a> {
                     // We don't want to call next again.
                     continue;
                 },
+                // This is either the binary operator "<" or the start of a generic type.
+                // That can't be decided at this place, so we start parsing as if it where a generic
+                // type and bracktrack if parse_generics fails to parse correctly.
                 &Token::Lt => {
                     let safepoint = self.current_index;
                     match self.parse_generics() {
@@ -126,7 +149,7 @@ impl<'a> AnnotatingParser<'a> {
                             self.current_mut().typ = TokenType::BinaryOperator;
                         }
                         // SuccessDouble has to be an error in the source, but i think it's the most
-                        // robust solution to handle this parse as if it was valid
+                        // robust solution to handle it as if it was valid
                         GenericsReturn::SuccessDouble |
                         GenericsReturn::Success => {}
                     }
@@ -152,6 +175,7 @@ impl<'a> AnnotatingParser<'a> {
         }
     }
 
+    // The following parse functions are pretty similar to parse_line.
     fn parse_generics(&mut self) -> GenericsReturn {
         self.using_context(ContextType::Generics, |this| {
             let mut is_first_token = true;
@@ -546,9 +570,7 @@ fn unary_follows(prev: Option<&FormatToken>) -> bool {
     }
 }
 
-fn space_required_before(line: &UnwrappedLine,
-                         prev: &FormatToken,
-                         curr: &FormatToken) -> bool {
+fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> bool {
     match (&prev.tok, &curr.tok) {
         (_, &Token::Comma) => false,
         (_, &Token::Semi) => false,
