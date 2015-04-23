@@ -65,7 +65,7 @@ impl<'a> AnnotatingParser<'a> {
                     self.current_mut().typ = TokenType::UnaryOperator;
                 }
                 &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
-                    self.current_mut().typ = TokenType::LambdaArgsStart;
+                    self.current_mut().typ = TokenType::LambdaParamsStart;
                     self.parse_lambda();
                 },
                 &Token::OpenDelim(DelimToken::Paren) => {
@@ -176,7 +176,7 @@ impl<'a> AnnotatingParser<'a> {
                     self.current_mut().typ = TokenType::UnaryOperator;
                 }
                 &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
-                    self.current_mut().typ = TokenType::LambdaArgsStart;
+                    self.current_mut().typ = TokenType::LambdaParamsStart;
                     self.parse_lambda();
                 }
                 // this is a nested paren block
@@ -233,7 +233,7 @@ impl<'a> AnnotatingParser<'a> {
                 }
                 // end lambda parsing
                 &Token::BinOp(BinOpToken::Or) => {
-                    self.current_mut().typ = TokenType::LambdaArgsEnd;
+                    self.current_mut().typ = TokenType::LambdaParamsEnd;
                     return
                 },
                 &Token::Lt => {
@@ -516,9 +516,9 @@ fn space_required_before(line: &UnwrappedLine,
         _ if prev.typ == TokenType::Pointer => false,
         _ if prev.typ == TokenType::UnaryOperator => false,
 
-        _ if prev.typ == TokenType::LambdaArgsStart => false,
-        _ if prev.typ == TokenType::LambdaArgsEnd => true,
-        _ if curr.typ == TokenType::LambdaArgsEnd => false,
+        _ if prev.typ == TokenType::LambdaParamsStart => false,
+        _ if prev.typ == TokenType::LambdaParamsEnd => true,
+        _ if curr.typ == TokenType::LambdaParamsEnd => false,
 
         _ if prev.typ == TokenType::BinaryOperator => true,
         _ if curr.typ == TokenType::BinaryOperator => true,

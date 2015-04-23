@@ -20,8 +20,8 @@ pub enum TokenType {
     Pointer,
     BinaryOperator,
     UnaryOperator,
-    LambdaArgsStart,
-    LambdaArgsEnd,
+    LambdaParamsStart,
+    LambdaParamsEnd,
     GenericBracket,
     Unknown
 }
