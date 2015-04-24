@@ -18,6 +18,7 @@ pub enum FormatDecision {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TokenType {
     Pointer,
+    Postfix, // only used for macro the exlam in invocations (for example "println!(...)")
     BinaryOperator,
     UnaryOperator,
     LambdaParamsStart,

@@ -98,6 +98,17 @@ impl<'a> AnnotatingParser<'a> {
         unary_follows(self.line.prev_non_comment_token(self.current_index))
     }
 
+    fn is_after_non_if_or_while_ident(&self) -> bool {
+        if let Some(prev) = self.line.prev_non_comment_token(self.current_index) {
+            return match prev.tok {
+                Token::Ident(..) if !prev.tok.is_keyword(Keyword::If) &&
+                    !prev.tok.is_keyword(Keyword::While) => true,
+                _ => false
+            }
+        }
+        false
+    }
+
     fn context_is(&self, typ: ContextType) -> bool {
         match self.context_stack.last() {
             Some(c) => c.typ == typ,
@@ -291,6 +302,10 @@ impl<'a> AnnotatingParser<'a> {
             Token::BinOp(BinOpToken::And) |
             Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
                 TokenType::UnaryOperator
+            }
+
+            Token::Not if self.is_after_non_if_or_while_ident() => {
+                TokenType::Postfix
             }
 
             Token::Lt |
@@ -515,6 +530,12 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
     match (&prev.tok, &curr.tok) {
         (_, &Token::Comma) => false,
         (_, &Token::Semi) => false,
+
+        // spacing after macro invocation
+        (&Token::Not, &Token::OpenDelim(DelimToken::Paren)) |
+        (&Token::Not, &Token::OpenDelim(DelimToken::Bracket))  if prev.typ == TokenType::Postfix
+            => false,
+        (&Token::Not, _) if prev.typ == TokenType::Postfix => true,
 
         (_, &Token::CloseDelim(DelimToken::Paren)) => false,
         (&Token::OpenDelim(DelimToken::Paren), _) => false,
