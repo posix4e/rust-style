@@ -17,19 +17,17 @@ use std::path::Path;
 static USAGE: &'static str = "
 Overview: A tool to format rust code.
 
-If no arguments are specified, it formats the code from standard input
-and writes the result to the standard output.
-If <file>s are given, it reformats the files. If -i is specified
-together with <file>s, the files are edited in-place. Otherwise, the
-result is written to the standard output.
+Reads the given files, and prints the result to standard output.
+If the -w option is specified, the input files are overwritten.
+If no file arguments are specified, input is read from standard input.
 
-Usage: rustfmt [-i] [<file>]...
+Usage: rustfmt [-w] [<file>]...
        rustfmt [--output-replacements-json] [<file>]...
        rustfmt (--help | --version)
 
 Options:
     -h, --help                  Show this message
-    -i, --inplace               Inplace edit <file>s, if specified
+    -w, --write                 Overwrite the input files
     -V, --version               Print version info and exit
     --output-replacements-json  Outputs replacements as JSON
 ";
@@ -37,7 +35,7 @@ Options:
 #[derive(RustcDecodable, Debug)]
 struct Args {
     arg_file: Vec<String>,
-    flag_inplace: bool,
+    flag_write: bool,
     flag_output_replacements_json: bool,
 }
 
@@ -74,7 +72,7 @@ fn get_actions(args: &Args) -> Vec<Action> {
         actions.push(Action { input: Input::StdIn, output: Output::StdOut });
     } else {
         for file in &args.arg_file {
-            let output = if args.flag_inplace {
+            let output = if args.flag_write {
                 Output::File(file)
             } else {
                 Output::StdOut
@@ -118,7 +116,7 @@ fn perform_input(action: &Action) -> Result<String, String> {
                 Err(_) => return Err(format!("Couldn't open file: {}", path.display())),
                 Ok(file) => file,
             };
-            
+
             match file.read_to_string(&mut source_input) {
                 Err(_) => Err(format!("Couldn't read file: {}", path.display())),
                 Ok(_) => Ok(source_input),

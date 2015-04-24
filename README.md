@@ -15,20 +15,18 @@ This will result in a rustfmt executable.
 ###Usage
 
 ~~~
-rustfmt [-i] [<file>]...
+rustfmt [-w] [<file>]...
 rustfmt [--output-replacements-json] [<file>]...
 rustfmt (--help | --version)
 ~~~
 
-If no arguments are specified, it formats the code from standard input
-and writes the result to the standard output.
-If `<file>`s are given, it reformats the files. If `-i` is specified
-together with `<file>`s, the files are edited in-place. Otherwise, the
-result is written to the standard output.
+Reads the given files, and prints the result to standard output.
+If the -w option is specified, the input files are overwritten.
+If no file arguments are specified, input is read from standard input.
 
 ~~~
 -h, --help                  Show this message
--i, --inplace               Inplace edit <file>s, if specified
+-w, --write                 Overwrite the input files
 -V, --version               Print version info and exit
 --output-replacements-json  Outputs replacements as JSON
 ~~~
