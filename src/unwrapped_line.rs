@@ -132,50 +132,50 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             match self.ftok.tok {
                 Token::Eof => {
                     break;
-                },
+                }
                 Token::CloseDelim(DelimToken::Brace) if block == Block::TopLevel => {
                     // error
                     self.next_token();
                     self.add_line();
-                },
+                }
                 Token::CloseDelim(_) => {
                     break;
-                },
+                }
                 Token::OpenDelim(DelimToken::Brace) => {
                     self.parse_block(Block::Statements);
                     self.add_line();
-                },
+                }
                 Token::Pound => {
                     self.parse_attribute();
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Mod) => {
                     self.parse_mod();
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Use) => {
                     self.parse_use();
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Loop) ||
                                     self.ftok.tok.is_keyword(Keyword::For) ||
                                     self.ftok.tok.is_keyword(Keyword::While) => {
                     self.parse_loop();
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Fn) => {
                     self.parse_decl(Block::Statements);
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Struct)  ||
                     self.ftok.tok.is_keyword(Keyword::Enum) => {
                     self.parse_decl(Block::StructOrEnum);
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Impl) => {
                     self.parse_decl(Block::Impl);
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Trait) => {
                     self.parse_decl(Block::Trait);
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) ||
                                     self.ftok.tok.is_keyword(Keyword::Unsafe) => {
                     self.next_token();
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Extern) => {
                     self.next_token();
                     if let Token::Literal(Lit::Str_(..), _) = self.ftok.tok {
@@ -184,20 +184,20 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                             self.add_line();
                         }
                     }
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
                     self.parse_if_then_else();
                     self.next_token_if(&Token::Semi);
                     self.add_line();
-                },
+                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Match) => {
                     self.parse_match();
                     self.next_token_if(&Token::Semi);
                     self.add_line();
-                },
+                }
                 Token::Ident(..) if self.is_macro_rules() => {
                     self.parse_macro_rules();
-                },
+                }
                 _ => {
                     match block {
                         Block::StructOrEnum => self.parse_enum_variant_or_struct_field(),
