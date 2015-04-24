@@ -32,7 +32,8 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
 
 // The following definitions are used in the annotation parser.
 //
-// The contexts the annotating parser currently disambiguates.
+// The contexts the annotating parser disambiguates.
+#[derive(Eq, PartialEq)]
 enum ContextType {
     // (...)
     Parens,
@@ -43,6 +44,7 @@ enum ContextType {
 }
 
 struct Context {
+    typ: ContextType,
     binding_strength: Penalty,
 }
 
@@ -63,6 +65,22 @@ enum GenericsReturn {
 }
 
 impl<'a> AnnotatingParser<'a> {
+    // The main interface of this struct.
+    // Parses over the line and annotates the line and each token.
+    fn parse_line(&mut self) {
+        for i in 0..self.line.tokens.len() {
+            self.line.tokens[i].index = i;
+        }
+        self.line.typ = self.determine_line_type();
+
+        while self.has_current() {
+            match self.consume_token() {
+                Ok(()) => (),
+                Err(()) => break,
+            }
+        }
+    }
+
     // Helper functions.
     fn current(&self) -> &FormatToken {
         &self.line.tokens[self.current_index]
@@ -80,10 +98,10 @@ impl<'a> AnnotatingParser<'a> {
         unary_follows(self.line.prev_non_comment_token(self.current_index))
     }
 
-    fn next(&mut self) {
-        if self.has_current() {
-            self.current_mut().binding_strength = self.context_binding_strength();
-            self.current_index += 1;
+    fn context_is(&self, typ: ContextType) -> bool {
+        match self.context_stack.last() {
+            Some(c) => c.typ == typ,
+            None => false,
         }
     }
 
@@ -98,6 +116,7 @@ impl<'a> AnnotatingParser<'a> {
                 ContextType::Generics => 10,
                 ContextType::LambdaParams => 10,
             },
+            typ: typ,
         };
 
         self.context_stack.push(new_context);
@@ -106,97 +125,69 @@ impl<'a> AnnotatingParser<'a> {
         result
     }
 
-    // The base parse function. It's pretty similar to parse_paren, but it doesn't exit on any
-    // closing delimiters, so the line is annoted until the end under all circumstances.
-    // The parser is implemented as an recursive descent parser. The parse functions are relativly
-    // similar and there is some code duplication.
-    fn parse_line(&mut self) {
-        for i in 0..self.line.tokens.len() {
-            self.line.tokens[i].index = i;
-        }
-        self.line.typ = self.determine_line_type();
+    // Advance to the next token, TokenType will be automatically deduced
+    fn next(&mut self) {
+        self.next_with_token_type(None)
+    }
 
-        while self.has_current() {
-            match &self.current().tok {
-                // Unary operators
-                &Token::BinOp(BinOpToken::Star) |
-                &Token::BinOp(BinOpToken::And) |
-                &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
-                    self.current_mut().typ = TokenType::UnaryOperator;
-                }
-                // Lambda parameter "|...|"
-                &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
-                    self.current_mut().typ = TokenType::LambdaParamsStart;
-                    self.parse_lambda_params();
-                },
-                &Token::OpenDelim(DelimToken::Paren) => {
-                    self.parse_paren();
-                    // parse_paren consumes the closing parens
-                    // We don't want to call next again.
-                    continue;
-                },
-                // This is either the binary operator "<" or the start of a generic type.
-                // That can't be decided at this place, so we start parsing as if it where a generic
-                // type and bracktrack if parse_generics fails to parse correctly.
-                &Token::Lt => {
-                    let safepoint = self.current_index;
-                    match self.parse_generics() {
-                        // If a nested angle bracket parse fails, we must backtrack and reparse
-                        GenericsReturn::Fail => {
-                            self.current_index = safepoint;
-                            self.current_mut().typ = TokenType::BinaryOperator;
-                        }
-                        // SuccessDouble has to be an error in the source, but i think it's the most
-                        // robust solution to handle it as if it was valid
-                        GenericsReturn::SuccessDouble |
-                        GenericsReturn::Success => {}
-                    }
-                }
-                &Token::Eq |
-                &Token::Le |
-                &Token::EqEq |
-                &Token::Ne |
-                &Token::Ge |
-                &Token::Gt |
-                &Token::AndAnd |
-                &Token::OrOr |
-                &Token::BinOp(..) |
-                &Token::BinOpEq(..) => {
-                    self.current_mut().typ = TokenType::BinaryOperator;
-                }
-                _ => {
-                    self.current_mut().typ = TokenType::Unknown;
-                }
-            }
-
-            self.next()
+    // Advance to the next token, and specify the TokenType of the current token
+    fn next_with_token_type(&mut self, typ: Option<TokenType>) {
+        if self.has_current() {
+            self.current_mut().binding_strength = self.context_binding_strength();
+            self.current_mut().typ = typ.unwrap_or_else(|| self.determine_token_type());
+            self.current_index += 1;
         }
     }
 
-    // The following parse functions are pretty similar to parse_line.
-    fn parse_generics(&mut self) -> GenericsReturn {
-        self.using_context(ContextType::Generics, |this| {
-            let mut is_first_token = true;
+    // Advance to the next token or parse any potential productions (generics, lambda, parens etc.)
+    fn consume_token(&mut self) -> Result<(), ()> {
+        match &self.current().tok {
+            &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
+                self.parse_lambda_params()
+            },
+            &Token::OpenDelim(DelimToken::Paren) => {
+                self.parse_paren()
+            },
+            &Token::Lt => {
+                let safepoint = self.current_index;
+                match self.parse_generics() {
+                    // If a nested angle bracket parse fails, we must backtrack and reparse
+                    GenericsReturn::Fail => {
+                        self.current_index = safepoint;
+                        self.next_with_token_type(Some(TokenType::BinaryOperator));
+                        Ok(())
+                    }
+                    // SuccessDouble has to be an error in the source, but it is the most
+                    // robust solution to handle it as if it was valid
+                    GenericsReturn::SuccessDouble |
+                    GenericsReturn::Success => {
+                        Ok(())
+                    }
+                }
+            }
+            _ => {
+                self.next();
+                Ok(())
+            },
+        }
+    }
 
+    fn parse_generics(&mut self) -> GenericsReturn {
+        assert_eq!(self.current().tok, Token::Lt);
+        self.next_with_token_type(Some(TokenType::GenericBracket));
+
+        self.using_context(ContextType::Generics, |this| {
             while this.has_current() {
                 match &this.current().tok {
-                    &Token::BinOp(BinOpToken::Star) |
-                    &Token::BinOp(BinOpToken::And) |
-                    &Token::BinOp(BinOpToken::Minus) if this.current_is_unary() => {
-                        this.current_mut().typ = TokenType::UnaryOperator;
-                    }
-                    &Token::Lt if is_first_token => {
-                        is_first_token = false;
-                        this.current_mut().typ = TokenType::GenericBracket;
-                    }
                     &Token::Lt => {
+                        // Recurse into nested generics
                         match this.parse_generics() {
                             // if a nested angle bracket parse fails, this must fail too
                             GenericsReturn::Fail => {
                                 return GenericsReturn::Fail;
                             }
                             // Test if the child parse call ended with a ">>" symbol. In that case
-                            // this parse function must exit too.
+                            // this parse function must exit and return a single success.
                             GenericsReturn::SuccessDouble => {
                                 return GenericsReturn::Success;
                             }
@@ -204,13 +195,13 @@ impl<'a> AnnotatingParser<'a> {
                         }
                     }
                     &Token::Gt => {
-                        this.current_mut().typ = TokenType::GenericBracket;
+                        this.next();
                         return GenericsReturn::Success;
                     }
                     // The last token in "Foo<Bar<Baz>>" is ">>". We must terminate the parent
-                    // parse_angle_bracket too.
+                    // parse_generics too.
                     &Token::BinOp(BinOpToken::Shr) => {
-                        this.current_mut().typ = TokenType::GenericBracket;
+                        this.next();
                         return GenericsReturn::SuccessDouble;
                     }
                     // These symbols are unliky in generics
@@ -218,142 +209,62 @@ impl<'a> AnnotatingParser<'a> {
                     &Token::OrOr => {
                         return GenericsReturn::Fail;
                     }
-
-                    &Token::Eq |
-                    &Token::EqEq |
-                    &Token::Ne |
-                    &Token::BinOp(..) |
-                    &Token::BinOpEq(..) => {
-                        this.current_mut().typ = TokenType::BinaryOperator;
-                    }
-                    _ => {
-                        this.current_mut().typ = TokenType::Unknown;
+                    _ => match this.consume_token() {
+                        Ok(()) => (),
+                        Err(()) => return GenericsReturn::Fail,
                     }
                 };
-                this.next()
             }
+
+            // Failed find a matching closing angle bracket
             GenericsReturn::Fail
         })
     }
 
-    fn parse_paren(&mut self) {
+    fn parse_paren(&mut self) -> Result<(), ()> {
         assert_eq!(self.current().tok, Token::OpenDelim(DelimToken::Paren));
-        self.next(); // advance over the starting paren
+        self.next(); // advance over the opening parens
 
         self.using_context(ContextType::Parens, |this| {
             while this.has_current() {
                 match &this.current().tok {
-                    &Token::BinOp(BinOpToken::Star) |
-                    &Token::BinOp(BinOpToken::And) |
-                    &Token::BinOp(BinOpToken::Minus) if this.current_is_unary() => {
-                        this.current_mut().typ = TokenType::UnaryOperator;
-                    }
-                    &Token::BinOp(BinOpToken::Or) if this.current_is_unary() => {
-                        this.current_mut().typ = TokenType::LambdaParamsStart;
-                        this.parse_lambda_params();
-                    }
-                    // A nested paren block
-                    &Token::OpenDelim(DelimToken::Paren) => {
-                        this.parse_paren();
-                        this.current_mut().typ = TokenType::Unknown;
-                        // parse_paren consumes the closing parens
-                        // We don't want to call next again.
-                        continue;
-                    }
-                    &Token::Lt => {
-                        let safepoint = this.current_index;
-                        match this.parse_generics() {
-                            // If a nested angle bracket parse fails, we must backtrack and reparse
-                            GenericsReturn::Fail => {
-                                this.current_index = safepoint;
-                                this.current_mut().typ = TokenType::BinaryOperator;
-                            }
-                            // SuccessDouble has to be an error in the source, but i think it's the most
-                            // robust solution to handle this parse as if it was valid
-                            GenericsReturn::SuccessDouble |
-                            GenericsReturn::Success => {}
-                        }
-                    }
                     // end the paren parsing
                     &Token::CloseDelim(DelimToken::Paren) => {
-                        this.current_mut().typ = TokenType::Unknown;
                         // consume the closing parens in this context
                         this.next();
-                        return;
-                    }
-
-                    &Token::Eq |
-                    &Token::Le |
-                    &Token::EqEq |
-                    &Token::Ne |
-                    &Token::Ge |
-                    &Token::Gt |
-                    &Token::AndAnd |
-                    &Token::OrOr |
-                    &Token::BinOp(..) |
-                    &Token::BinOpEq(..) => {
-                        this.current_mut().typ = TokenType::BinaryOperator;
+                        return Ok(());
                     }
                     _ => {
-                        this.current_mut().typ = TokenType::Unknown;
+                        try!(this.consume_token());
                     }
                 }
-
-                this.next();
             }
+
+            // Failed find a matching closing paren
+            Err(())
         })
     }
 
-    fn parse_lambda_params(&mut self) {
+    fn parse_lambda_params(&mut self) -> Result<(), ()> {
         assert_eq!(self.current().tok, Token::BinOp(BinOpToken::Or));
-        self.next(); // advance over the first pipe
+        self.next_with_token_type(Some(TokenType::LambdaParamsStart));
 
         self.using_context(ContextType::LambdaParams, |this| {
             while this.has_current() {
                 match &this.current().tok {
-                    &Token::BinOp(BinOpToken::Star) |
-                    &Token::BinOp(BinOpToken::And) |
-                    &Token::BinOp(BinOpToken::Minus) if this.current_is_unary() => {
-                        this.current_mut().typ = TokenType::UnaryOperator;
-                    }
-                    // end lambda parsing
                     &Token::BinOp(BinOpToken::Or) => {
-                        this.current_mut().typ = TokenType::LambdaParamsEnd;
-                        return
+                        // consume ending pipe in this context
+                        this.next_with_token_type(Some(TokenType::LambdaParamsEnd));
+                        return Ok(());
                     },
-                    &Token::Lt => {
-                        let safepoint = this.current_index;
-                        match this.parse_generics() {
-                            // If a nested angle bracket parse fails, we must backtrack and reparse
-                            GenericsReturn::Fail => {
-                                this.current_index = safepoint;
-                                this.current_mut().typ = TokenType::BinaryOperator;
-                            }
-                            // SuccessDouble has to be an error in the source, but i think it's the most
-                            // robust solution to handle this parse as if it was valid
-                            GenericsReturn::SuccessDouble |
-                            GenericsReturn::Success => {}
-                        }
-                    }
-                    &Token::Eq |
-                    &Token::Le |
-                    &Token::EqEq |
-                    &Token::Ne |
-                    &Token::Ge |
-                    &Token::Gt |
-                    &Token::AndAnd |
-                    &Token::OrOr |
-                    &Token::BinOp(..) |
-                    &Token::BinOpEq(..) => {
-                        this.current_mut().typ = TokenType::BinaryOperator;
-                    }
                     _ => {
-                        this.current_mut().typ = TokenType::Unknown;
+                        try!(this.consume_token());
                     }
                 }
-
-                this.next()
             }
+
+            // Failed find a matching closing lambda pipe
+            Err(())
         })
     }
 
@@ -372,6 +283,37 @@ impl<'a> AnnotatingParser<'a> {
             }
         }
         LineType::Unknown
+    }
+
+    fn determine_token_type(&self) -> TokenType {
+        match self.current().tok {
+            Token::BinOp(BinOpToken::Star) |
+            Token::BinOp(BinOpToken::And) |
+            Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
+                TokenType::UnaryOperator
+            }
+
+            Token::Lt |
+            Token::Gt |
+            Token::BinOp(BinOpToken::Shr) if self.context_is(ContextType::Generics) => {
+                TokenType::GenericBracket
+            }
+
+            Token::Eq |
+            Token::Le |
+            Token::EqEq |
+            Token::Ne |
+            Token::Ge |
+            Token::Gt |
+            Token::AndAnd |
+            Token::OrOr |
+            Token::BinOp(..) |
+            Token::BinOpEq(..) => {
+                TokenType::BinaryOperator
+            }
+
+            _ => TokenType::Unknown,
+        }
     }
 }
 
