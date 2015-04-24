@@ -548,10 +548,6 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
 
         (_, &Token::Dot) => false,
         (&Token::Dot, _) => false,
-        (_, &Token::DotDot) => false,
-        (&Token::DotDot, _) => false,
-        (_, &Token::DotDotDot) => false,
-        (&Token::DotDotDot, _) => false,
 
         (&Token::BinOp(BinOpToken::Shr), &Token::Eq) |
         (&Token::Gt, &Token::Eq) if prev.typ == TokenType::GenericBracket => true,
@@ -573,12 +569,6 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         _ if prev.typ == TokenType::BinaryOperator => true,
         _ if curr.typ == TokenType::BinaryOperator => true,
 
-        (&Token::OpenDelim(DelimToken::Brace), _) => true,
-        (_, &Token::OpenDelim(DelimToken::Brace)) => true,
-
-        (&Token::CloseDelim(DelimToken::Brace), _) => true,
-        (_, &Token::CloseDelim(DelimToken::Brace)) => true,
-
         (&Token::FatArrow, _) => true,
         (_, &Token::FatArrow) => true,
 
@@ -588,6 +578,17 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (&Token::Comma, _) => true,
         (&Token::Semi, _) => true,
         (&Token::Colon, _) => true,
+
+        (_, &Token::DotDot) => false,
+        (&Token::DotDot, _) => false,
+        (_, &Token::DotDotDot) => false,
+        (&Token::DotDotDot, _) => false,
+
+        (&Token::OpenDelim(DelimToken::Brace), _) => true,
+        (_, &Token::OpenDelim(DelimToken::Brace)) => true,
+
+        (&Token::CloseDelim(DelimToken::Brace), _) => true,
+        (_, &Token::CloseDelim(DelimToken::Brace)) => true,
 
         (_, &Token::Comment) => true,
         (&Token::Comment, _) => true,

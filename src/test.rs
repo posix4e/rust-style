@@ -720,3 +720,12 @@ fn foo() -> bool {
 }");
 }
 
+#[test]
+fn test_spacing_dot_dot_struct_pattern() {
+    assert_fmt_eq!("\
+match something {
+    FormatToken { ref tok, ..} => true,
+    _ => false,
+}");
+}
+
