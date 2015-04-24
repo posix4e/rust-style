@@ -711,4 +711,12 @@ fn foo() {
 }");
 }
 
+#[test]
+fn test_spacing_macro_corner_cases() {
+    assert_fmt_eq!("\
+fn foo() -> bool {
+    let bar = true;
+    return !bar;
+}");
+}
 
