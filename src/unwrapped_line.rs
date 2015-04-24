@@ -99,6 +99,7 @@ enum Block {
     Trait,
     Extern,
     StructInit,
+    MacroRules,
 }
 
 impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
@@ -118,7 +119,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
     fn parse_level(&mut self, block: Block) {
         loop {
-            let is_macro_invocation = self.is_macro_invocation();
+            // Match the first token of the line to control structures,
+            // attributes, declarations, macro_rules and so on.
             match self.ftok.tok {
                 Token::Eof => {
                     break;
@@ -128,7 +130,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.next_token();
                     self.add_line();
                 },
-                Token::CloseDelim(DelimToken::Brace) => {
+                Token::CloseDelim(_) => {
                     break;
                 },
                 Token::OpenDelim(DelimToken::Brace) => {
@@ -145,8 +147,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.parse_use();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Loop) ||
-                    self.ftok.tok.is_keyword(Keyword::For) ||
-                    self.ftok.tok.is_keyword(Keyword::While) => {
+                                    self.ftok.tok.is_keyword(Keyword::For) ||
+                                    self.ftok.tok.is_keyword(Keyword::While) => {
                     self.parse_loop();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Fn) => {
@@ -163,7 +165,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.parse_decl(Block::Trait);
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) ||
-                    self.ftok.tok.is_keyword(Keyword::Unsafe) => {
+                                    self.ftok.tok.is_keyword(Keyword::Unsafe) => {
                     self.next_token();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Extern) => {
@@ -177,28 +179,23 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
                     self.parse_if_then_else();
-                    if self.ftok.tok == Token::Semi {
-                        self.next_token();
-                    }
+                    self.next_token_if(&Token::Semi);
                     self.add_line();
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Match) => {
                     self.parse_match();
-                    if self.ftok.tok == Token::Semi {
-                        self.next_token();
-                    }
+                    self.next_token_if(&Token::Semi);
                     self.add_line();
                 },
-                // Check for macros
-                Token::Ident(..) if is_macro_invocation => {
-                    println!("found macro!!!");
-                    self.parse_stmt()
-                }
+                Token::Ident(..) if self.is_macro_rules() => {
+                    self.parse_macro_rules();
+                },
                 _ => {
                     match block {
                         Block::StructOrEnum => self.parse_enum_variant_or_struct_field(),
                         Block::Match => self.parse_match_item(),
                         Block::StructInit => self.parse_field_init(),
+                        Block::MacroRules => self.parse_macro_rule(),
                         Block::Statements |
                         Block::TopLevel |
                         Block::Trait |
@@ -220,7 +217,10 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn parse_block(&mut self, block: Block) {
-        assert!(self.ftok.tok == Token::OpenDelim(DelimToken::Brace), "expected '{'");
+        let delim = match self.ftok.tok {
+            Token::OpenDelim(delim) => delim,
+            _ => panic!("expected a delimeter"),
+        };
         self.next_token();
 
         // Push current line onto level stack,
@@ -238,12 +238,12 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         let level = self.level_stack.pop().unwrap();
         self.push_line(level);
 
-        if self.ftok.tok != Token::CloseDelim(DelimToken::Brace) {
+        if self.ftok.tok != Token::CloseDelim(delim) {
             self.level = intial_level;
             return;
         }
 
-        // Eat closing brace
+        // Eat closing delim
         self.next_token();
         self.level = intial_level;
     }
@@ -477,7 +477,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Eof => {
                     return false;
                 },
-                Token::CloseDelim(DelimToken::Brace) => {
+                Token::CloseDelim(_) => {
                     self.add_line();
                     return false;
                 },
@@ -554,6 +554,29 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    fn parse_macro_rules(&mut self) {
+        assert!(self.is_macro_rules());
+        self.next_token(); // skip "macro_rules" identifiers
+        self.next_token(); // skip ! token
+
+        if let Token::Ident(..) = self.ftok.tok {
+            self.next_token(); // macro name
+            if let Token::OpenDelim(..) = self.ftok.tok {
+                self.parse_block(Block::MacroRules);
+                self.next_token_if(&Token::Semi);
+                self.add_line();
+            }
+        }
+    }
+
+    fn parse_macro_rule(&mut self) {
+        if self.parse_stmt_up_to(|t| *t == Token::FatArrow) {
+            self.next_token();
+            self.parse_block(Block::Statements);
+            self.add_line();
+        }
+    }
+
     fn add_line(&mut self) {
         if self.line.is_empty() {
             return;
@@ -624,9 +647,22 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
-    // just checks for the "!" token
-    fn is_macro_invocation(&mut self) -> bool{
-        self.lexer.is_peek_a_not_token()
+    // Checks for an identifier, then a !
+    fn is_macro_invocation(&self) -> bool {
+        match self.ftok.tok {
+            Token::Ident(..) => self.lexer.peek() == &Token::Not,
+            _ => false,
+        }
+    }
+
+    fn is_macro_rules(&self) -> bool {
+        self.is_macro_invocation() && self.lexer.span_str(self.ftok.span) == "macro_rules"
+    }
+
+    fn next_token_if(&mut self, token: &Token) {
+        if self.ftok.tok == *token {
+            self.next_token();
+        }
     }
 
     fn next_token(&mut self) {

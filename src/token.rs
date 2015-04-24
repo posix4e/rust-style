@@ -220,12 +220,8 @@ impl<'s> FormatTokenLexer<'s> {
         }
     }
 
-    // is required for macro testing
-    pub fn is_peek_a_not_token(&mut self) -> bool {
-        if self.lexer.peek().tok == Token::Not {
-            return true;
-        }
-        false
+    pub fn peek(&self) -> &Token {
+        &self.lexer.peek_tok
     }
 
     pub fn span_str(&self, sp: Span) -> &str {
