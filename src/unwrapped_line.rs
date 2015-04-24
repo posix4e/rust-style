@@ -9,9 +9,13 @@ use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType};
 // within an unwrapped line does not affect any other unwrapped lines.
 #[derive(Debug)]
 pub struct UnwrappedLine {
+    // The tokens of the line
     pub tokens: Vec<FormatToken>,
+    // All the children lines if this is some sort of indented blocks
     pub children: Vec<UnwrappedLine>,
+    // The indentation level. File level starts at 0.
     pub level: u32,
+    // The type of line
     pub typ: LineType,
 }
 
@@ -28,6 +32,8 @@ pub enum LineType {
 }
 
 impl UnwrappedLine {
+    // Takes a stream of tokens (from the lexer), and divides them into logical lines.
+    // Indented blocks are nested as children.
     pub fn parse_lines(lexer: &mut FormatTokenLexer) -> Vec<UnwrappedLine> {
         let mut parser = UnwrappedLineParser {
             lexer: lexer,
@@ -117,6 +123,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.add_line();
     }
 
+    // Parse the indentation level of a block. The level will end when any
+    // unmatched delimiter is found.
     fn parse_level(&mut self, block: Block) {
         loop {
             // Match the first token of the line to control structures,
@@ -172,7 +180,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.next_token();
                     if let Token::Literal(Lit::Str_(..), _) = self.ftok.tok {
                         self.next_token();
-                        if self.try_parse_block(Block::Extern) {
+                        if self.try_parse_brace_block(Block::Extern) {
                             self.add_line();
                         }
                     }
@@ -193,7 +201,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 _ => {
                     match block {
                         Block::StructOrEnum => self.parse_enum_variant_or_struct_field(),
-                        Block::Match => self.parse_match_item(),
+                        Block::Match => self.parse_match_arm(),
                         Block::StructInit => self.parse_field_init(),
                         Block::MacroRules => self.parse_macro_rule(),
                         Block::Statements |
@@ -207,7 +215,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
-    fn try_parse_block(&mut self, block: Block) -> bool {
+    fn try_parse_brace_block(&mut self, block: Block) -> bool {
         if self.ftok.tok == Token::OpenDelim(DelimToken::Brace) {
             self.parse_block(block);
             true
@@ -216,6 +224,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    // Ends the current line, and parses the follow block as children lines..
+    // Blocks can start/end with any delimeter ({}, (), []), but they are normally
+    // braces. The other delimeters are used for macro_rules.
     fn parse_block(&mut self, block: Block) {
         let delim = match self.ftok.tok {
             Token::OpenDelim(delim) => delim,
@@ -248,6 +259,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.level = intial_level;
     }
 
+    // Parses a single field of a struct initialiser
     fn parse_field_init(&mut self) {
         if self.parse_stmt_up_to(|t| *t == Token::Comma) {
             self.next_token();
@@ -270,7 +282,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 self.parse_if_then_else();
                 return;
             }
-            self.try_parse_block(Block::Statements);
+            self.try_parse_brace_block(Block::Statements);
         }
     }
 
@@ -283,7 +295,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
-    fn parse_match_item(&mut self) {
+    // Parses a single arm of a match statement
+    fn parse_match_arm(&mut self) {
         loop {
             match self.ftok.tok {
                 Token::Eof => {
@@ -291,7 +304,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::FatArrow => {
                     self.next_token();
-                    if self.try_parse_block(Block::Statements) {
+                    if self.try_parse_brace_block(Block::Statements) {
                         if self.ftok.tok == Token::Comma {
                             self.next_token();
                         }
@@ -310,6 +323,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    // Parses a single field or enum variant of a struct or enum declaration
     fn parse_enum_variant_or_struct_field(&mut self) {
         loop {
             match self.ftok.tok {
@@ -353,6 +367,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    // Parses any type of loop (for, while, loop)
     fn parse_loop(&mut self) {
         let is_for = self.ftok.tok.is_keyword(Keyword::For);
         let is_while = self.ftok.tok.is_keyword(Keyword::While);
@@ -361,7 +376,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
         self.next_token();
         if self.parse_stmt_up_to(|t| *t == Token::OpenDelim(DelimToken::Brace)) {
-            if self.try_parse_block(Block::Statements) {
+            if self.try_parse_brace_block(Block::Statements) {
                 self.add_line();
             }
         }
@@ -424,6 +439,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         false
     }
 
+    // Parses a declaration (enum, struct, eimpl, trait, fn)
     fn parse_decl(&mut self, block: Block) {
         assert!(self.ftok.tok.is_keyword(Keyword::Enum) ||
                 self.ftok.tok.is_keyword(Keyword::Struct) ||
@@ -577,6 +593,26 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    fn is_macro_rules(&self) -> bool {
+        self.is_macro_invocation() && self.lexer.span_str(self.ftok.span) == "macro_rules"
+    }
+
+
+    // Checks for an identifier, then a !
+    fn is_macro_invocation(&self) -> bool {
+        match self.ftok.tok {
+            Token::Ident(..) => self.lexer.peek() == &Token::Not,
+            _ => false,
+        }
+    }
+
+    fn next_token_if(&mut self, token: &Token) {
+        if self.ftok.tok == *token {
+            self.next_token();
+        }
+    }
+
+    // Ends the current line, and pushes it into the output
     fn add_line(&mut self) {
         if self.line.is_empty() {
             return;
@@ -603,6 +639,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    // Gets the next token in the lexer, and places it in self.ftok
+    // Any comments with be handled, so other functions do not have to handle any comments.
     fn read_token(&mut self) {
         let mut comments_in_line = true;
         loop {
@@ -630,6 +668,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.line.push(token);
     }
 
+    // Pushes any stored comments into the output
     fn flush_comments(&mut self, new_line_before_next: bool) {
         // FIXME: is it really necessary to create a new vector?
         let comments = mem::replace(&mut self.comments_before_next_token, vec![]);
@@ -647,24 +686,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
-    // Checks for an identifier, then a !
-    fn is_macro_invocation(&self) -> bool {
-        match self.ftok.tok {
-            Token::Ident(..) => self.lexer.peek() == &Token::Not,
-            _ => false,
-        }
-    }
-
-    fn is_macro_rules(&self) -> bool {
-        self.is_macro_invocation() && self.lexer.span_str(self.ftok.span) == "macro_rules"
-    }
-
-    fn next_token_if(&mut self, token: &Token) {
-        if self.ftok.tok == *token {
-            self.next_token();
-        }
-    }
-
+    // Proceed to the next token. Any comments will be skipped.
     fn next_token(&mut self) {
         if self.ftok.tok == Token::Eof {
             return;
