@@ -80,6 +80,17 @@ impl<'a> AnnotatingParser<'a> {
         unary_follows(self.line.prev_non_comment_token(self.current_index))
     }
 
+    fn is_after_non_if_or_while_ident(&self) -> bool {
+        if let Some(prev) = self.line.prev_non_comment_token(self.current_index) {
+            return match prev.tok {
+                Token::Ident(..) if !prev.tok.is_keyword(Keyword::If) &&
+                    !prev.tok.is_keyword(Keyword::While) => true,
+                _ => false
+            }
+        }
+        false
+    }
+
     fn next(&mut self) {
         if self.has_current() {
             self.current_mut().binding_strength = self.context_binding_strength();
@@ -123,6 +134,10 @@ impl<'a> AnnotatingParser<'a> {
                 &Token::BinOp(BinOpToken::And) |
                 &Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
                     self.current_mut().typ = TokenType::UnaryOperator;
+                }
+                // exclam after macro invocation
+                &Token::Not if self.is_after_non_if_or_while_ident() => {
+                    self.current_mut().typ = TokenType::Postfix;
                 }
                 // Lambda parameter "|...|"
                 &Token::BinOp(BinOpToken::Or) if self.current_is_unary() => {
@@ -247,6 +262,10 @@ impl<'a> AnnotatingParser<'a> {
                     &Token::BinOp(BinOpToken::And) |
                     &Token::BinOp(BinOpToken::Minus) if this.current_is_unary() => {
                         this.current_mut().typ = TokenType::UnaryOperator;
+                    }
+                    // exclam after macro invocation
+                    &Token::Not if this.is_after_non_if_or_while_ident() => {
+                       this.current_mut().typ = TokenType::Postfix;
                     }
                     &Token::BinOp(BinOpToken::Or) if this.current_is_unary() => {
                         this.current_mut().typ = TokenType::LambdaParamsStart;
@@ -573,6 +592,12 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
     match (&prev.tok, &curr.tok) {
         (_, &Token::Comma) => false,
         (_, &Token::Semi) => false,
+
+        // spacing after macro invocation
+        (&Token::Not, &Token::OpenDelim(DelimToken::Paren)) |
+        (&Token::Not, &Token::OpenDelim(DelimToken::Bracket))  if prev.typ == TokenType::Postfix
+            => false,
+        (&Token::Not, _) if prev.typ == TokenType::Postfix => true,
 
         (_, &Token::CloseDelim(DelimToken::Paren)) => false,
         (&Token::OpenDelim(DelimToken::Paren), _) => false,

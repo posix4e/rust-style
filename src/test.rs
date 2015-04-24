@@ -696,3 +696,19 @@ fn test_deeply_nested_generics() {
 fn test_spacing_single_bigger_than() {
     assert_fmt_eq!("self.current_index < self.line.tokens.len()");
 }
+
+#[test]
+fn test_spacing_in_macro_rules() {
+    assert_fmt_eq!("\
+macro_rules! assert_fmt_eq {
+    ($s: expr) => (
+        assert_eq!(fmt($s), $s)
+    )
+}
+
+fn foo() {
+    let a = 12;
+}");
+}
+
+
