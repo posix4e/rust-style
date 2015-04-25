@@ -351,6 +351,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("unsafe fn new(next: *mut A<T>, f: usize) -> *mut B<T>");
     assert_fmt_eq!("for ftok in &self.line.tokens {");
     assert_fmt_eq!("let &Tup(ref val) = self;");
+    assert_fmt_eq!("n @ 1...12 => Foo()");
 }
 
 #[test]

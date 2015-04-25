@@ -311,6 +311,7 @@ impl<'a> AnnotatingParser<'a> {
             }
 
             Token::Eq |
+            Token::At |
             Token::Le |
             Token::EqEq |
             Token::Ne |
