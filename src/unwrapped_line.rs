@@ -237,7 +237,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         // Push current line onto level stack,
         // to prepare to collect the children
         let intial_level = self.level;
-        let level = self.end_line();
+        let level = self.get_finished_line();
         self.level += 1;
         self.level_stack.push(level);
 
@@ -618,7 +618,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             return;
         }
 
-        let line = self.end_line();
+        let line = self.get_finished_line();
         self.push_line(line);
     }
 
@@ -629,7 +629,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         };
     }
 
-    fn end_line(&mut self) -> UnwrappedLine {
+    // Finishes the current line and returns it.
+    // Does NOT push the line to the output.
+    fn get_finished_line(&mut self) -> UnwrappedLine {
         assert!(!self.line.is_empty());
         UnwrappedLine {
             tokens: mem::replace(&mut self.line, vec![]),
