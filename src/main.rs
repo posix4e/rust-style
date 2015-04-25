@@ -89,9 +89,10 @@ fn main() {
                 }
 
                 if !source.is_empty() {
+                    println!("---formatted---\n");
                     let replacements = reformat(&source, &style);
                     perform_output(action, &args, &source, &replacements);
-                    print!("\n");
+                    println!("\n");
                 }
             }
         }
