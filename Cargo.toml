@@ -7,4 +7,3 @@ license = "MIT"
 [dependencies]
 docopt = "*"
 rustc-serialize = "*"
-readline = "*"
