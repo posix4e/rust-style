@@ -440,7 +440,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     fn parse_mod(&mut self) {
         assert!(self.ftok.tok.is_keyword(Keyword::Mod), "expected 'mod'");
         self.next_token();
-        self.parse_stmt_up_to(|t| {
+        self.parse_decl_up_to(|t| {
             *t == Token::OpenDelim(DelimToken::Brace) || *t == Token::Semi
         });
         match self.ftok.tok {
@@ -645,7 +645,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn parse_macro_rule(&mut self) {
-        if self.parse_stmt_up_to(|t| *t == Token::FatArrow) {
+        if self.parse_decl_up_to(|t| *t == Token::FatArrow) {
             self.next_token();
             self.parse_block(Block::Statements);
             self.add_line();
