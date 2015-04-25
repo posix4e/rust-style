@@ -763,3 +763,13 @@ fn test_fn_declaration_with_struct_pattern() {
     assert_fmt_eq!("fn foo(Bar { baz: baz }: Bar) {}");
     assert_fmt_eq!("fn foo(Bar { baz: baz }: Bar, Bar { baz: baz }: Bar) {}");
 }
+
+#[test]
+fn test_macro_rule_trailing_semicolon() {
+    assert_fmt_eq!("\
+macro_rules! min {
+    ($x: expr) => (
+        $x
+    );
+}");
+}

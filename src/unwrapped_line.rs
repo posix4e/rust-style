@@ -648,6 +648,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         if self.parse_decl_up_to(|t| *t == Token::FatArrow) {
             self.next_token();
             self.parse_block(Block::Statements);
+            self.next_token_if(&Token::Semi);
             self.add_line();
         }
     }
