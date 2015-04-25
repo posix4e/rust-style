@@ -195,6 +195,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.next_token_if(&Token::Semi);
                     self.add_line();
                 }
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Let) => {
+                    self.parse_let();
+                }
                 Token::Ident(..) if self.is_macro_rules() => {
                     self.parse_macro_rules();
                 }
@@ -313,6 +316,33 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                             self.next_token();
                         }
                     }
+                    self.add_line();
+                    break;
+                },
+                _ => {
+                    self.next_token();
+                },
+            }
+        }
+    }
+
+    fn parse_let(&mut self) {
+        assert!(self.ftok.tok.is_keyword(Keyword::Let), "expected 'let'");
+        self.next_token();
+
+        loop {
+            match self.ftok.tok {
+                Token::Eof => {
+                    break;
+                },
+                Token::Semi => {
+                    // declaration without initialization
+                    self.next_token();
+                    self.add_line();
+                    break;
+                }
+                Token::Eq => {
+                    self.parse_stmt();
                     self.add_line();
                     break;
                 },

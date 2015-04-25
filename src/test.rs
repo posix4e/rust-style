@@ -731,3 +731,19 @@ match something {
 }");
 }
 
+#[test]
+fn test_let_struct_pattern() {
+    assert_fmt_eq!("let IsBeforeInFile(Span { lo: BytePos(lo_a), ..}) = self;");
+    assert_fmt_eq!("\
+let IsBeforeInFile(Span { lo: BytePos(lo_a), ..}) = self;
+let IsBeforeInFile(Span { lo: BytePos(lo_a), ..}) = self;");
+}
+
+#[test]
+fn test_let_declaration_only() {
+    assert_fmt_eq!("\
+let a = 2;
+let b;
+let c;
+let b = 3;");
+}
