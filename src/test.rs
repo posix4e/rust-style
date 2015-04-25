@@ -773,3 +773,8 @@ macro_rules! min {
     );
 }");
 }
+
+#[test]
+fn test_array_in_let_type() {
+    assert_fmt_eq!("let bytes: [u8; 8] = blah;");
+}

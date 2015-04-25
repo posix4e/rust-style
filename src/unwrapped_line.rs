@@ -335,26 +335,21 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         assert!(self.ftok.tok.is_keyword(Keyword::Let), "expected 'let'");
         self.next_token();
 
-        loop {
-            match self.ftok.tok {
-                Token::Eof => {
-                    break;
-                },
-                Token::Semi => {
-                    // declaration without initialization
-                    self.next_token();
-                    self.add_line();
-                    break;
-                }
-                Token::Eq => {
-                    self.parse_stmt();
-                    self.add_line();
-                    break;
-                },
-                _ => {
-                    self.next_token();
-                },
+        self.parse_decl_up_to(|t| {
+            *t == Token::Semi || *t == Token::Eq
+        });
+
+        match self.ftok.tok {
+            Token::Semi => {
+                // declaration without initialization
+                self.next_token();
+                self.add_line();
             }
+            Token::Eq => {
+                self.parse_stmt();
+                self.add_line();
+            },
+            _ => (),
         }
     }
 
