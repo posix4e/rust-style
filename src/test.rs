@@ -747,3 +747,13 @@ let b;
 let c;
 let b = 3;");
 }
+
+#[test]
+fn test_enum_with_struct_variants() {
+    assert_fmt_eq!("\
+enum Something {
+    StructVariant1 { a: u32, b: u32 },
+    StructVariant2 { a: u32, b: u32 },
+    TupleVariant(u32, u32),
+}");
+}
