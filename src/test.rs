@@ -757,3 +757,9 @@ enum Something {
     TupleVariant(u32, u32),
 }");
 }
+
+#[test]
+fn test_fn_declaration_with_struct_pattern() {
+    assert_fmt_eq!("fn foo(Bar { baz: baz }: Bar) {}");
+    assert_fmt_eq!("fn foo(Bar { baz: baz }: Bar, Bar { baz: baz }: Bar) {}");
+}

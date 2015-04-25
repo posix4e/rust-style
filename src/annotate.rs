@@ -579,6 +579,7 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
 
         (&Token::Comma, _) => true,
         (&Token::Semi, _) => true,
+        (_, &Token::Colon) => false,
         (&Token::Colon, _) => true,
 
         (_, &Token::DotDot) => false,

@@ -108,6 +108,11 @@ enum Block {
     MacroRules,
 }
 
+enum Context {
+    Declaration,
+    Statements,
+}
+
 impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     fn parse(&mut self) {
         self.read_token();
@@ -373,7 +378,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.parse_generics();
                 },
                 Token::OpenDelim(d) => {
-                    self.parse_delim_pair(d);
+                    self.parse_delim_pair(Context::Declaration, d);
                 }
                 _ => {
                     self.next_token();
@@ -391,7 +396,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
 
         if self.ftok.tok == Token::OpenDelim(DelimToken::Bracket) {
-            if self.parse_delim_pair(DelimToken::Bracket) {
+            if self.parse_delim_pair(Context::Declaration, DelimToken::Bracket) {
                 self.add_line();
             }
         }
@@ -451,17 +456,22 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
-    fn parse_delim_pair(&mut self, delim: DelimToken) -> bool {
+    fn parse_delim_pair(&mut self, context: Context, delim: DelimToken) -> bool {
         let open = Token::OpenDelim(delim);
         let close = Token::CloseDelim(delim);
 
         assert!(self.ftok.tok == open);
         self.next_token();
 
-        self.parse_stmt_up_to(|t| match t {
-            &Token::CloseDelim(_) => true,
-            _ => false,
-        });
+        match context {
+            Context::Declaration => {
+                self.parse_decl_up_to(|t| match t {&Token::CloseDelim(_) => true, _ => false, });
+            }
+            Context::Statements => {
+                self.parse_stmt_up_to(|t| match t {&Token::CloseDelim(_) => true, _ => false, });
+            }
+        }
+
         if self.ftok.tok == close {
             self.next_token();
             return true;
@@ -492,13 +502,16 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.parse_block(block);
                     self.add_line();
                     break;
+                },
+                Token::OpenDelim(DelimToken::Paren) => {
+                    self.parse_delim_pair(Context::Declaration, DelimToken::Paren);
                 }
                 Token::Lt => {
                     self.parse_generics();
-                }
+                },
                 _ => {
                     self.next_token();
-                }
+                },
             }
         }
     }
@@ -534,11 +547,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::OpenDelim(DelimToken::Brace) => {
                     self.parse_block(Block::Statements);
                 },
-                Token::OpenDelim(DelimToken::Bracket) => {
-                    self.parse_delim_pair(DelimToken::Bracket);
-                },
-                Token::OpenDelim(DelimToken::Paren) => {
-                    self.parse_delim_pair(DelimToken::Paren);
+                Token::OpenDelim(delim) => {
+                    self.parse_delim_pair(Context::Statements, delim);
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
                     self.parse_if_then_else();
@@ -564,6 +574,25 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 }
             }
             may_be_struct_init = false;
+        }
+    }
+
+    fn parse_decl_up_to<P>(&mut self, pred: P) -> bool where P: Fn(&Token) -> bool {
+        loop {
+            if pred(&self.ftok.tok) {
+                return true;
+            }
+            match self.ftok.tok {
+                Token::Eof => {
+                    return false;
+                },
+                Token::OpenDelim(delim) => {
+                    self.parse_delim_pair(Context::Declaration, delim);
+                },
+                _ => {
+                    self.next_token();
+                }
+            }
         }
     }
 
