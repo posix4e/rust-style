@@ -259,7 +259,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.level = intial_level;
     }
 
-    // Parses a single field of a struct initialiser
+    // Parses a single field of a struct initializer
     fn parse_field_init(&mut self) {
         if self.parse_stmt_up_to(|t| *t == Token::Comma) {
             self.next_token();
@@ -411,11 +411,11 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         match self.ftok.tok {
             Token::Semi => {
                 self.next_token();
-                self.end_line();
+                self.add_line();
             },
             Token::OpenDelim(DelimToken::Brace) => {
                 self.parse_block(Block::Statements);
-                self.end_line();
+                self.add_line();
             }
             _ => {},
         }

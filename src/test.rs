@@ -385,7 +385,8 @@ fn test_mod() {
     assert_fmt_eq!("mod abc;");
     assert_fmt_eq!("mod abc;\nmod def;");
     assert_fmt_eq!("mod aaa;\nmod bbb;\nmod ccc as ddd;");
-    assert_fmt_eq!("#[cfg(test)]
+    assert_fmt_eq!("\
+#[cfg(test)]
 mod tests {
     extern crate test;
     use self::test::Bencher;
@@ -397,7 +398,6 @@ mod tests {
         y: i32,
         z: i32,
     }
-
 }");
 }
 
