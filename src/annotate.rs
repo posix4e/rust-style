@@ -644,6 +644,7 @@ fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
         (&Token::OpenDelim(..), &Token::CloseDelim(..)) => false,
 
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::If) => true,
+        (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => true,
 
         _ if prev.typ == TokenType::BinaryOperator => true,
         _ if curr.typ == TokenType::PatternOr => true,
