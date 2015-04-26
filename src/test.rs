@@ -797,8 +797,8 @@ ccccccccccccccccc + cccccccccccccccccccccccccccccccc ==
 fn test_line_break_between_patterns() {
 assert_fmt_eq!("\
 match self.current().tok {
-    Token::Eq | Token::Le | Token::EqEq | Token::Ne | Token::Ge | Token::Gt | Token::AndAnd |
-    Token::OrOr | Token::BinOp(..) | Token::BinOpEq(..) => {
+    Token::Eq | Token::Le | Token::EqEq | Token::Ne | Token::Ge | Token::Gt | Token::AndAnd
+    | Token::OrOr | Token::BinOp(..) | Token::BinOpEq(..) => {
         TokenType::BinaryOperator
     }
 }");

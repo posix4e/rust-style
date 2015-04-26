@@ -645,11 +645,9 @@ fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
 
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::If) => true,
 
-        (&Token::Eq, _) |
-        (&Token::EqEq, _) |
-        (&Token::AndAnd, _) |
-        (&Token::OrOr, _) |
-        (&Token::BinOp(..), _) |
+        _ if prev.typ == TokenType::BinaryOperator => true,
+        _ if curr.typ == TokenType::PatternOr => true,
+
         (&Token::Comma, _) |
         (_, &Token::RArrow) |
         (&Token::FatArrow, _) |
