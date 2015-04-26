@@ -46,13 +46,15 @@ fn try_join_empty_block(lines: &[UnwrappedLine]) -> Option<usize> {
 
 fn join(mut a: UnwrappedLine, mut b: UnwrappedLine) -> UnwrappedLine {
     assert!(a.children.len() == 0);
+    assert!(a.block == b.block);
     a.tokens.append(&mut b.tokens);
 
     let mut line = UnwrappedLine {
         tokens: a.tokens,
         level: a.level,
         children: b.children,
-        typ: a.typ
+        typ: a.typ,
+        block: a.block,
     };
 
     for i in 0..line.tokens.len() {

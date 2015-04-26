@@ -2,7 +2,7 @@ use style::{FormatStyle, Penalty};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken};
 use token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY, PRECEDENCE_DOT};
-use unwrapped_line::{UnwrappedLine, LineType};
+use unwrapped_line::{UnwrappedLine, LineType, Block};
 
 pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
     for line in lines {
@@ -16,6 +16,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             current_index: 0,
             line: line,
             context_stack: vec![],
+            in_pattern_guard: false,
         }.parse_line();
         // The expression parser adds invisible braces to the tokens in respect to their precedence.
         // This is used later to retain logical units in the line breaking process.
@@ -54,6 +55,7 @@ struct AnnotatingParser<'a> {
     current_index: usize,
     line: &'a mut UnwrappedLine,
     context_stack: Vec<Context>,
+    in_pattern_guard: bool,
 }
 
 // the return value of the parse_angle_bracket
@@ -142,6 +144,8 @@ impl<'a> AnnotatingParser<'a> {
         if self.has_current() {
             self.current_mut().binding_strength = self.context_binding_strength();
             self.current_mut().typ = typ.unwrap_or_else(|| self.determine_token_type());
+            self.in_pattern_guard = self.in_pattern_guard ||
+                self.current().tok.is_keyword(Keyword::If) && self.line.block == Block::Match;
             self.current_index += 1;
         }
     }
@@ -298,6 +302,11 @@ impl<'a> AnnotatingParser<'a> {
             Token::BinOp(BinOpToken::And) |
             Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
                 TokenType::UnaryOperator
+            }
+
+            Token::BinOp(BinOpToken::Or)
+                    if self.line.block == Block::Match && !self.in_pattern_guard => {
+                TokenType::PatternOr
             }
 
             Token::Not if self.is_after_non_keyword_ident() => {
@@ -566,6 +575,9 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         _ if prev.typ == TokenType::LambdaParamsStart => false,
         _ if prev.typ == TokenType::LambdaParamsEnd => true,
         _ if curr.typ == TokenType::LambdaParamsEnd => false,
+
+        _ if prev.typ == TokenType::PatternOr => true,
+        _ if curr.typ == TokenType::PatternOr => true,
 
         _ if prev.typ == TokenType::BinaryOperator => true,
         _ if curr.typ == TokenType::BinaryOperator => true,

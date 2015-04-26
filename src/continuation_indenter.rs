@@ -115,12 +115,18 @@ impl ContinuationIndenter {
             }
         }
 
-        for _ in &current.fake_lparens {
-            let new_state = ParenState {
+        for p in &current.fake_lparens {
+            let mut new_state = ParenState {
                 indent: indent,
                 indent_level: state.stack_top().indent_level,
                 contains_line_break: false,
             };
+
+            // No indentation for breaking on PatternOr
+            if *p == Precedence::PatternOr {
+                new_state.indent = state.column;
+            }
+
             state.stack.push(new_state);
         }
     }

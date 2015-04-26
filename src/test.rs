@@ -2,7 +2,7 @@ use reformat;
 use replacement::Replacement;
 use std::default::Default;
 use syntax;
-use token::{FormatTokenLexer, Precedence};
+use token::{FormatTokenLexer, Precedence, TokenType};
 use unwrapped_line::UnwrappedLine;
 
 // TODO: tests using different style options
@@ -791,4 +791,24 @@ fn test_higher_precedence_has_higher_penalty() {
     assert_fmt_eq!("\
 ccccccccccccccccc + cccccccccccccccccccccccccccccccc ==
         dddddddddddddddddddd + ddddddddddddddddddddddd");
+}
+
+#[test]
+fn test_line_break_between_patterns() {
+assert_fmt_eq!("\
+match self.current().tok {
+    Token::Eq | Token::Le | Token::EqEq | Token::Ne | Token::Ge | Token::Gt | Token::AndAnd |
+    Token::OrOr | Token::BinOp(..) | Token::BinOpEq(..) => {
+        TokenType::BinaryOperator
+    }
+}");
+}
+
+#[test]
+fn test_binary_or_in_pattern_guard() {
+    let lines = annotated_lines("match foo { A | B if c | d == 2 => () }");
+    let toks = &lines[0].children[0].tokens;
+    assert_eq!(toks[1].typ, TokenType::PatternOr);
+    assert_eq!(toks[5].typ, TokenType::BinaryOperator);
+    assert_eq!(toks[7].typ, TokenType::BinaryOperator);
 }

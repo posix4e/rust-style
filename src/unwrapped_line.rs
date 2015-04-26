@@ -17,6 +17,8 @@ pub struct UnwrappedLine {
     pub level: u32,
     // The type of line
     pub typ: LineType,
+    // The block type this line is contained in
+    pub block: Block,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -66,6 +68,7 @@ impl UnwrappedLine {
             },
             line: vec![],
             level_stack: vec![],
+            block_stack: vec![],
             level: 0,
             comments_before_next_token: vec![],
         };
@@ -75,6 +78,7 @@ impl UnwrappedLine {
         assert!(parser.level == 0);
         assert!(parser.comments_before_next_token.is_empty());
         assert!(parser.level_stack.is_empty());
+        assert!(parser.block_stack.is_empty());
         parser.output
     }
 
@@ -91,19 +95,17 @@ struct UnwrappedLineParser<'a, 'b: 'a> {
     ftok: FormatToken,
     line: Vec<FormatToken>,
     level_stack: Vec<UnwrappedLine>,
+    block_stack: Vec<Block>,
     level: u32,
     comments_before_next_token: Vec<FormatToken>,
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
-enum Block {
-    Impl,
+pub enum Block {
     Match,
     Statements,
     StructOrEnum,
     TopLevel,
-    Trait,
-    Extern,
     StructInit,
     MacroRules,
 }
@@ -172,10 +174,10 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.parse_decl(Block::StructOrEnum);
                 }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Impl) => {
-                    self.parse_decl(Block::Impl);
+                    self.parse_decl(Block::Statements);
                 }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Trait) => {
-                    self.parse_decl(Block::Trait);
+                    self.parse_decl(Block::Statements);
                 }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) ||
                                     self.ftok.tok.is_keyword(Keyword::Unsafe) => {
@@ -185,7 +187,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.next_token();
                     if let Token::Literal(Lit::Str_(..), _) = self.ftok.tok {
                         self.next_token();
-                        if self.try_parse_brace_block(Block::Extern) {
+                        if self.try_parse_brace_block(Block::Statements) {
                             self.add_line();
                         }
                     }
@@ -213,10 +215,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                         Block::StructInit => self.parse_field_init(),
                         Block::MacroRules => self.parse_macro_rule(),
                         Block::Statements |
-                        Block::TopLevel |
-                        Block::Trait |
-                        Block::Impl |
-                        Block::Extern => self.parse_stmt(),
+                        Block::TopLevel => self.parse_stmt(),
                     }
                 }
             }
@@ -248,6 +247,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         let level = self.get_finished_line();
         self.level += 1;
         self.level_stack.push(level);
+        self.block_stack.push(block);
 
         // Collect children into the line
         self.parse_level(block);
@@ -256,6 +256,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         // and place into its parent
         let level = self.level_stack.pop().unwrap();
         self.push_line(level);
+        self.block_stack.pop().unwrap();
 
         if self.ftok.tok != Token::CloseDelim(delim) {
             self.level = intial_level;
@@ -693,6 +694,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             level: self.level,
             children: vec![],
             typ: LineType::Unknown,
+            block: *self.block_stack.last().unwrap_or(&Block::TopLevel),
         }
     }
 

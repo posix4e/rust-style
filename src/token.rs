@@ -17,30 +17,33 @@ pub enum FormatDecision {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TokenType {
-    Postfix, // only used for macro the exlam in invocations (for example "println!(...)")
+    // only used for macro the exlam in invocations (for example "println!(...)")
+    Postfix,
     BinaryOperator,
     UnaryOperator,
     LambdaParamsStart,
     LambdaParamsEnd,
     GenericBracket,
+    PatternOr,
     Unknown
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, FromPrimitive)]
 pub enum Precedence {
     Unknown        = 0,  // Not a binary operator
-    Comma          = 1,  // ,
-    Assignment     = 2,  // = += -= *= /= <<= >>= &= ^= |=
-    LogicalOr      = 3,  // ||
-    LogicalAnd     = 4,  // &&
-    Relational     = 5,  // == != < > <= >=
-    BitInclusiveOr = 6,  // |
-    BitExclusiveOr = 7,  // ^
-    BitAnd         = 8,  // &
-    Shift          = 9,  // << >>
-    Additive       = 10, // + -
-    Multiplictive  = 11, // * / %
-    As             = 12, // as
+    PatternOr      = 1,  // | (in a pattern context)
+    Comma          = 2,  // ,
+    Assignment     = 3,  // = += -= *= /= <<= >>= &= ^= |=
+    LogicalOr      = 4,  // ||
+    LogicalAnd     = 5,  // &&
+    Relational     = 6,  // == != < > <= >=
+    BitInclusiveOr = 7,  // |
+    BitExclusiveOr = 8,  // ^
+    BitAnd         = 9,  // &
+    Shift          = 10,  // << >>
+    Additive       = 11, // + -
+    Multiplictive  = 12, // * / %
+    As             = 13, // as
 }
 
 // These arn't binary operators, but are used when parsing expressions
@@ -128,6 +131,9 @@ impl FormatToken {
     pub fn precedence(&self) -> Option<Precedence> {
         if self.tok.is_keyword(Keyword::As) {
             return Some(Precedence::As);
+        }
+        if self.typ == TokenType::PatternOr {
+            return Some(Precedence::PatternOr);
         }
         if self.typ != TokenType::BinaryOperator && self.tok != Token::Comma {
             return None;
