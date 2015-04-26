@@ -654,6 +654,9 @@ fn split_penalty(prev: &FormatToken, curr: &FormatToken) -> Penalty {
         (&Token::Eq, _) | (&Token::BinOpEq(..), _) => 100,
         (_, &Token::Dot) => 10,
         (_, &Token::OpenDelim(DelimToken::Brace)) => 1,
-        _ => 3,
+        _ => match prev.precedence() {
+            None | Some(Precedence::Unknown) => 3,
+            Some(precedence) => precedence as Penalty,
+        },
     }
 }

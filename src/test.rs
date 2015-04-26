@@ -784,3 +784,11 @@ macro_rules! min {
 fn test_array_in_let_type() {
     assert_fmt_eq!("let bytes: [u8; 8] = blah;");
 }
+
+#[test]
+fn test_higher_precedence_has_higher_penalty() {
+    // EqEq should have lower a penalty, so it breaks after == instead of +
+    assert_fmt_eq!("\
+ccccccccccccccccc + cccccccccccccccccccccccccccccccc ==
+    dddddddddddddddddddd + ddddddddddddddddddddddd");
+}
