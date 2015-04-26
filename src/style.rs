@@ -26,7 +26,7 @@ impl Default for FormatStyle {
             column_limit: 99,
             indent_width: 4,
             tab_width: 4,
-            continuation_indent_width: 4,
+            continuation_indent_width: 8,
             use_tabs: UseTabs::Never,
             max_empty_lines_to_keep: 1,
             penalty_excess_character: 1000000,

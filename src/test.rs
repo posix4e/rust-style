@@ -573,7 +573,7 @@ self.append_indent_text(&text, !!indent_level, &cmp::max(0, c.spaces),
 fn test_continuation_indent() {
     assert_fmt_eq!("\
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
-    bbbbbbbbbbbbbbbbbbbbbbbb");
+        bbbbbbbbbbbbbbbbbbbbbbbb");
     assert_fmt_eq!("\
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb,
                                                                 cccccccccccccc)");
@@ -583,9 +583,9 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb, 
     assert_fmt_eq!("\
 let join = lines.len() >= 2 && lines[0].children.is_empty() &&
            lines[0].tokens.last().unwrap().tok.very_looooooooooooong_dummy_name ==
-               Token::OpenDelim(DelimToken::Brace) &&
+                   Token::OpenDelim(DelimToken::Brace) &&
            lines[1].tokens.first().unwrap().tok.very_looooooooooooong_dummy_name ==
-               Token::CloseDelim(DelimToken::Brace);");
+                   Token::CloseDelim(DelimToken::Brace);");
 }
 
 #[test]
@@ -790,5 +790,5 @@ fn test_higher_precedence_has_higher_penalty() {
     // EqEq should have lower a penalty, so it breaks after == instead of +
     assert_fmt_eq!("\
 ccccccccccccccccc + cccccccccccccccccccccccccccccccc ==
-    dddddddddddddddddddd + ddddddddddddddddddddddd");
+        dddddddddddddddddddd + ddddddddddddddddddddddd");
 }
