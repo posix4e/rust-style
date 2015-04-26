@@ -781,8 +781,14 @@ macro_rules! min {
 }
 
 #[test]
-fn test_array_in_let_type() {
+fn test_fixed_size_array() {
     assert_fmt_eq!("let bytes: [u8; 8] = blah;");
+    assert_fmt_eq!("fn hello(a: [u8; 8]) {}");
+    assert_fmt_eq!("fn hello() -> [u8; 8] {}");
+    assert_fmt_eq!("struct Hello {
+    something: [u8; 8],
+    something: [u8; 8],
+}");
 }
 
 #[test]

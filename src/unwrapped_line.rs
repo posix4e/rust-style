@@ -499,9 +499,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.add_line();
                     break;
                 },
-                Token::OpenDelim(DelimToken::Paren) => {
-                    self.parse_delim_pair(Context::Declaration, DelimToken::Paren);
-                }
+                Token::OpenDelim(delim) => {
+                    self.parse_delim_pair(Context::Declaration, delim);
+                },
                 Token::Lt => {
                     self.parse_generics();
                 },
