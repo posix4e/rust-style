@@ -548,6 +548,28 @@ let a = (111 + 222 + 333 + 444 + 111 + 222 + 333 + 444 + 555) *
 }
 
 #[test]
+fn test_borrow_in_arguments() {
+    assert_fmt_eq!("\
+self.append_indent_text(text, indent_level, cmp::max(0, c.spaces),
+                        c.start_of_token_column - cmp::max(0, c.spaces));");
+    assert_fmt_eq!("\
+self.append_indent_text(text, indent_level, !cmp::max(0, c.spaces),
+                        c.start_of_token_column - cmp::max(0, c.spaces));");
+    assert_fmt_eq!("\
+self.append_indent_text(text, indent_level, &cmp::max(0, c.spaces),
+                        c.start_of_token_column - cmp::max(0, c.spaces));");
+    assert_fmt_eq!("\
+self.append_indent_text(text, &indent_level, cmp::max(0, c.spaces),
+                        c.start_of_token_column - cmp::max(0, c.spaces));");
+    assert_fmt_eq!("\
+self.append_indent_text(&text, indent_level, cmp::max(0, c.spaces),
+                        c.start_of_token_column - cmp::max(0, c.spaces));");
+    assert_fmt_eq!("\
+self.append_indent_text(&text, !!indent_level, &cmp::max(0, c.spaces),
+                        c.start_of_token_column - cmp::max(0, c.spaces));");
+}
+
+#[test]
 fn test_continuation_indent() {
     assert_fmt_eq!("\
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
@@ -565,22 +587,6 @@ let join = lines.len() >= 2 && lines[0].children.is_empty() &&
            lines[1].tokens.first().unwrap().tok.very_looooooooooooong_dummy_name ==
                Token::CloseDelim(DelimToken::Brace);");
 }
-
-// // FIXME: these cases produce very bad input currently
-// #[test]
-// fn test_continuation_indent_control_structures() {
-//     assert_fmt_eq!("\
-// match something {
-//     &Token::Ident(..)) | (&Token::Gt, &Token::Ident(..))
-//         if prev.typ == TokenType::GenericBracket => true,
-// }
-// ");
-//     assert_fmt_eq!("\
-// if aaaaaaaaaaaaaaaaa == bbbbbbbbbbbbbbbbbbbbbbbbbbbb ||
-//    cccccccccccccccccc || ddddddddddddddddddddddddddddd {
-//     indent = state.column;
-// }");
-// }
 
 #[test]
 fn test_exern_block() {

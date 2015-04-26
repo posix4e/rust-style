@@ -561,7 +561,6 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         _ if prev.typ == TokenType::GenericBracket => false,
         _ if curr.typ == TokenType::GenericBracket => false,
 
-        _ if prev.typ == TokenType::Pointer => false,
         _ if prev.typ == TokenType::UnaryOperator => false,
 
         _ if prev.typ == TokenType::LambdaParamsStart => false,

@@ -17,7 +17,6 @@ pub enum FormatDecision {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TokenType {
-    Pointer,
     Postfix, // only used for macro the exlam in invocations (for example "println!(...)")
     BinaryOperator,
     UnaryOperator,
@@ -127,11 +126,11 @@ impl FormatToken {
     }
 
     pub fn precedence(&self) -> Option<Precedence> {
-        if self.typ != TokenType::BinaryOperator || self.tok == Token::Comma {
-            return None;
-        }
         if self.tok.is_keyword(Keyword::As) {
             return Some(Precedence::As);
+        }
+        if self.typ != TokenType::BinaryOperator && self.tok != Token::Comma {
+            return None;
         }
         match self.tok {
             Token::Comma                      => Some(Precedence::Comma),
