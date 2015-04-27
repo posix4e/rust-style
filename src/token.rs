@@ -1,11 +1,10 @@
-use std::num::FromPrimitive;
 use style::{FormatStyle, Penalty};
-use syntax;
 use syntax::codemap::{mk_sp, Span, Pos, BytePos};
 use syntax::parse::lexer::{StringReader, Reader};
 use syntax::parse::ParseSess;
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{self, Token, BinOp, BinOpToken};
+use syntax;
 use unwrapped_line::UnwrappedLine;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -28,7 +27,7 @@ pub enum TokenType {
     Unknown
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, FromPrimitive)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Precedence {
     Unknown        = 0,  // Not a binary operator
     PatternOr      = 1,  // | (in a pattern context)
@@ -40,7 +39,7 @@ pub enum Precedence {
     BitInclusiveOr = 7,  // |
     BitExclusiveOr = 8,  // ^
     BitAnd         = 9,  // &
-    Shift          = 10,  // << >>
+    Shift          = 10, // << >>
     Additive       = 11, // + -
     Multiplictive  = 12, // * / %
     As             = 13, // as
@@ -51,8 +50,26 @@ pub const PRECEDENCE_UNARY: i32 = Precedence::As as i32 + 1;
 pub const PRECEDENCE_DOT: i32 = Precedence::As as i32 + 2;
 
 impl Precedence {
-    pub fn from_u32(val: i32) -> Option<Precedence> {
-        FromPrimitive::from_i32(val)
+    pub fn from_i32(val: i32) -> Option<Precedence> {
+        // FIXME: This is error prone, and really shouldn't be necessary.
+        //        But FromPrimitive was removed. Fix this with its safe replacement.
+        Some(match val {
+            0  => Precedence::Unknown,
+            1  => Precedence::PatternOr,
+            2  => Precedence::Comma,
+            3  => Precedence::Assignment,
+            4  => Precedence::LogicalOr,
+            5  => Precedence::LogicalAnd,
+            6  => Precedence::Relational,
+            7  => Precedence::BitInclusiveOr,
+            8  => Precedence::BitExclusiveOr,
+            9  => Precedence::BitAnd,
+            10 => Precedence::Shift,
+            11 => Precedence::Additive,
+            12 => Precedence::Multiplictive,
+            13 => Precedence::As,
+            _  => return None,
+        })
     }
 
     pub fn to_i32(&self) -> i32 {

@@ -397,7 +397,7 @@ impl<'a> ExpressionParser<'a> {
                 if precedence == PRECEDENCE_DOT {
                     self.add_fake_parenthesis(start_index, Precedence::Unknown);
                 } else {
-                    self.add_fake_parenthesis(start_index, Precedence::from_u32(precedence).unwrap())
+                    self.add_fake_parenthesis(start_index, Precedence::from_i32(precedence).unwrap())
                 }
             }
         }
