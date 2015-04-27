@@ -20,7 +20,8 @@ rustfmt [--output-replacements-json] [<file>]...
 rustfmt (--help | --version)
 ~~~
 
-Reads the given files, and prints the result to standard output.
+Formats the given files, and prints the result to standard output.
+If a direcory is given, all recursively contained .rs files are formatted.
 If the -w option is specified, the input files are overwritten.
 If no file arguments are specified, input is read from standard input.
 
