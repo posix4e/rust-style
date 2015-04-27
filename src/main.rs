@@ -154,8 +154,10 @@ fn perform_output(action: &Action, args: &Args, source: &String, replacements: &
             try!(write!(&mut stdout(), "{}", output));
         },
         Output::File(ref path) => {
-            let mut file = try!(File::create(path));
-            try!(write!(file, "{}", output));
+            if !replacements.is_empty() {
+                let mut file = try!(File::create(path));
+                try!(write!(file, "{}", output));
+            }
         },
     }
 
