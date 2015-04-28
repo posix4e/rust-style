@@ -237,7 +237,7 @@ impl ContinuationIndenter {
     fn get_newline_column(&self, line: &UnwrappedLine, state: &LineState) -> u32 {
         let current = &line.tokens[state.next_token_index];
 
-        if current.tok == Token::CloseDelim(DelimToken::Brace) {
+        if current.tok == Token::CloseDelim(DelimToken::Brace) && state.stack.len() > 1 {
             return state.stack[state.stack.len() - 2].nested_block_indent;
         }
 
