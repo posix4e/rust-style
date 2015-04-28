@@ -78,6 +78,8 @@ impl<'a> LineFormatter<'a> {
         self.whitespace.replace_whitespace(token, newlines, curr_line.level, indent, indent);
     }
 
+    // Use a variant of Dijkstra's algorithm to find the line with the lowest penalty,
+    // By breaking and not breaking at every possible line breaking point.
     fn format_line(&mut self, line: &mut UnwrappedLine, indent: u32) -> Penalty {
         let mut seen = HashSet::<&LineState>::new();
         let mut queue = BinaryHeap::<QueueItem>::new();
@@ -156,14 +158,11 @@ impl<'a> LineFormatter<'a> {
     fn add_next_state_to_queue(&mut self, mut penalty: Penalty, prev_node: &'a StateNode<'a>,
                                newline: bool, count: &mut u32, queue: &mut BinaryHeap<QueueItem<'a>>,
                                line: &mut UnwrappedLine) {
-        {
-            let token = &line.tokens[prev_node.state.next_token_index];
-            if newline && !token.can_break_before {
-                return;
-            }
-            if !newline && token.must_break_before {
-                return;
-            }
+        if newline && !self.indenter.can_break(line, &prev_node.state) {
+            return;
+        }
+        if !newline && self.indenter.must_break(line, &prev_node.state) {
+            return;
         }
 
         let dry_run = true;
@@ -183,7 +182,6 @@ impl<'a> LineFormatter<'a> {
     }
 
     // TODO
-
     #[allow(unused_variables)]
     fn format_children(&mut self, newline: bool, dry_run: bool, penalty: &mut Penalty,
                        state: &mut LineState) -> bool {
@@ -193,9 +191,21 @@ impl<'a> LineFormatter<'a> {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct ParenState {
+    // The column to start at if a line break occurs.
     pub indent: u32,
+    // The number of indents to appear at the start of the line if a line break occurs
     pub indent_level: u32,
+    // The column to start at if a line break occurs in a nested block.
+    pub nested_block_indent: u32,
+    // Whether this state contains a line break yet
     pub contains_line_break: bool,
+    // Whether we should bin packing in this state.
+    // If this is true, all or none behavior will be used.
+    pub avoid_bin_packing: bool,
+    // If true, line breaks will never on this state.
+    pub no_line_break: bool,
+    // If true, line breaks will always occur between parameters.
+    pub break_between_paramters: bool,
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
@@ -206,7 +216,7 @@ pub struct LineState {
     pub column: u32,
     // The indent of the first token
     pub first_indent: u32,
-    // A stack keeping track of properties applying to parenthesis.
+    // A stack keeping track of properties applying to indentation scope.
     pub stack: Vec<ParenState>,
 }
 
@@ -227,7 +237,7 @@ impl LineState {
         &mut line.tokens[self.next_token_index]
     }
 
-    pub fn current<'a>(&'a self, line: &'a UnwrappedLine) -> &'a FormatToken {
+    pub fn current<'a>(&self, line: &'a UnwrappedLine) -> &'a FormatToken {
         &line.tokens[self.next_token_index]
     }
 }

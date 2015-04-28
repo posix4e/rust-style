@@ -520,8 +520,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn parse_stmt_up_to<P>(&mut self, pred: P) -> bool where P: Fn(&Token) -> bool {
-        // FIXME: This is totally broken. Lots of blocks are considered to be
-        //        a struct init when they are not. For example: for a in b { }
         let mut may_be_struct_init = false;
 
         loop {
@@ -537,8 +535,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     return false;
                 },
                 Token::OpenDelim(DelimToken::Brace) if may_be_struct_init => {
-                    self.parse_block(Block::StructInit);
-                    // Don't end line, allow more tokens to follow
+                    // struct inits on same line
+                    self.parse_delim_pair(Context::Statements, DelimToken::Brace);
                 },
                 Token::OpenDelim(DelimToken::Brace) => {
                     self.parse_block(Block::Statements);

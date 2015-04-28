@@ -113,12 +113,7 @@ fn test_empty_match_block() {
 
 #[test]
 fn test_paren_after_struct_init() {
-    // FIXME: this could change if the struct is put on a single line in future
-    assert_eq!(fmt("let a = hello(Foo { a: 32, b: 50 });"),
-"let a = hello(Foo {
-    a: 32,
-    b: 50
-});");
+    assert_fmt_eq!("let a = hello(Foo { a: 32, b: 50 });");
 }
 
 #[test]
@@ -319,10 +314,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("fn foo() -> u32 {}");
     assert_fmt_eq!("let a = 5 + 2 * 3 + 312. (5 * 2) / 1.5 / (123 + 62.21)");
     assert_fmt_eq!("let a = *fred;");
-    assert_fmt_eq!("AnnotatingParser {
-    line: line,
-    context: vec![],
-}.parse_line();");
+    assert_fmt_eq!("AnnotatingParser { line: line, context: vec![], }.parse_line();");
     assert_fmt_eq!("token.is_any_keyword() && !token.is_keyword(Keyword::SelfType)");
     assert_fmt_eq!("replacements.retain(|r| r.text != lexer.src_str(r.start_byte, r.end_byte));");
     assert_fmt_eq!("a < b && c <= d && e > f && g >= h && i == j && k != l");
@@ -817,4 +809,57 @@ fn test_binary_or_in_pattern_guard() {
     assert_eq!(toks[1].typ, TokenType::PatternOr);
     assert_eq!(toks[5].typ, TokenType::BinaryOperator);
     assert_eq!(toks[7].typ, TokenType::BinaryOperator);
+}
+
+
+#[test]
+fn test_struct_init_all_or_nothing() {
+    assert_fmt_eq!("let a = Foo { one: 111111 };");
+    assert_fmt_eq!("let a = Foo { one: 111111, two: 22222222 };");
+    assert_fmt_eq!("let a = Foo { one: 111111, two: 22222222, three: 333333333333333 };");
+    assert_fmt_eq!("let a = Foo { one: 111111, two: 22222222, three: 333333333333333 };");
+
+    let input1 =
+        "let a = Foo { one: 1111111111111, two: 22222222222, three: 333333333333333, four: 444444444444444444444 };";
+    let input2 =
+        "let a = Foo { one: 1111111111111, two: 22222222222,
+            three: 333333333333333, four: 444444444444444444444 };";
+    let expected = "let a = Foo {
+    one: 1111111111111,
+    two: 22222222222,
+    three: 333333333333333,
+    four: 444444444444444444444
+};";
+
+    assert_eq!(fmt(input1), expected);
+    assert_eq!(fmt(input2), expected);
+    assert_fmt_eq!(expected);
+
+    assert_fmt_eq!("let a = call(Foo { one: 111111, two: 22222222, three: 333333333333333 });");
+    assert_fmt_eq!("\
+let a = call(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+             Foo { one: 111111, two: 22222222, three: 333333333333333 });");
+    assert_fmt_eq!("\
+let a = call(Foo { one: 111111, two: 22222222, three: 333333333333333 },
+             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa);");
+    assert_fmt_eq!("\
+let a = call(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, Foo {
+    one: 111111,
+    two: 22222222,
+    three: 333333333333333,
+    four: 444444444444444444444
+});");
+
+    assert_fmt_eq!("\
+let a = call(Foo {
+    one: 1111111111111,
+    two: 22222222222,
+    three: 333333333333333,
+    four: call(Foo {
+        one: 1111111111111,
+        two: 22222222222,
+        three: 333333333333333,
+        four: 444444444444444444444
+    }),
+});");
 }

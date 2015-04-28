@@ -643,6 +643,9 @@ fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
         _ if prev.typ == TokenType::UnaryOperator => false,
         (&Token::OpenDelim(..), &Token::CloseDelim(..)) => false,
 
+        (&Token::OpenDelim(DelimToken::Brace), _) => true,
+        (_, &Token::CloseDelim(DelimToken::Brace)) => true,
+
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::If) => true,
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => true,
 
