@@ -344,6 +344,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("for ftok in &self.line.tokens {");
     assert_fmt_eq!("let &Tup(ref val) = self;");
     assert_fmt_eq!("n @ 1...12 => Foo()");
+    assert_fmt_eq!("let a = &mut **self._ptr");
 }
 
 #[test]

@@ -521,14 +521,20 @@ fn unary_follows(prev: Option<&FormatToken>) -> bool {
         Token::Comma |
         Token::Colon |
         Token::ModSep |
-        Token::Semi => return true,
+        Token::Semi => true,
+
         Token::Ident(..)
             if prev.tok.is_keyword(Keyword::Return) ||
                prev.tok.is_keyword(Keyword::Match) ||
                prev.tok.is_keyword(Keyword::As) ||
                prev.tok.is_keyword(Keyword::In) ||
                prev.tok.is_keyword(Keyword::If) ||
-               prev.tok.is_keyword(Keyword::Let) => return true,
+               prev.tok.is_keyword(Keyword::Let) ||
+               prev.tok.is_keyword(Keyword::Mut) => true,
+
+        _ if prev.typ == TokenType::BinaryOperator ||
+             prev.typ == TokenType::UnaryOperator => true,
+
         _ => false,
     }
 }
