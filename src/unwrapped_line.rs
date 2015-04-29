@@ -56,7 +56,6 @@ impl UnwrappedLine {
                 can_break_before: false,
                 must_break_before: false,
                 binding_strength: 0,
-                matching_paren_index: None,
                 comment_type: None,
                 index: 0,
                 last_operator: false,
@@ -86,6 +85,12 @@ impl UnwrappedLine {
         self.tokens[..index].iter().rev()
             .filter(|t| t.tok != Token::Comment)
             .next()
+    }
+
+    pub fn reset_token_indices(&mut self) {
+        for i in 0..self.tokens.len() {
+            self.tokens[i].index = i;
+        }
     }
 }
 
@@ -166,17 +171,15 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                                     self.ftok.tok.is_keyword(Keyword::While) => {
                     self.parse_loop();
                 }
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Fn) => {
-                    self.parse_decl(Block::Statements);
-                }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Struct)  ||
-                    self.ftok.tok.is_keyword(Keyword::Enum) => {
+                                    self.ftok.tok.is_keyword(Keyword::Enum) => {
                     self.parse_decl(Block::StructOrEnum);
                 }
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Impl) => {
-                    self.parse_decl(Block::Statements);
-                }
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Trait) => {
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Fn) ||
+                                    self.ftok.tok.is_keyword(Keyword::Impl) ||
+                                    self.ftok.tok.is_keyword(Keyword::Trait) ||
+                                    self.ftok.tok.is_keyword(Keyword::Impl) ||
+                                    self.ftok.tok.is_keyword(Keyword::Type) => {
                     self.parse_decl(Block::Statements);
                 }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) ||
@@ -475,13 +478,14 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         false
     }
 
-    // Parses a declaration (enum, struct, eimpl, trait, fn)
+    // Parses a declaration (enum, struct, eimpl, trait, fn, type)
     fn parse_decl(&mut self, block: Block) {
         assert!(self.ftok.tok.is_keyword(Keyword::Enum) ||
                 self.ftok.tok.is_keyword(Keyword::Struct) ||
                 self.ftok.tok.is_keyword(Keyword::Impl) ||
                 self.ftok.tok.is_keyword(Keyword::Trait) ||
-                self.ftok.tok.is_keyword(Keyword::Fn));
+                self.ftok.tok.is_keyword(Keyword::Fn) ||
+                self.ftok.tok.is_keyword(Keyword::Type));
         self.next_token();
 
         loop {
@@ -583,6 +587,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::OpenDelim(delim) => {
                     self.parse_delim_pair(Context::Declaration, delim);
                 },
+                Token::Lt => {
+                    self.parse_generics();
+                }
                 _ => {
                     self.next_token();
                 }
@@ -609,10 +616,14 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     nest_count -= 1;
                 },
                 Token::BinOp(BinOpToken::Shr) if nest_count > 1 => {
-                    self.next_token();
+                    self.split_generic_shr_into_two_gt();
                     nest_count -= 2;
                 },
-                Token::Gt | Token::BinOp(BinOpToken::Shr) => {
+                Token::BinOp(BinOpToken::Shr) => {
+                    self.split_generic_shr_into_two_gt();
+                    break;
+                },
+                Token::Gt => {
                     self.next_token();
                     break;
                 },
@@ -757,5 +768,31 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         let ftok = self.ftok.clone();
         self.push_token(ftok);
         self.read_token();
+    }
+
+    // Shr tokens (>>) can also represent closing two levels of generic brackets.
+    // Go ahead and split them into two separate Gt tokens (>), to minimise any
+    // further pain and suffering. It will reduce bugs as well.
+    fn split_generic_shr_into_two_gt(&mut self) {
+        assert_eq!(self.ftok.tok, Token::BinOp(BinOpToken::Shr));
+        assert_eq!(self.ftok.span.lo + BytePos(2), self.ftok.span.hi);
+        assert_eq!(self.ftok.column_width, 2);
+
+        let mut ftok = self.ftok.clone();
+        let span_mid = ftok.span.lo + BytePos(1);
+
+        self.ftok.tok = Token::Gt;
+        self.ftok.span = mk_sp(ftok.span.lo, span_mid);
+        self.ftok.column_width = 1;
+        self.next_token();
+
+        ftok.tok = Token::Gt;
+        ftok.span = mk_sp(span_mid, ftok.span.hi);
+        ftok.preceding_whitespace_span = mk_sp(span_mid, span_mid);
+        ftok.original_column = ftok.original_column + 1;
+        ftok.is_first_token = false;
+        ftok.newlines_before = 0;
+        ftok.column_width = 1;
+        self.push_token(ftok);
     }
 }

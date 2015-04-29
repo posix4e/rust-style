@@ -58,21 +58,11 @@ struct AnnotatingParser<'a> {
     in_pattern_guard: bool,
 }
 
-// the return value of the parse_angle_bracket
-enum GenericsReturn {
-    Fail,
-    Success,
-    // This is the case when a ">>" token is found that also terminates the parent parse function.
-    SuccessDouble,
-}
-
 impl<'a> AnnotatingParser<'a> {
     // The main interface of this struct.
     // Parses over the line and annotates the line and each token.
     fn parse_line(&mut self) {
-        for i in 0..self.line.tokens.len() {
-            self.line.tokens[i].index = i;
-        }
+        self.line.reset_token_indices();
         self.line.typ = self.determine_line_type();
 
         while self.has_current() {
@@ -161,20 +151,12 @@ impl<'a> AnnotatingParser<'a> {
             },
             &Token::Lt => {
                 let safepoint = self.current_index;
-                match self.parse_generics() {
+                if let Err(()) = self.parse_generics() {
                     // If a nested angle bracket parse fails, we must backtrack and reparse
-                    GenericsReturn::Fail => {
-                        self.current_index = safepoint;
-                        self.next_with_token_type(Some(TokenType::BinaryOperator));
-                        Ok(())
-                    }
-                    // SuccessDouble has to be an error in the source, but it is the most
-                    // robust solution to handle it as if it was valid
-                    GenericsReturn::SuccessDouble |
-                    GenericsReturn::Success => {
-                        Ok(())
-                    }
+                    self.current_index = safepoint;
+                    self.next_with_token_type(Some(TokenType::BinaryOperator));
                 }
+                Ok(())
             }
             _ => {
                 self.next();
@@ -183,52 +165,31 @@ impl<'a> AnnotatingParser<'a> {
         }
     }
 
-    fn parse_generics(&mut self) -> GenericsReturn {
+    fn parse_generics(&mut self) -> Result<(), ()> {
         assert_eq!(self.current().tok, Token::Lt);
         self.next_with_token_type(Some(TokenType::GenericBracket));
 
         self.using_context(ContextType::Generics, |this| {
             while this.has_current() {
                 match &this.current().tok {
-                    &Token::Lt => {
-                        // Recurse into nested generics
-                        match this.parse_generics() {
-                            // if a nested angle bracket parse fails, this must fail too
-                            GenericsReturn::Fail => {
-                                return GenericsReturn::Fail;
-                            }
-                            // Test if the child parse call ended with a ">>" symbol. In that case
-                            // this parse function must exit and return a single success.
-                            GenericsReturn::SuccessDouble => {
-                                return GenericsReturn::Success;
-                            }
-                            GenericsReturn::Success => {}
-                        }
-                    }
                     &Token::Gt => {
+                        // consume the closing angle bracket in this context
                         this.next();
-                        return GenericsReturn::Success;
-                    }
-                    // The last token in "Foo<Bar<Baz>>" is ">>". We must terminate the parent
-                    // parse_generics too.
-                    &Token::BinOp(BinOpToken::Shr) => {
-                        this.next();
-                        return GenericsReturn::SuccessDouble;
+                        return Ok(());
                     }
                     // These symbols are unliky in generics
                     &Token::AndAnd |
                     &Token::OrOr => {
-                        return GenericsReturn::Fail;
+                        return Err(());
                     }
-                    _ => match this.consume_token() {
-                        Ok(()) => (),
-                        Err(()) => return GenericsReturn::Fail,
+                    _ => {
+                        try!(this.consume_token());
                     }
                 };
             }
 
             // Failed find a matching closing angle bracket
-            GenericsReturn::Fail
+            Err(())
         })
     }
 
@@ -314,9 +275,7 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::Postfix
             }
 
-            Token::Lt |
-            Token::Gt |
-            Token::BinOp(BinOpToken::Shr) if self.context_is(ContextType::Generics) => {
+            Token::Lt | Token::Gt if self.context_is(ContextType::Generics) => {
                 TokenType::GenericBracket
             }
 
@@ -567,11 +526,8 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (_, &Token::Dot) => false,
         (&Token::Dot, _) => false,
 
-        (&Token::BinOp(BinOpToken::Shr), &Token::Eq) |
         (&Token::Gt, &Token::Eq) if prev.typ == TokenType::GenericBracket => true,
-        (&Token::BinOp(BinOpToken::Shr), &Token::Ident(..)) |
         (&Token::Gt, &Token::BinOp(..)) |
-        (&Token::BinOp(BinOpToken::Shr), &Token::BinOp(..)) |
         (&Token::Gt, &Token::Ident(..)) if prev.typ == TokenType::GenericBracket => true,
         (_, &Token::OpenDelim(DelimToken::Brace)) if prev.typ == TokenType::GenericBracket => true,
         _ if prev.typ == TokenType::GenericBracket => false,

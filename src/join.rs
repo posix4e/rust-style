@@ -57,9 +57,7 @@ fn join(mut a: UnwrappedLine, mut b: UnwrappedLine) -> UnwrappedLine {
         block: a.block,
     };
 
-    for i in 0..line.tokens.len() {
-        line.tokens[i].index = i;
-    }
 
+    line.reset_token_indices();
     line
 }

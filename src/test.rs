@@ -570,6 +570,13 @@ self.append_indent_text(&text, !!indent_level, &cmp::max(0, c.spaces),
 }
 
 #[test]
+fn test_argument_alignment_shr_generics() {
+    assert_fmt_eq!("\
+deeeeeeeeeeeeeeeeeeeeeeeeeeallocate(ptr as *mut u8, size_of::<RcBox<T>>(),
+                                    min_align_of::<RcBox<T>>())");
+}
+
+#[test]
 fn test_continuation_indent() {
     assert_fmt_eq!("\
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +

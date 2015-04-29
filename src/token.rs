@@ -119,8 +119,6 @@ pub struct FormatToken {
     // operator precedence, parenthesis nesting, etc.
     // Used to calculate split_penalty.
     pub binding_strength: Penalty,
-    // The matching paren token, if this is a paren token.
-    pub matching_paren_index: Option<usize>,
     // The type of comment, if this is a comment token.
     pub comment_type: Option<CommentType>,
 
@@ -192,7 +190,6 @@ impl FormatToken {
     pub fn closes_scope(&self) -> bool {
         match self.tok {
             Token::CloseDelim(..) => true,
-            Token::BinOp(BinOpToken::Shr) |
             Token::Gt => self.typ == TokenType::GenericBracket,
              _ => false,
         }
@@ -331,7 +328,6 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             can_break_before: false,
             must_break_before: false,
             binding_strength: 0,
-            matching_paren_index: None,
             comment_type: comment_type,
             index: 0,
             operator_index: 0,
