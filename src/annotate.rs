@@ -620,6 +620,10 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (&Token::Lifetime(..), &Token::Ident(..)) => true,
         (&Token::Ident(..), &Token::Ident(..)) => true,
 
+        // fn keyword as a type
+        (&Token::Ident(..), &Token::OpenDelim(DelimToken::Paren))
+            if prev.tok.is_keyword(Keyword::Fn) => false,
+
         (&Token::Ident(..), _) if is_spaced_keyword(&prev.tok) => true,
         (_, &Token::Ident(..)) if is_spaced_keyword(&curr.tok) => true,
 

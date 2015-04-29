@@ -30,6 +30,12 @@ macro_rules! assert_fmt_eq(
 );
 
 #[test]
+#[should_panic]
+fn test_assert_fmt_eq_should_panic() {
+    assert_fmt_eq!("let a =5;");
+}
+
+#[test]
 fn test_whitespace_only_pass_through() {
     assert_fmt_eq!("");
     assert_fmt_eq!(" ");
@@ -864,4 +870,17 @@ let a = call(Foo {
         four: 444444444444444444444
     }),
 });");
+}
+
+#[test]
+fn test_fn_type() {
+    assert_fmt_eq!("\
+struct TyDesc {
+    drop_glue: fn(*const i8),
+    size: usize,
+    align: usize
+}");
+    assert_fmt_eq!("let a: fn(*const i8) = b;");
+    assert_fmt_eq!("fn a(b: fn(*const i8)) {}");
+    assert_fmt_eq!("fn a() -> fn(*const i8) {}");
 }
