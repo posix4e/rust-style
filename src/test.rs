@@ -345,6 +345,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("let &Tup(ref val) = self;");
     assert_fmt_eq!("n @ 1...12 => Foo()");
     assert_fmt_eq!("let a = &mut **self._ptr");
+    assert_fmt_eq!("((p & !1) as *const TyDesc, p & 1 == 1)");
 }
 
 #[test]

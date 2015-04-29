@@ -298,6 +298,7 @@ impl<'a> AnnotatingParser<'a> {
 
     fn determine_token_type(&self) -> TokenType {
         match self.current().tok {
+            Token::Not |
             Token::BinOp(BinOpToken::Star) |
             Token::BinOp(BinOpToken::And) |
             Token::BinOp(BinOpToken::Minus) if self.current_is_unary() => {
