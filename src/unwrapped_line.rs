@@ -544,10 +544,17 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::OpenDelim(DelimToken::Brace) => {
                     self.parse_block(Block::Statements);
-                    self.add_line();
                 },
                 Token::OpenDelim(delim) => {
                     self.parse_delim_pair(Context::Statements, delim);
+                },
+                Token::Ident(..) if self.is_macro_invocation() => {
+                    self.next_token(); // macro name
+                    self.next_token(); // macro exclamation mark
+                    if self.try_parse_brace_block(Block::Statements) {
+                        self.add_line();
+                        return false;
+                    }
                 },
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::If) => {
                     self.parse_if_then_else();

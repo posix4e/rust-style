@@ -900,6 +900,14 @@ from_str_radix_float_impl! {
 }
 
 fn hello() {}");
+
+    assert_fmt_eq!("\
+impl_eq! {
+    Cow<'a, str>, String
+}
+
+#[stable(feature = \"rust1\", since = \"1.0.0\")]
+impl fmt::Display for String {}");
 }
 
 #[test]
