@@ -641,9 +641,11 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     fn parse_macro_rule(&mut self) {
         if self.parse_decl_up_to(|t| *t == Token::FatArrow) {
             self.next_token();
-            self.parse_block(Block::Statements);
-            self.next_token_if(&Token::Semi);
-            self.add_line();
+            if let Token::OpenDelim(..) = self.ftok.tok {
+                self.parse_block(Block::Statements);
+                self.next_token_if(&Token::Semi);
+                self.add_line();
+            }
         }
     }
 
