@@ -555,6 +555,10 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Match) => {
                     self.parse_match();
                 },
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::As) => {
+                    self.next_token();
+                    self.parse_type();
+                },
                 Token::Ident(..) => {
                     self.next_token();
                     may_be_struct_init = true;
@@ -595,6 +599,41 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.next_token();
                 }
             }
+        }
+    }
+
+    fn parse_type(&mut self) {
+        // consume pointers etc
+        loop {
+            match self.ftok.tok {
+                Token::Eof => return,
+                Token::BinOp(BinOpToken::And) |
+                Token::BinOp(BinOpToken::Star) |
+                Token::Lifetime(..) => {
+                    self.next_token();
+                }
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Mut) ||
+                                    self.ftok.tok.is_keyword(Keyword::Const) => {
+                    self.next_token();
+                }
+                _ => break,
+            }
+        }
+
+        // consume path
+        loop {
+            match self.ftok.tok {
+                Token::ModSep |
+                Token::Ident(..) => {
+                    self.next_token();
+                }
+                _ => break,
+            }
+        }
+
+        // consume generics
+        if self.ftok.tok == Token::Lt  {
+            self.parse_generics();
         }
     }
 

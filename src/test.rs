@@ -901,3 +901,12 @@ from_str_radix_float_impl! {
 
 fn hello() {}");
 }
+
+#[test]
+fn test_generics_in_as() {
+    assert_fmt_eq!("\
+let data = match self.edges {
+    None => heap::EMPTY as *const Node<K, V>,
+    Some(ref p) => **p as *const Node<K, V>,
+};");
+}
