@@ -891,3 +891,13 @@ struct TyDesc {
     assert_fmt_eq!("fn a(b: fn(*const i8)) {}");
     assert_fmt_eq!("fn a() -> fn(*const i8) {}");
 }
+
+#[test]
+fn test_macro_invokation_brace() {
+    assert_fmt_eq!("\
+from_str_radix_float_impl! {
+    f32
+}
+
+fn hello() {}");
+}

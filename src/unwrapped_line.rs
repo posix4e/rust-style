@@ -544,6 +544,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::OpenDelim(DelimToken::Brace) => {
                     self.parse_block(Block::Statements);
+                    self.add_line();
                 },
                 Token::OpenDelim(delim) => {
                     self.parse_delim_pair(Context::Statements, delim);
