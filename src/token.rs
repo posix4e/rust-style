@@ -199,6 +199,14 @@ impl FormatToken {
         line.tokens.get(self.index + 1)
     }
 
+    pub fn is_comment(&self) -> bool {
+        match self.tok {
+            Token::Comment => true,
+            Token::DocComment(..) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_trailing_comment(&self, line: &UnwrappedLine) -> bool {
         match self.comment_type {
             None => false,
@@ -300,7 +308,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
         }
 
         let comment_type = match tok_sp.tok {
-            Token::Comment => {
+            Token::Comment | Token::DocComment(..) => {
                 let text = self.span_str(tok_sp.sp);
                 if text.starts_with("//") {
                     Some(CommentType::Line)

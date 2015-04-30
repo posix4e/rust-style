@@ -381,7 +381,7 @@ impl<'a> ExpressionParser<'a> {
         }
 
         let mut previous = self.current_index - 1;
-        while self.line.tokens[previous].tok == Token::Comment && previous > 0 {
+        while self.line.tokens[previous].is_comment() && previous > 0 {
             previous -= 1;
         }
         self.line.tokens[previous].fake_rparens += 1;
@@ -567,8 +567,8 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (&Token::CloseDelim(DelimToken::Brace), _) => true,
         (_, &Token::CloseDelim(DelimToken::Brace)) => true,
 
-        (_, &Token::Comment) => true,
-        (&Token::Comment, _) => true,
+        _ if prev.is_comment() => true,
+        _ if curr.is_comment() => true,
 
         (&Token::Literal(..), _) => true,
         (_, &Token::Literal(..)) => true,

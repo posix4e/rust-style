@@ -83,7 +83,7 @@ impl UnwrappedLine {
 
     pub fn prev_non_comment_token(&self, index: usize) -> Option<&FormatToken> {
         self.tokens[..index].iter().rev()
-            .filter(|t| t.tok != Token::Comment)
+            .filter(|t| !t.is_comment())
             .next()
     }
 
@@ -750,21 +750,18 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         let mut comments_in_line = true;
         loop {
             let ftok = self.lexer.next().unwrap();
-            match ftok.tok {
-                Token::DocComment(..) | Token::Comment => {
-                    if ftok.is_on_newline() || ftok.is_first_token {
-                        comments_in_line = false;
-                    }
-                    if comments_in_line {
-                        self.push_token(ftok);
-                    } else {
-                        self.comments_before_next_token.push(ftok)
-                    }
-                },
-                _ => {
-                    self.ftok = ftok;
-                    break;
+            if ftok.is_comment() {
+                if ftok.is_on_newline() || ftok.is_first_token {
+                    comments_in_line = false;
                 }
+                if comments_in_line {
+                    self.push_token(ftok);
+                } else {
+                    self.comments_before_next_token.push(ftok)
+                }
+            } else {
+                self.ftok = ftok;
+                break;
             }
         }
     }
