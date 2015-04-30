@@ -918,3 +918,9 @@ let data = match self.edges {
     Some(ref p) => **p as *const Node<K, V>,
 };");
 }
+
+#[test]
+fn test_complex_generics() {
+    assert_fmt_eq!("impl<T: Clone, V: AsRef<[T]>> SliceConcatExt<T, Vec<T>> for [V] {}");
+    assert_fmt_eq!("struct InvariantLifetime<'id>(marker::PhantomData<::core::cell::Cell<&'id ()>>);");
+}

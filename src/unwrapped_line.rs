@@ -639,7 +639,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Eof => {
                     break;
                 },
-                Token::CloseDelim(..) => {
+                Token::CloseDelim(DelimToken::Brace) => {
                     break;
                 },
                 Token::Lt => {
