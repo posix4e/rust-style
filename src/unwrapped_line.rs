@@ -145,12 +145,12 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Eof => {
                     break;
                 }
-                Token::CloseDelim(DelimToken::Brace) if block == Block::TopLevel => {
+                Token::CloseDelim(..) if block == Block::TopLevel => {
                     // error
                     self.next_token();
                     self.add_line();
                 }
-                Token::CloseDelim(_) => {
+                Token::CloseDelim(..) => {
                     break;
                 }
                 Token::OpenDelim(DelimToken::Brace) => {
@@ -309,29 +309,18 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
     // Parses a single arm of a match statement
     fn parse_match_arm(&mut self) {
-        loop {
-            match self.ftok.tok {
-                Token::Eof => {
-                    break;
-                },
-                Token::FatArrow => {
+        if self.parse_decl_up_to(|t| *t == Token::FatArrow) {
+            self.next_token();
+            if self.try_parse_brace_block(Block::Statements) {
+                if self.ftok.tok == Token::Comma {
                     self.next_token();
-                    if self.try_parse_brace_block(Block::Statements) {
-                        if self.ftok.tok == Token::Comma {
-                            self.next_token();
-                        }
-                    } else {
-                        if self.parse_stmt_up_to(|t| *t == Token::Comma) {
-                            self.next_token();
-                        }
-                    }
-                    self.add_line();
-                    break;
-                },
-                _ => {
+                }
+            } else {
+                if self.parse_stmt_up_to(|t| *t == Token::Comma) {
                     self.next_token();
-                },
+                }
             }
+            self.add_line();
         }
     }
 
@@ -419,20 +408,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     fn parse_use(&mut self) {
         assert!(self.ftok.tok.is_keyword(Keyword::Use), "expected 'use'");
         self.next_token();
-        loop {
-            match self.ftok.tok {
-                Token::Eof => {
-                    break;
-                }
-                Token::Semi => {
-                    self.next_token();
-                    self.add_line();
-                    break;
-                }
-                _ => {
-                    self.next_token();
-                }
-            }
+        if self.parse_decl_up_to(|t| *t == Token::Semi) {
+            self.next_token();
+            self.add_line();
         }
     }
 
@@ -493,6 +471,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Eof => {
                     break;
                 },
+                Token::CloseDelim(..) => {
+                    break;
+                },
                 Token::Semi => {
                     self.next_token();
                     self.add_line();
@@ -534,7 +515,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Eof => {
                     return false;
                 },
-                Token::CloseDelim(_) => {
+                Token::CloseDelim(..) => {
                     self.add_line();
                     return false;
                 },
@@ -596,6 +577,10 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::Eof => {
                     return false;
                 },
+                Token::CloseDelim(..) => {
+                    self.add_line();
+                    return false;
+                },
                 Token::OpenDelim(delim) => {
                     self.parse_delim_pair(Context::Declaration, delim);
                 },
@@ -652,6 +637,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         loop {
             match self.ftok.tok {
                 Token::Eof => {
+                    break;
+                },
+                Token::CloseDelim(..) => {
                     break;
                 },
                 Token::Lt => {
