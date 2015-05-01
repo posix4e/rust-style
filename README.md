@@ -2,6 +2,8 @@
 
 A tool to format rust code.
 
+This is a work in progress. It is not ready for use yet.
+
 ###Building rustfmt
 
 ~~~
@@ -31,5 +33,3 @@ If no file arguments are specified, input is read from standard input.
 -V, --version                   Print version info and exit
 -j, --output-replacements-json  Outputs replacements as JSON
 ~~~
-
-Please be aware of the fact that this is not meant for production use yet! We plan to have this usable by the rust 1.0 release.
