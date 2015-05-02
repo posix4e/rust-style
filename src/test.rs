@@ -13,7 +13,7 @@ fn fmt(source: &str) -> String {
 
 fn replacements(source: &str) -> Vec<Replacement> {
     let style = Default::default();
-    super::reformat(source, &style)
+    super::reformat(source, &style, None)
 }
 
 fn annotated_lines(source: &str) -> Vec<UnwrappedLine> {

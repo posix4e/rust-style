@@ -102,6 +102,8 @@ pub struct FormatToken {
     // The character position (not bytes) of the start of the token
     // in the original input
     pub original_column: u32,
+    // The row position in the original input, 0-based.
+    pub original_row: u32,
     // The character width (not bytes) of this token.
     pub column_width: u32,
 
@@ -226,6 +228,7 @@ pub struct FormatTokenLexer<'s> {
     eof: bool,
     is_first_token: bool,
     column: u32,
+    row: u32,
     style: &'s FormatStyle,
     previous_token_span: Span,
 }
@@ -243,6 +246,7 @@ impl<'s> FormatTokenLexer<'s> {
             eof: false,
             is_first_token: true,
             column: 0,
+            row: 0,
             style: style,
             previous_token_span: mk_sp(BytePos(0), BytePos(0)),
         }
@@ -278,6 +282,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
         }
 
         let mut column = self.column;
+        let mut row = self.row;
         let mut tok_sp = self.lexer.next_token();
         let mut newlines_before = 0;
         while let Token::Whitespace = tok_sp.tok {
@@ -288,6 +293,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
                     '\n' => {
                         newlines_before += 1;
                         column = 0;
+                        row += 1;
                     },
                     '\r' => {
                         column = 0;
@@ -329,6 +335,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             is_first_token: self.is_first_token,
             newlines_before: newlines_before,
             original_column: column,
+            original_row: row,
             decision: FormatDecision::Unformatted,
             split_penalty: 0,
             column_width: column_width,
@@ -349,6 +356,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
         column += column_width;
 
         self.column = column;
+        self.row = row;
         self.eof = token.tok == token::Eof;
         self.is_first_token = false;
         self.previous_token_span = tok_sp.sp;

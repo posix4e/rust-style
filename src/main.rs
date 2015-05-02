@@ -11,6 +11,7 @@ use std::error::Error;
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{stdin, stdout, stderr, self};
+use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 
 static USAGE: &'static str = "
@@ -22,6 +23,7 @@ If the -w option is specified, the input files are overwritten.
 If no file arguments are specified, input is read from standard input.
 
 Usage: rustfmt [-w] [<file>]...
+       rustfmt [--lines=<string>]... [--output-replacements-json] [<file>]
        rustfmt [--output-replacements-json] [<file>]...
        rustfmt (--help | --version)
 
@@ -30,11 +32,15 @@ Options:
     -w, --write                    Overwrite the input files
     -V, --version                  Print version info and exit
     -j --output-replacements-json  Outputs replacements as JSON
+    --lines=<string>               Formats lines specified, where
+                                   <string> is <uint>:<uint> are
+                                   the line number ranges 1-based.
 ";
 
 #[derive(RustcDecodable, Debug)]
 struct Args {
     arg_file: Vec<String>,
+    flag_lines: Vec<String>,
     flag_write: bool,
     flag_output_replacements_json: bool,
 }
@@ -52,13 +58,13 @@ fn main() {
             .unwrap_or_else(|e| e.exit());
 
         let style = FormatStyle::default();
-        let actions = get_actions(&args).unwrap();
+        let (actions, action_args) = get_actions(&args).unwrap();
 
         for action in &actions {
             match perform_input(action) {
                 Ok(ref source) => {
-                    let replacements = reformat(source, &style);
-                    perform_output(action, &args, source, &replacements).unwrap();
+                    let replacements = reformat(source, &style, action_args.ranges.as_ref());
+                    perform_output(action, &action_args, source, &replacements).unwrap();
                 },
                 Err(ref msg) => {
                     writeln!(&mut stderr(), "{}", msg).unwrap();
@@ -73,46 +79,72 @@ fn main() {
     }
 }
 
-fn get_actions(args: &Args) -> FormatResult<Vec<Action>> {
-    if args.arg_file.is_empty() {
-        return Ok(vec![Action {
-            input: Input::StdIn,
-            output: Output::StdOut,
-        }]);
-    }
-
-    let new_action = |input: PathBuf| Action {
-        output: if args.flag_write { Output::File(input.clone()) }
-                else { Output::StdOut },
-        input: Input::File(input),
+fn get_actions(args: &Args) -> FormatResult<(Vec<Action>, ActionArgs)> {
+    let ranges = if args.flag_lines.is_empty() {
+        None
+    } else {
+        let mut ranges = Vec::new();
+        for range_string in &args.flag_lines {
+            let range_values = Vec::<&str>::from_iter(range_string.split(':'));
+            if range_values.len() != 2 {
+                return Err(FormatError::CustomError("incorrect format for line ranges"));
+            }
+            let a = try!(range_values[0].parse::<u32>());
+            let b = try!(range_values[1].parse::<u32>());
+            if a == 0 || b == 0 {
+                return Err(FormatError::CustomError("cannot specify line 0"));
+            }
+            // converted from 1-based to 0-based
+            ranges.push((a - 1, b - 1));
+        }
+        Some(ranges)
+    };
+    let action_args = ActionArgs {
+        ranges: ranges,
+        output_json: args.flag_output_replacements_json,
     };
 
-    let mut actions = vec![];
+    let actions = if args.arg_file.is_empty() {
+        vec![Action {
+            input: Input::StdIn,
+            output: Output::StdOut,
+        }]
+    } else {
+        let new_action = |input: PathBuf| Action {
+            output: if args.flag_write { Output::File(input.clone()) }
+                    else { Output::StdOut },
+            input: Input::File(input),
+        };
 
-    for file in &args.arg_file {
-        let path = Path::new(file).to_path_buf();
-        let metadata = try!(fs::metadata(file));
-        if metadata.is_dir() {
-            // recursively find all *.rs files
-            let pattern = path.join("**/*.rs");
-            let pattern = pattern.to_str().unwrap();
+        let mut actions = vec![];
 
-            // ignore files that start with '.'
-            let match_options = glob::MatchOptions {
-                require_literal_leading_dot: true,
-                ..glob::MatchOptions::default()
-            };
+        for file in &args.arg_file {
+            let path = Path::new(file).to_path_buf();
+            let metadata = try!(fs::metadata(file));
+            if metadata.is_dir() {
+                // recursively find all *.rs files
+                let pattern = path.join("**/*.rs");
+                let pattern = pattern.to_str().unwrap();
 
-            let paths = try!(glob::glob_with(pattern, &match_options));
-            for result in paths {
-                actions.push(new_action(try!(result)));
+                // ignore files that start with '.'
+                let match_options = glob::MatchOptions {
+                    require_literal_leading_dot: true,
+                    ..glob::MatchOptions::default()
+                };
+
+                let paths = try!(glob::glob_with(pattern, &match_options));
+                for result in paths {
+                    actions.push(new_action(try!(result)));
+                }
+            } else {
+                actions.push(new_action(path));
             }
-        } else {
-            actions.push(new_action(path));
         }
-    }
 
-    Ok(actions)
+        actions
+    };
+
+    Ok((actions, action_args))
 }
 
 fn perform_input(action: &Action) -> Result<String, String> {
@@ -141,9 +173,9 @@ fn perform_input(action: &Action) -> Result<String, String> {
     }
 }
 
-fn perform_output(action: &Action, args: &Args, source: &String, replacements: &Vec<Replacement>)
+fn perform_output(action: &Action, args: &ActionArgs, source: &String, replacements: &Vec<Replacement>)
                   -> FormatResult<()> {
-    let output = if args.flag_output_replacements_json {
+    let output = if args.output_json {
         try!(json::encode(replacements))
     } else {
         Replacement::apply_all(replacements, source)
@@ -162,6 +194,11 @@ fn perform_output(action: &Action, args: &Args, source: &String, replacements: &
     }
 
     Ok(())
+}
+
+struct ActionArgs {
+    ranges: Option<Vec<(u32, u32)>>,
+    output_json: bool,
 }
 
 struct Action {
@@ -187,6 +224,8 @@ enum FormatError {
     GlobError(glob::GlobError),
     PatternError(glob::PatternError),
     JsonError(rustc_serialize::json::EncoderError),
+    ParseError(std::num::ParseIntError),
+    CustomError(&'static str),
 }
 
 impl From<io::Error> for FormatError {
@@ -210,5 +249,11 @@ impl From<glob::PatternError> for FormatError {
 impl From<rustc_serialize::json::EncoderError> for FormatError {
     fn from(error: rustc_serialize::json::EncoderError) -> Self {
         FormatError::JsonError(error)
+    }
+}
+
+impl From<std::num::ParseIntError> for FormatError {
+    fn from(error: std::num::ParseIntError) -> Self {
+        FormatError::ParseError(error)
     }
 }

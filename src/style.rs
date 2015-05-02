@@ -33,3 +33,44 @@ impl Default for FormatStyle {
         }
     }
 }
+
+pub struct LineRanges {
+    ranges: Vec<(u32, u32)>,
+}
+
+impl LineRanges {
+    pub fn new() -> LineRanges {
+        LineRanges {
+            ranges: Vec::new(),
+        }
+    }
+
+    pub fn new_from_tuples(lines: &Vec<(u32, u32)>) -> LineRanges {
+        let mut line_ranges = LineRanges::new();
+
+        for &(line_start, line_end) in lines {
+            line_ranges.add_range(line_start, line_end);
+        }
+
+        line_ranges
+    }
+
+    pub fn add_range(&mut self, line_1: u32, line_2: u32) {
+        let range = if line_1 > line_2 {
+            (line_2, line_1)
+        } else {
+            (line_1, line_2)
+        };
+
+        self.ranges.push(range);
+    }
+
+    pub fn in_ranges(&self, line: u32) -> bool {
+        for &(low, high) in &self.ranges {
+            if line >= low && line <= high {
+                return true;
+            }
+        }
+        return false;
+    }
+}
