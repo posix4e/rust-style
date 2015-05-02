@@ -7,10 +7,8 @@ This is a work in progress. It is not ready for use yet.
 ###Building rustfmt
 
 ~~~
-cargo build
+cargo build --release
 ~~~
-
-Note: Since rustfmt relies on compiler internals (that are marked as unstable) you will need the nightly distribution of rust.
 
 This will result in a rustfmt executable.
 
