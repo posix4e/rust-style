@@ -490,7 +490,8 @@ fn unary_follows(prev: Option<&FormatToken>) -> bool {
                prev.tok.is_keyword(Keyword::In) ||
                prev.tok.is_keyword(Keyword::If) ||
                prev.tok.is_keyword(Keyword::Let) ||
-               prev.tok.is_keyword(Keyword::Mut) => true,
+               prev.tok.is_keyword(Keyword::Mut) ||
+               prev.tok.is_keyword(Keyword::For) => true,
 
         _ if prev.typ == TokenType::BinaryOperator ||
              prev.typ == TokenType::UnaryOperator => true,
