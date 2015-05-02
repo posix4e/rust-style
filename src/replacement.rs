@@ -13,14 +13,21 @@ impl Replacement {
         let mut output = vec![];
         let mut i = 0;
         for replacement in replacements {
-            output.push_all(&source[i..replacement.start_byte]);
-            output.push_all(&replacement.text.as_bytes());
+            push_all(&mut output, &source[i..replacement.start_byte]);
+            push_all(&mut output, &replacement.text.as_bytes());
             i = replacement.end_byte;
         }
 
         if i < source.len() {
-            output.push_all(&source[i..]);
+            push_all(&mut output, &source[i..]);
         }
         String::from_utf8(output).unwrap()
+    }
+}
+
+// FIXME: replace when std::vec::Vec has a stable replacement
+fn push_all(dest: &mut Vec<u8>, src: &[u8]) {
+    for b in src {
+        dest.push(*b);
     }
 }

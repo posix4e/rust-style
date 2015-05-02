@@ -1,9 +1,6 @@
-#![feature(rustc_private)]
-#![feature(collections)]
-
-extern crate arena;
+extern crate typed_arena;
 extern crate rustc_serialize;
-extern crate syntax;
+extern crate syntex_syntax as syntax;
 
 mod annotate;
 mod continuation_indenter;

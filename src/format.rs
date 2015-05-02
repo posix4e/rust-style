@@ -1,4 +1,4 @@
-use arena::TypedArena;
+use typed_arena::Arena;
 use continuation_indenter::ContinuationIndenter;
 use replacement::Replacement;
 use std::cmp::{self, Ordering};
@@ -14,7 +14,7 @@ pub fn format(lexer: &FormatTokenLexer, style: FormatStyle, lines: &mut [Unwrapp
         style: style.clone(),
         whitespace: WhitespaceManager::new(style.clone()),
         indenter: ContinuationIndenter::new(style),
-        arena: &TypedArena::new(),
+        arena: &Arena::new(),
     };
 
     formatter.format(lines);
@@ -25,7 +25,7 @@ struct LineFormatter<'a> {
     style: FormatStyle,
     whitespace: WhitespaceManager,
     indenter: ContinuationIndenter,
-    arena: &'a TypedArena<StateNode<'a>>,
+    arena: &'a Arena<StateNode<'a>>,
 }
 
 impl<'a> LineFormatter<'a> {

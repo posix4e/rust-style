@@ -44,10 +44,14 @@ fn try_join_empty_block(lines: &[UnwrappedLine]) -> Option<usize> {
 
 // TODO: more joins
 
-fn join(mut a: UnwrappedLine, mut b: UnwrappedLine) -> UnwrappedLine {
+fn join(mut a: UnwrappedLine, b: UnwrappedLine) -> UnwrappedLine {
     assert!(a.children.len() == 0);
     assert!(a.block == b.block);
-    a.tokens.append(&mut b.tokens);
+
+    // FIXME: replace loop with a single function call when a stable function exists in std
+    for token in b.tokens {
+        a.tokens.push(token);
+    }
 
     let mut line = UnwrappedLine {
         tokens: a.tokens,
