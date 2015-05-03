@@ -33,8 +33,9 @@ Options:
     -V, --version                  Print version info and exit
     -j --output-replacements-json  Outputs replacements as JSON
     --lines=<string>               Formats lines specified, where
-                                   <string> is <uint>:<uint> are
-                                   the line number ranges 1-based.
+                                   <string> is <uint>:<uint> -
+                                   the line number ranges. The values
+                                   are 1-based and inclusive.
 ";
 
 #[derive(RustcDecodable, Debug)]

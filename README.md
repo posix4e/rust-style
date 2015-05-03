@@ -18,6 +18,7 @@ This will result in a rust-style executable.
 
 ~~~
 rust-style [-w] [<file>]...
+rust-style [--lines=<string>]... [--output-replacements-json] [<file>]
 rust-style [--output-replacements-json] [<file>]...
 rust-style (--help | --version)
 ~~~
@@ -32,4 +33,8 @@ If no file arguments are specified, input is read from standard input.
 -w, --write                     Overwrite the input files
 -V, --version                   Print version info and exit
 -j, --output-replacements-json  Outputs replacements as JSON
+    --lines=<string>            Formats lines specified, where
+                                <string> is <uint>:<uint> -
+                                the line number ranges. The values
+                                are 1-based and inclusive.
 ~~~
