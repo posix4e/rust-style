@@ -1,4 +1,5 @@
 use std::default::Default;
+use std::cmp;
 
 pub type Penalty = u64;
 
@@ -39,38 +40,15 @@ pub struct LineRanges {
 }
 
 impl LineRanges {
-    pub fn new() -> LineRanges {
-        LineRanges {
-            ranges: Vec::new(),
-        }
-    }
-
     pub fn new_from_tuples(lines: &Vec<(u32, u32)>) -> LineRanges {
-        let mut line_ranges = LineRanges::new();
+        let ranges = lines.iter()
+                        .map(|&(start, end)| (cmp::min(start, end), cmp::max(start, end)))
+                        .collect();
 
-        for &(line_start, line_end) in lines {
-            line_ranges.add_range(line_start, line_end);
-        }
-
-        line_ranges
-    }
-
-    pub fn add_range(&mut self, line_1: u32, line_2: u32) {
-        let range = if line_1 > line_2 {
-            (line_2, line_1)
-        } else {
-            (line_1, line_2)
-        };
-
-        self.ranges.push(range);
+        LineRanges { ranges: ranges }
     }
 
     pub fn in_ranges(&self, line: u32) -> bool {
-        for &(low, high) in &self.ranges {
-            if line >= low && line <= high {
-                return true;
-            }
-        }
-        return false;
+        self.ranges.iter().any(|&(low, high)| line >= low && line <= high)
     }
 }
