@@ -63,7 +63,8 @@ fn main() {
         for action in &actions {
             match perform_input(action) {
                 Ok(ref source) => {
-                    let replacements = reformat(source, &style, action_args.ranges.as_ref());
+                    let ranges = action_args.ranges.as_ref().map(|r| &r[..]);
+                    let replacements = reformat(source, &style, ranges);
                     perform_output(action, &action_args, source, &replacements).unwrap();
                 },
                 Err(ref msg) => {

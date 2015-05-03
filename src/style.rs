@@ -40,7 +40,7 @@ pub struct LineRanges {
 }
 
 impl LineRanges {
-    pub fn new_from_tuples(lines: &Vec<(u32, u32)>) -> LineRanges {
+    pub fn new_from_tuples(lines: &[(u32, u32)]) -> LineRanges {
         let ranges = lines.iter()
                         .map(|&(start, end)| (cmp::min(start, end), cmp::max(start, end)))
                         .collect();
