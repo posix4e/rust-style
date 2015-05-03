@@ -19,6 +19,13 @@ pub struct UnwrappedLine {
     pub typ: LineType,
     // The block type this line is contained in
     pub block: Block,
+    // If the line intersects with the input line ranges.
+    pub affected: bool,
+    // If the leading empty lines above intersects with one of the input
+    // line ranges.
+    pub leading_empty_lines_affected: bool,
+    // If any of the children of this lines intersects with the input ranges.
+    pub children_affected: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -48,6 +55,7 @@ impl UnwrappedLine {
                 is_first_token: false,
                 newlines_before: 0,
                 original_column: 0,
+                original_row: 0,
                 decision: FormatDecision::Unformatted,
                 split_penalty: 0,
                 column_width: 0,
@@ -741,6 +749,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             children: vec![],
             typ: LineType::Unknown,
             block: *self.block_stack.last().unwrap_or(&Block::TopLevel),
+            affected : false,
+            leading_empty_lines_affected : false,
+            children_affected : false,
         }
     }
 
