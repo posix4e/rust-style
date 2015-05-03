@@ -33,14 +33,21 @@ impl<'a> LineFormatter<'a> {
         let mut penalty = 0;
 
         for i in 0..lines.len() {
-            let curr_line = &mut lines[i];
-            assert!(curr_line.tokens.len() > 0);
-            let indent = curr_line.level * self.style.indent_width;
+            assert!(lines[i].tokens.len() > 0);
+            let indent = lines[i].level * self.style.indent_width;
 
-            if curr_line.tokens[0].tok == Token::Eof {
-                assert!(curr_line.tokens.len() == 1);
-                let newlines = cmp::min(1, curr_line.tokens[0].newlines_before);
-                self.whitespace.replace_whitespace(&mut curr_line.tokens[0], newlines, 0, 0, 0);
+            if lines[i].tokens[0].tok == Token::Eof {
+                assert!(lines[i].tokens.len() == 1);
+                let prev_line_affected = if i > 0 {
+                    lines[i - 1].affected
+                } else {
+                    false
+                };
+
+                if prev_line_affected {
+                    let newlines = cmp::min(1, lines[i].tokens[0].newlines_before);
+                    self.whitespace.replace_whitespace(&mut lines[i].tokens[0], newlines, 0, 0, 0);
+                }
                 continue;
             }
 
@@ -48,11 +55,20 @@ impl<'a> LineFormatter<'a> {
             // If everything fits on a single line, just put it there,
             // instead of going through the line breaking algorithm.
 
-            self.format_first_token(curr_line, indent);
-            penalty += self.format_line(curr_line, indent);
-
-            // TODO: remove direct recursive call, and implement format_children
-            penalty += self.format(&mut curr_line.children);
+            if lines[i].affected {
+                self.format_first_token(&mut lines[i], indent);
+                penalty += self.format_line(&mut lines[i], indent);
+                // TODO: remove direct recursive call, and implement format_children
+                penalty += self.format(&mut lines[i].children);
+            } else if lines[i].children_affected {
+                penalty += self.format(&mut lines[i].children);
+            } else {
+                // format the first token if necessary
+                if (i > 0 && lines[i - 1].affected) ||
+                   lines[i].leading_empty_lines_affected {
+                    self.format_first_token(&mut lines[i], indent);
+                }
+            }
         }
 
         penalty

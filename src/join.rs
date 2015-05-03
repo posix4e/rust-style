@@ -59,6 +59,10 @@ fn join(mut a: UnwrappedLine, b: UnwrappedLine) -> UnwrappedLine {
         children: b.children,
         typ: a.typ,
         block: a.block,
+        affected : a.affected || b.affected,
+        leading_empty_lines_affected : a.leading_empty_lines_affected ||
+                                       b.leading_empty_lines_affected,
+        children_affected : a.children_affected || b.children_affected,
     };
 
 
