@@ -1,5 +1,5 @@
 [package]
-name = "rustfmt"
+name = "rust-style"
 version = "0.0.1"
 authors = ["Seth Pink <sethpink@gmail.com>", "Matthias Tellen <matthias.tellen@gmail.com>"]
 license = "MIT"

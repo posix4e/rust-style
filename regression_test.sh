@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rustfmt should never ever destroy working source code.
+# rust-style should never ever destroy working source code.
 # To test against regressions this shell script tests for various rust source
 # files in src/test_src/unformatted.
 
@@ -19,7 +19,7 @@ mkdir $FDIR
 for SRC in `ls $UDIR`
 do
     echo $SRC:
-    target/debug/rustfmt $UDIR/$SRC > "$FDIR/$SRC";
+    target/debug/rust-style $UDIR/$SRC > "$FDIR/$SRC";
 
     echo "    unformatted...\c";
     $RUSTC_NT "$UDIR/$SRC" 2> /dev/null;

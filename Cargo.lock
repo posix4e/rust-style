@@ -1,5 +1,5 @@
 [root]
-name = "rustfmt"
+name = "rust-style"
 version = "0.0.1"
 dependencies = [
  "docopt 0.6.63 (registry+https://github.com/rust-lang/crates.io-index)",

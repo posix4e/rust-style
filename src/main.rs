@@ -1,11 +1,11 @@
 extern crate docopt;
 extern crate glob;
 extern crate rustc_serialize;
-extern crate rustfmt;
+extern crate rust_style;
 
 use docopt::Docopt;
 use rustc_serialize::json;
-use rustfmt::{reformat, Replacement, FormatStyle};
+use rust_style::{reformat, Replacement, FormatStyle};
 use std::default::Default;
 use std::error::Error;
 use std::fs::{self, File};
@@ -22,10 +22,10 @@ If a direcory is given, all recursively contained .rs files are formatted.
 If the -w option is specified, the input files are overwritten.
 If no file arguments are specified, input is read from standard input.
 
-Usage: rustfmt [-w] [<file>]...
-       rustfmt [--lines=<string>]... [--output-replacements-json] [<file>]
-       rustfmt [--output-replacements-json] [<file>]...
-       rustfmt (--help | --version)
+Usage: rust-style [-w] [<file>]...
+       rust-style [--lines=<string>]... [--output-replacements-json] [<file>]
+       rust-style [--output-replacements-json] [<file>]...
+       rust-style (--help | --version)
 
 Options:
     -h, --help                     Show this message
@@ -52,7 +52,7 @@ fn main() {
     // Block to allow destructors to run before exit is called
     {
         let debug = if cfg!(debug_assertions) { " debug" } else { "" };
-        let version = format!("rustfmt version {}{}", env!("CARGO_PKG_VERSION"), debug);
+        let version = format!("rust-style version {}{}", env!("CARGO_PKG_VERSION"), debug);
         let args: Args = Docopt::new(USAGE)
             .and_then(|d| d.version(Some(version)).help(true).decode())
             .unwrap_or_else(|e| e.exit());
