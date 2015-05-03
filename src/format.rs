@@ -205,7 +205,7 @@ impl<'a> LineFormatter<'a> {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Default)]
 pub struct ParenState {
     // The column to start at if a line break occurs.
     pub indent: u32,
@@ -222,6 +222,11 @@ pub struct ParenState {
     pub no_line_break: bool,
     // If true, line breaks will always occur between parameters.
     pub break_between_paramters: bool,
+    // If a method call expression was broken, the column
+    // the start column of the second line.
+    pub method_chain_indent: Option<u32>,
+    // If true, line breaks will never occur before method calls.
+    pub unwrapped_method_chain: bool,
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]

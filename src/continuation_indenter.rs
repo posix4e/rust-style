@@ -26,10 +26,7 @@ impl ContinuationIndenter {
                 indent: first_indent + self.style.continuation_indent_width,
                 nested_block_indent: first_indent,
                 indent_level: line.level,
-                contains_line_break: false,
-                avoid_bin_packing: false,
-                no_line_break: false,
-                break_between_paramters: false,
+                ..ParenState::default()
             }],
         };
         // First token is already consumed
@@ -38,7 +35,12 @@ impl ContinuationIndenter {
     }
 
     pub fn can_break(&self, line: &UnwrappedLine, state: &LineState) -> bool {
-        if !state.current(line).can_break_before {
+        let current = state.current(line);
+
+        if !current.can_break_before {
+            return false;
+        }
+        if is_chained_method_call(line, state) && state.stack_top().unwrapped_method_chain {
             return false;
         }
 
@@ -50,6 +52,9 @@ impl ContinuationIndenter {
             return true;
         }
         if state.stack_top().break_between_paramters && is_between_struct_parameter(line, state) {
+            return true;
+        }
+        if state.stack_top().method_chain_indent.is_some() && is_chained_method_call(line, state) {
             return true;
         }
 
@@ -80,8 +85,9 @@ impl ContinuationIndenter {
         }
 
         penalty += state.current(line).split_penalty;
-        state.column = self.get_newline_column(line, state);
-        state.stack_top_mut().nested_block_indent = state.column;
+        let newline_column = self.get_newline_column(line, state);
+        state.column = newline_column;
+        state.stack_top_mut().nested_block_indent = newline_column;
 
         if !dry_run {
             let current = state.current_mut(line);
@@ -93,6 +99,13 @@ impl ContinuationIndenter {
             // Bin packing is being avoided, and this token was added to a new line.
             // Ensure breaking occurs between every parameter for the rest of this scope.
             state.stack_top_mut().break_between_paramters = true;
+        }
+
+        if is_chained_method_call(line, state) && state.stack_top().method_chain_indent.is_none() {
+            // A break occured before method call.
+            // Calculate the indentation for following chained calls.
+            // Following chained calls will always break.s
+            state.stack_top_mut().method_chain_indent = Some(newline_column);
         }
 
         penalty
@@ -111,6 +124,12 @@ impl ContinuationIndenter {
             // Bin packing is being avoided, and this token was added to the current line.
             // Avoid breaking for the rest of this scope.
             state.stack_top_mut().no_line_break = true;
+        }
+
+        if is_chained_method_call(line, state) {
+            // A break did not occur before the method call.
+            // Never break on method calls in future.
+            state.stack_top_mut().unwrapped_method_chain = true;
         }
 
         state.column += spaces;
@@ -165,7 +184,7 @@ impl ContinuationIndenter {
                 break_between_paramters: state.stack_top().break_between_paramters &&
                                             p.to_i32() <= Precedence::Comma.to_i32(),
                 no_line_break: state.stack_top().no_line_break,
-                contains_line_break: false,
+                ..ParenState::default()
             };
 
             // No indentation for breaking on PatternOr
@@ -197,20 +216,17 @@ impl ContinuationIndenter {
                     indent: state.column + 1,
                     nested_block_indent: top.nested_block_indent,
                     indent_level: top.indent_level,
-                    contains_line_break: false,
-                    avoid_bin_packing: false,
                     no_line_break: top.no_line_break,
-                    break_between_paramters: false,
+                    ..ParenState::default()
                 }
             } else if current.tok == Token::OpenDelim(DelimToken::Brace) {
                 ParenState {
                     indent: top.nested_block_indent + self.style.indent_width,
                     nested_block_indent: top.nested_block_indent,
                     indent_level: top.indent_level + 1,
-                    contains_line_break: false,
                     avoid_bin_packing: true,
                     no_line_break: top.no_line_break,
-                    break_between_paramters: false,
+                    ..ParenState::default()
                 }
             } else {
                 return;
@@ -235,13 +251,20 @@ impl ContinuationIndenter {
     }
 
     fn get_newline_column(&self, line: &UnwrappedLine, state: &LineState) -> u32 {
+        let stack_top = state.stack_top();
         let current = &line.tokens[state.next_token_index];
 
         if current.tok == Token::CloseDelim(DelimToken::Brace) && state.stack.len() > 1 {
             return state.stack[state.stack.len() - 2].nested_block_indent;
         }
+        if is_chained_method_call(line, state) {
+            return match stack_top.method_chain_indent {
+                Some(indent) => indent,
+                None => stack_top.indent + self.style.method_chain_indent_width,
+            }
+        }
 
-        state.stack_top().indent
+        stack_top.indent
     }
 }
 
@@ -260,4 +283,10 @@ fn is_between_struct_parameter(line: &UnwrappedLine, state: &LineState) -> bool 
     }
 
     false
+}
+
+fn is_chained_method_call(line: &UnwrappedLine, state: &LineState) -> bool {
+    let current = &line.tokens[state.next_token_index];
+    let previous = &line.tokens[state.next_token_index - 1];
+    current.tok == Token::Dot && previous.closes_scope()
 }

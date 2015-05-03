@@ -925,3 +925,17 @@ fn test_complex_generics() {
     assert_fmt_eq!("impl<T: Clone, V: AsRef<[T]>> SliceConcatExt<T, Vec<T>> for [V] {}");
     assert_fmt_eq!("struct InvariantLifetime<'id>(marker::PhantomData<::core::cell::Cell<&'id ()>>);");
 }
+
+#[test]
+fn test_method_chaining() {
+    assert_fmt_eq!("\
+let a = iter::repeat(1.0f32)
+            .take(BENCH_SIZE)
+            .something()
+            .something()
+            .something()
+            .something()
+            .collect();");
+
+        assert_fmt_eq!("let a = iter::repeat(1.0f32).take(BENCH_SIZE).collect();");
+}
