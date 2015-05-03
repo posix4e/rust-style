@@ -937,5 +937,9 @@ let a = iter::repeat(1.0f32)
             .something()
             .collect();");
 
-        assert_fmt_eq!("let a = iter::repeat(1.0f32).take(BENCH_SIZE).collect();");
+    assert_fmt_eq!("let a = iter::repeat(1.0f32).take(BENCH_SIZE).collect();");
+    assert_fmt_eq!("\
+let args: Args = Docopt::new(USAGE)
+                     .and_then(|d| d.version(Some(version)).help(true).decode())
+                     .unwrap_or_else(|e| e.exit());");
 }
