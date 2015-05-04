@@ -47,6 +47,8 @@ enum ContextType {
     Generics,
     // |...|
     LambdaParams,
+    // where ... {
+    WhereClause,
 }
 
 struct Context {
@@ -119,6 +121,7 @@ impl<'a> AnnotatingParser<'a> {
                 ContextType::Parens => 1,
                 ContextType::Generics => 10,
                 ContextType::LambdaParams => 10,
+                ContextType::WhereClause => 10,
             },
             typ: typ,
         };
@@ -162,6 +165,9 @@ impl<'a> AnnotatingParser<'a> {
                     self.next_with_token_type(Some(TokenType::BinaryOperator));
                 }
                 Ok(())
+            }
+            &Token::Ident(..) if self.current().tok.is_keyword(Keyword::Where) => {
+                self.parse_where_clause()
             }
             _ => {
                 self.next();
@@ -232,6 +238,29 @@ impl<'a> AnnotatingParser<'a> {
                     &Token::BinOp(BinOpToken::Or) => {
                         // consume ending pipe in this context
                         this.next_with_token_type(Some(TokenType::LambdaParamsEnd));
+                        return Ok(());
+                    },
+                    _ => {
+                        try!(this.consume_token());
+                    }
+                }
+            }
+
+            // Failed find a matching closing lambda pipe
+            Err(())
+        })
+    }
+
+    fn parse_where_clause(&mut self) -> Result<(), ()> {
+        assert!(self.current().tok.is_keyword(Keyword::Where));
+        self.next();
+
+        self.using_context(ContextType::WhereClause, |this| {
+            while this.has_current() {
+                match &this.current().tok {
+                    &Token::OpenDelim(DelimToken::Brace) => {
+                        // consume brace in this context
+                        this.next();
                         return Ok(());
                     },
                     _ => {
@@ -655,6 +684,7 @@ fn split_penalty(prev: &FormatToken, curr: &FormatToken) -> Penalty {
     match (&prev.tok, &curr.tok) {
         (&Token::Comma, _) => 1,
         (_, &Token::RArrow) => 1,
+        (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => 1,
         (&Token::Eq, _) | (&Token::BinOpEq(..), _) => 100,
         (_, &Token::Dot) => 10,
         (_, &Token::OpenDelim(DelimToken::Brace)) => 1,
