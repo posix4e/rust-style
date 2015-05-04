@@ -821,7 +821,7 @@ match self.current().tok {
 #[test]
 fn test_binary_or_in_pattern_guard() {
     let lines = annotated_lines("match foo { A | B if c | d == 2 => () }");
-    let toks = &lines[0].children[0].tokens;
+    let toks = &lines[1].tokens;
     assert_eq!(toks[1].typ, TokenType::PatternOr);
     assert_eq!(toks[5].typ, TokenType::BinaryOperator);
     assert_eq!(toks[7].typ, TokenType::BinaryOperator);

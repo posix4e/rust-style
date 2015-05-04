@@ -6,6 +6,7 @@ use syntax::codemap::{mk_sp, Span, BytePos};
 use syntax::parse::token::Token;
 use token::{FormatTokenLexer, FormatToken, FormatDecision};
 
+#[derive(Debug)]
 struct Change {
     create_replacement: bool,
     token: Token,

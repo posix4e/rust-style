@@ -5,8 +5,8 @@ use unwrapped_line::UnwrappedLine;
 pub fn mark_all_affected(lines: &mut Vec<UnwrappedLine>) {
     for line in lines {
         line.affected = true;
-        if !line.children.is_empty() {
-            mark_all_affected(&mut line.children);
+        for token in &mut line.tokens {
+            mark_all_affected(&mut token.children);
         }
     }
 }
@@ -18,7 +18,9 @@ pub fn compute_affected_lines(lines: &mut Vec<UnwrappedLine>, ranges: &LineRange
     for line in lines {
         line.leading_empty_lines_affected = affects_leading_empty_lines(&line.tokens[0], ranges);
 
-        line.children_affected = compute_affected_lines(&mut line.children, ranges);
+        for token in &mut line.tokens {
+            line.children_affected = compute_affected_lines(&mut token.children, ranges) || line.children_affected;
+        }
         if line.children_affected {
             some_line_affected = true;
         }
@@ -39,7 +41,7 @@ pub fn compute_affected_lines(lines: &mut Vec<UnwrappedLine>, ranges: &LineRange
 
         let is_continued_affected_comment = {
 
-            let is_comment_without_gap = 
+            let is_comment_without_gap =
                 line.tokens[0].comment_type.is_some() &&
                 line.tokens.len() == 1 &&
                 line.tokens[0].newlines_before < 2;
@@ -47,7 +49,7 @@ pub fn compute_affected_lines(lines: &mut Vec<UnwrappedLine>, ranges: &LineRange
             let is_prev_line_token_a_comment = if previous_line.is_some() {
                 let previous_line = previous_line.unwrap();
                 let token_qty = previous_line.tokens.len();
-                
+
                 previous_line.affected &&
                 previous_line.tokens[token_qty - 1].comment_type.is_some()
             } else {

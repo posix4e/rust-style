@@ -106,7 +106,11 @@ pub struct FormatToken {
     pub original_row: u32,
     // The character width (not bytes) of this token.
     pub column_width: u32,
+    // The total length of the line up to and including this token.
+    pub total_length: u32,
 
+    // Children lines that come after this token
+    pub children: Vec<UnwrappedLine>,
     // Whether a break will appear before this token in the output.
     pub decision: FormatDecision,
     // The penalty value for inserting a line break before this token.
@@ -138,6 +142,38 @@ pub struct FormatToken {
     pub fake_lparens: Vec<Precedence>,
     // The number of fake parenthesis which end on this token
     pub fake_rparens: u32,
+}
+
+impl Default for FormatToken {
+    fn default() -> FormatToken {
+        FormatToken {
+            index: 0,
+            typ: TokenType::Unknown,
+            tok: Token::Eof,
+            span: mk_sp(BytePos(0), BytePos(0)),
+            preceding_whitespace_span: mk_sp(BytePos(0), BytePos(0)),
+            is_first_token: false,
+            newlines_before: 0,
+            original_column: 0,
+            original_row: 0,
+            total_length: 0,
+            column_width: 0,
+            children: vec![],
+            decision: FormatDecision::Unformatted,
+            split_penalty: 0,
+            spaces_required_before: 0,
+            can_break_before: false,
+            must_break_before: false,
+            binding_strength: 0,
+            comment_type: None,
+            starts_binary_expression: false,
+            ends_binary_expression: false,
+            operator_index: 0,
+            last_operator: false,
+            fake_lparens: vec![],
+            fake_rparens: 0,
+        }
+    }
 }
 
 impl FormatToken {
@@ -337,20 +373,9 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             original_column: column,
             original_row: row,
             decision: FormatDecision::Unformatted,
-            split_penalty: 0,
             column_width: column_width,
-            spaces_required_before: 0,
-            can_break_before: false,
-            must_break_before: false,
-            binding_strength: 0,
             comment_type: comment_type,
-            index: 0,
-            operator_index: 0,
-            last_operator: false,
-            fake_lparens: vec![],
-            fake_rparens: 0,
-            starts_binary_expression: false,
-            ends_binary_expression: false,
+            ..FormatToken::default()
         };
 
         column += column_width;

@@ -17,7 +17,7 @@ pub fn format(lexer: &FormatTokenLexer, style: FormatStyle, lines: &mut [Unwrapp
         arena: &Arena::new(),
     };
 
-    formatter.format(lines);
+    formatter.format(lines, false, 0, false);
     formatter.whitespace.generate_replacements(lexer)
 }
 
@@ -29,25 +29,15 @@ struct LineFormatter<'a> {
 }
 
 impl<'a> LineFormatter<'a> {
-    fn format(&mut self, lines: &mut [UnwrappedLine]) -> Penalty {
+    fn format(&mut self, lines: &mut [UnwrappedLine], dry_run: bool, additional_indent: u32, fix_indentation: bool) -> Penalty {
         let mut penalty = 0;
 
         for i in 0..lines.len() {
             assert!(lines[i].tokens.len() > 0);
-            let indent = lines[i].level * self.style.indent_width;
+            let indent = additional_indent + lines[i].level * self.style.indent_width;
 
             if lines[i].tokens[0].tok == Token::Eof {
-                assert!(lines[i].tokens.len() == 1);
-                let prev_line_affected = if i > 0 {
-                    lines[i - 1].affected
-                } else {
-                    false
-                };
-
-                if prev_line_affected {
-                    let newlines = cmp::min(1, lines[i].tokens[0].newlines_before);
-                    self.whitespace.replace_whitespace(&mut lines[i].tokens[0], newlines, 0, 0, 0);
-                }
+                self.format_eof(lines, i, dry_run);
                 continue;
             }
 
@@ -56,17 +46,17 @@ impl<'a> LineFormatter<'a> {
             // instead of going through the line breaking algorithm.
 
             if lines[i].affected {
-                self.format_first_token(&mut lines[i], indent);
-                penalty += self.format_line(&mut lines[i], indent);
-                // TODO: remove direct recursive call, and implement format_children
-                penalty += self.format(&mut lines[i].children);
+                self.format_first_token(&mut lines[i], indent, dry_run);
+                penalty += self.format_line(&mut lines[i], indent, dry_run);
             } else if lines[i].children_affected {
-                penalty += self.format(&mut lines[i].children);
+                for token in &mut lines[i].tokens {
+                    penalty += self.format(&mut token.children, dry_run, 0, false);
+                }
             } else {
                 // format the first token if necessary
                 if (i > 0 && lines[i - 1].affected) ||
                    lines[i].leading_empty_lines_affected {
-                    self.format_first_token(&mut lines[i], indent);
+                    self.format_first_token(&mut lines[i], indent, dry_run);
                 }
             }
         }
@@ -74,7 +64,23 @@ impl<'a> LineFormatter<'a> {
         penalty
     }
 
-    fn format_first_token(&mut self, curr_line: &mut UnwrappedLine, indent: u32) {
+    fn format_eof(&mut self, lines: &mut [UnwrappedLine], index: usize, dry_run: bool) {
+        assert!(lines[index].tokens.len() == 1);
+        assert!(lines[index].tokens[0].tok == Token::Eof);
+
+        let prev_line_affected = if index > 0 {
+            lines[index - 1].affected
+        } else {
+            false
+        };
+
+        if prev_line_affected && !dry_run {
+            let newlines = cmp::min(1, lines[index].tokens[0].newlines_before);
+            self.whitespace.replace_whitespace(&mut lines[index].tokens[0], newlines, 0, 0, 0);
+        }
+    }
+
+    fn format_first_token(&mut self, curr_line: &mut UnwrappedLine, indent: u32, dry_run: bool) {
         let token = &mut curr_line.tokens[0];
         let mut newlines = cmp::min(token.newlines_before,
             self.style.max_empty_lines_to_keep + 1);
@@ -91,12 +97,14 @@ impl<'a> LineFormatter<'a> {
             newlines = 0;
         }
 
-        self.whitespace.replace_whitespace(token, newlines, curr_line.level, indent, indent);
+        if !dry_run {
+            self.whitespace.replace_whitespace(token, newlines, curr_line.level, indent, indent);
+        }
     }
 
     // Use a variant of Dijkstra's algorithm to find the line with the lowest penalty,
     // By breaking and not breaking at every possible line breaking point.
-    fn format_line(&mut self, line: &mut UnwrappedLine, indent: u32) -> Penalty {
+    fn format_line(&mut self, line: &mut UnwrappedLine, indent: u32, dry_run: bool) -> Penalty {
         let mut seen = HashSet::<&LineState>::new();
         let mut queue = BinaryHeap::<QueueItem>::new();
         let mut penalty = 0;
@@ -144,8 +152,10 @@ impl<'a> LineFormatter<'a> {
             }
         }
 
-        let reconstructed_penalty = self.reconstruct_path(line, initial_state, node);
-        assert_eq!(reconstructed_penalty, penalty);
+        if !dry_run {
+            let reconstructed_penalty = self.reconstruct_path(line, initial_state, node);
+            assert_eq!(reconstructed_penalty, penalty);
+        }
 
         penalty
     }
@@ -164,7 +174,7 @@ impl<'a> LineFormatter<'a> {
 
         for node in path {
             let dry_run = false;
-            self.format_children(node.newline, dry_run, &mut penalty, &mut state);
+            self.format_children(node.newline, dry_run, &mut penalty, &mut state, line);
             penalty += self.indenter.add_token_to_state(line, &mut state, node.newline, dry_run, &mut self.whitespace);
         }
 
@@ -188,7 +198,7 @@ impl<'a> LineFormatter<'a> {
             state: prev_node.state.clone(),
         });
 
-        if !self.format_children(newline, dry_run, &mut penalty, &mut node.state) {
+        if !self.format_children(newline, dry_run, &mut penalty, &mut node.state, line) {
             return;
         }
 
@@ -197,11 +207,41 @@ impl<'a> LineFormatter<'a> {
         *count += 1;
     }
 
-    // TODO
-    #[allow(unused_variables)]
     fn format_children(&mut self, newline: bool, dry_run: bool, penalty: &mut Penalty,
-                       state: &mut LineState) -> bool {
-        true
+                       state: &mut LineState, line: &mut UnwrappedLine) -> bool {
+        let previous = &mut line.tokens[state.next_token_index - 1];
+
+        if previous.children.is_empty() {
+            return true;
+        }
+
+        if newline {
+            let additional_indent = state.stack_top().indent - previous.children[0].level * self.style.indent_width;
+            let fix_indentation = true;
+            *penalty += self.format(&mut previous.children, dry_run, additional_indent, fix_indentation);
+            return true;
+        }
+
+        if previous.children[0].tokens[0].must_break_before {
+            return false;
+        }
+
+        // Can only merge the lines if there is a single child line
+        if previous.children.len() > 1 {
+            return false;
+        }
+
+        // Check the line fits. The is + 2 for the trailing " }"
+        if previous.children[0].tokens.last().unwrap().total_length + state.column + 2 > self.style.column_limit {
+            return false;
+        }
+
+        if !dry_run {
+            self.whitespace.replace_whitespace(&mut previous.children[0].tokens[0], 0, 0, 1, state.column);
+        }
+        *penalty += self.format_line(&mut previous.children[0], state.column + 1, dry_run);
+        state.column += 1 + previous.children[0].tokens.last().unwrap().total_length;
+        return true
     }
 }
 

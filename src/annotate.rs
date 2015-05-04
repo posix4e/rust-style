@@ -7,7 +7,10 @@ use unwrapped_line::{UnwrappedLine, LineType, Block};
 pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
     for line in lines {
         // Recursive call to annotate child lines
-        annotate_lines(&mut line.children, style);
+        for token in &mut line.tokens {
+            annotate_lines(&mut token.children, style);
+        }
+
         // The annotating parser disambiguate specific tokens.
         // For example derefenciation vs. multiplication, angle brackets in generics vs.
         // greater/smaller signs and so on.
@@ -18,6 +21,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             context_stack: vec![],
             in_pattern_guard: false,
         }.parse_line();
+
         // The expression parser adds invisible braces to the tokens in respect to their precedence.
         // This is used later to retain logical units in the line breaking process.
         ExpressionParser {
@@ -25,9 +29,10 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             current_index: 0,
             line: line,
         }.parse(0);
+
         // Decide if tokens must be set with whitespace in between them using the information
         // the annotating parser put in.
-        calculate_formatting_information(line);
+        calculate_formatting_information(line, style);
     }
 }
 
@@ -431,12 +436,16 @@ impl<'a> ExpressionParser<'a> {
     }
 }
 
-fn calculate_formatting_information(line: &mut UnwrappedLine) {
+fn calculate_formatting_information(line: &mut UnwrappedLine, style: &FormatStyle) {
+    line.tokens[0].total_length = line.tokens[0].column_width;
+
     for i in 1..line.tokens.len() {
         let mut spaces_required_before = 0;
         let can_break_before_;
         let must_break_before_;
         let split_penalty_;
+        let total_length;
+
         {
             let curr = &line.tokens[i];
             let prev = &line.tokens[i - 1];
@@ -447,6 +456,17 @@ fn calculate_formatting_information(line: &mut UnwrappedLine) {
             must_break_before_ = must_break_before(line, prev, curr);
             can_break_before_ = must_break_before_ || can_break_before(prev, curr);
             split_penalty_ = 20 * curr.binding_strength + split_penalty(prev, curr);
+
+            let mut child_length = 0;
+            if prev.children.len() == 1 {
+                child_length = prev.children[0].tokens.last().unwrap().total_length + style.column_limit;
+            }
+
+            if must_break_before_ || prev.children.len() > 1 {
+                total_length = prev.total_length + style.column_limit;
+            } else {
+                total_length = prev.total_length + curr.column_width + child_length + spaces_required_before;
+            }
         }
 
         let curr = &mut line.tokens[i];
@@ -454,6 +474,7 @@ fn calculate_formatting_information(line: &mut UnwrappedLine) {
         curr.spaces_required_before = spaces_required_before;
         curr.must_break_before = must_break_before_;
         curr.can_break_before = can_break_before_;
+        curr.total_length = total_length;
     }
 }
 
@@ -610,7 +631,7 @@ fn must_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToke
 fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
     match (&prev.tok, &curr.tok) {
         _ if prev.typ == TokenType::UnaryOperator => false,
-        (&Token::OpenDelim(..), &Token::CloseDelim(..)) => false,
+        (&Token::OpenDelim(..), &Token::CloseDelim(..)) if prev.children.is_empty() => false,
 
         (&Token::OpenDelim(DelimToken::Brace), _) => true,
         (_, &Token::CloseDelim(DelimToken::Brace)) => true,

@@ -2,17 +2,15 @@ use std::mem;
 use syntax::codemap::{mk_sp, BytePos};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken, Lit};
-use token::{FormatToken, FormatTokenLexer, FormatDecision, TokenType};
+use token::{FormatToken, FormatTokenLexer};
 
 // An unwrapped line is a sequence of FormatTokens, that we would like to
 // put on a single line if there was no column limit. Changing the formatting
 // within an unwrapped line does not affect any other unwrapped lines.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnwrappedLine {
     // The tokens of the line
     pub tokens: Vec<FormatToken>,
-    // All the children lines if this is some sort of indented blocks
-    pub children: Vec<UnwrappedLine>,
     // The indentation level. File level starts at 0.
     pub level: u32,
     // The type of line
@@ -42,49 +40,23 @@ pub enum LineType {
 
 impl UnwrappedLine {
     // Takes a stream of tokens (from the lexer), and divides them into logical lines.
-    // Indented blocks are nested as children.
     pub fn parse_lines(lexer: &mut FormatTokenLexer) -> Vec<UnwrappedLine> {
         let mut parser = UnwrappedLineParser {
             lexer: lexer,
             output: vec![],
             // FIXME: Placeholder token. Change to an Option?
-            ftok: FormatToken {
-                tok: Token::Eof,
-                span: mk_sp(BytePos(0), BytePos(0)),
-                preceding_whitespace_span: mk_sp(BytePos(0), BytePos(0)),
-                is_first_token: false,
-                newlines_before: 0,
-                original_column: 0,
-                original_row: 0,
-                decision: FormatDecision::Unformatted,
-                split_penalty: 0,
-                column_width: 0,
-                spaces_required_before: 0,
-                typ: TokenType::Unknown,
-                can_break_before: false,
-                must_break_before: false,
-                binding_strength: 0,
-                comment_type: None,
-                index: 0,
-                last_operator: false,
-                operator_index: 0,
-                fake_lparens: vec![],
-                fake_rparens: 0,
-                starts_binary_expression: false,
-                ends_binary_expression: false,
-            },
-            line: vec![],
-            level_stack: vec![],
+            ftok: FormatToken::default(),
+            line_stack: vec![vec![]],
             block_stack: vec![],
             level: 0,
             comments_before_next_token: vec![],
         };
 
         parser.parse();
-        assert!(parser.line.is_empty());
         assert!(parser.level == 0);
         assert!(parser.comments_before_next_token.is_empty());
-        assert!(parser.level_stack.is_empty());
+        assert!(parser.line_stack.len() == 1);
+        assert!(parser.line_stack.last().unwrap().is_empty());
         assert!(parser.block_stack.is_empty());
         parser.output
     }
@@ -103,13 +75,21 @@ impl UnwrappedLine {
 }
 
 struct UnwrappedLineParser<'a, 'b: 'a> {
+    // Completed lines
     output: Vec<UnwrappedLine>,
+    // Input token source
     lexer: &'a mut FormatTokenLexer<'b>,
+    // The current token being processed
     ftok: FormatToken,
-    line: Vec<FormatToken>,
-    level_stack: Vec<UnwrappedLine>,
+    // A stack of lines that is currently being processed.
+    // A new level is pushed when a child block is started.
+    // Processed tokens are added to the end of the top line.
+    line_stack: Vec<Vec<FormatToken>>,
+    // The block context of the current line being processed
     block_stack: Vec<Block>,
+    // The indentation level of the current line being processed
     level: u32,
+    // Comment tokens that appear before the next token
     comments_before_next_token: Vec<FormatToken>,
 }
 
@@ -136,6 +116,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         // add any remaining tokens
         self.flush_comments(true);
         self.add_line();
+
+        assert_eq!(self.ftok.tok, Token::Eof);
+        assert_eq!(self.ftok.children.len(), 0);
 
         // push through eof
         let eof = self.ftok.clone();
@@ -223,8 +206,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     match block {
                         Block::StructOrEnum => self.parse_enum_variant_or_struct_field(),
                         Block::Match => self.parse_match_arm(),
-                        Block::StructInit => self.parse_field_init(),
                         Block::MacroRules => self.parse_macro_rule(),
+                        Block::StructInit => self.parse_field_init(),
                         Block::Statements |
                         Block::TopLevel => self.parse_stmt(),
                     }
@@ -242,7 +225,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
-    // Ends the current line, and parses the follow block as children lines..
+    // Ends the current line, and parses the following block in a nested level.
     // Blocks can start/end with any delimeter ({}, (), []), but they are normally
     // braces. The other delimeters are used for macro_rules.
     fn parse_block(&mut self, block: Block) {
@@ -251,22 +234,12 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             _ => panic!("expected a delimeter"),
         };
         self.next_token();
+        self.add_line();
 
-        // Push current line onto level stack,
-        // to prepare to collect the children
         let intial_level = self.level;
-        let level = self.get_finished_line();
         self.level += 1;
-        self.level_stack.push(level);
         self.block_stack.push(block);
-
-        // Collect children into the line
         self.parse_level(block);
-
-        // Pop the line off the level stack
-        // and place into its parent
-        let level = self.level_stack.pop().unwrap();
-        self.push_line(level);
         self.block_stack.pop().unwrap();
 
         if self.ftok.tok != Token::CloseDelim(delim) {
@@ -284,6 +257,34 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         if self.parse_stmt_up_to(|t| *t == Token::Comma) {
             self.next_token();
             self.add_line();
+        }
+    }
+
+    fn parse_child_block(&mut self, block: Block) {
+        // Consume opening brace
+        assert_eq!(self.ftok.tok, Token::OpenDelim(DelimToken::Brace));
+        self.next_token();
+
+        // Add new level to stack, so children lines are added to above brace
+        self.line_stack.push(vec![]);
+        self.block_stack.push(block);
+        self.level += 1;
+
+        // Process children
+        self.parse_level(block);
+
+        // Flush out the last child line
+        self.add_line();
+        assert!(self.line_stack.last().unwrap().is_empty());
+
+        // Remove a level of the stack, and resume processing of the parent line
+        self.level -= 1;
+        self.block_stack.pop().unwrap();
+        self.line_stack.pop().unwrap();
+
+        // Consume closing brace
+        if self.ftok.tok == Token::CloseDelim(DelimToken::Brace) {
+            self.next_token();
         }
     }
 
@@ -724,35 +725,36 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
     // Ends the current line, and pushes it into the output
     fn add_line(&mut self) {
-        if self.line.is_empty() {
+        if self.line_stack.last().unwrap().is_empty() {
             return;
         }
 
-        let line = self.get_finished_line();
-        self.push_line(line);
-    }
-
-    fn push_line(&mut self, line: UnwrappedLine) {
-        match self.level_stack.last_mut() {
-            None => self.output.push(line),
-            Some(last) => last.children.push(line),
-        };
-    }
-
-    // Finishes the current line and returns it.
-    // Does NOT push the line to the output.
-    fn get_finished_line(&mut self) -> UnwrappedLine {
-        assert!(!self.line.is_empty());
-        UnwrappedLine {
-            tokens: mem::replace(&mut self.line, vec![]),
+        let finished_line = UnwrappedLine {
+            tokens: self.line_stack.pop().unwrap(),
             level: self.level,
-            children: vec![],
             typ: LineType::Unknown,
             block: *self.block_stack.last().unwrap_or(&Block::TopLevel),
             affected : false,
             leading_empty_lines_affected : false,
             children_affected : false,
+        };
+
+        match self.line_stack.last_mut() {
+            None => {
+                // insert into the regular output vector
+                self.output.push(finished_line);
+            },
+            Some(top) => {
+                // insert into the last token on the top of the stack
+                assert!(!top.is_empty());
+                let last_tok: &mut FormatToken = top.last_mut().unwrap();
+                last_tok.children.push(finished_line);
+
+            }
         }
+
+        // replace popped vector ready for the next line
+        self.line_stack.push(vec![]);
     }
 
     // Gets the next token in the lexer, and places it in self.ftok
@@ -778,14 +780,14 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn push_token(&mut self, token: FormatToken) {
-        self.line.push(token);
+        self.line_stack.last_mut().unwrap().push(token);
     }
 
     // Pushes any stored comments into the output
     fn flush_comments(&mut self, new_line_before_next: bool) {
         // FIXME: is it really necessary to create a new vector?
         let comments = mem::replace(&mut self.comments_before_next_token, vec![]);
-        let just_comments = self.line.is_empty();
+        let just_comments = self.line_stack.last().unwrap().is_empty();
 
         for comment in comments {
             if comment.is_on_newline() && just_comments {
@@ -808,7 +810,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         let is_on_newline = self.ftok.is_on_newline();
         self.flush_comments(is_on_newline);
 
-        let ftok = self.ftok.clone();
+        let ftok = mem::replace(&mut self.ftok, FormatToken::default());
         self.push_token(ftok);
         self.read_token();
     }
@@ -820,6 +822,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         assert_eq!(self.ftok.tok, Token::BinOp(BinOpToken::Shr));
         assert_eq!(self.ftok.span.lo + BytePos(2), self.ftok.span.hi);
         assert_eq!(self.ftok.column_width, 2);
+        assert_eq!(self.ftok.children.len(), 0);
 
         let mut ftok = self.ftok.clone();
         let span_mid = ftok.span.lo + BytePos(1);
@@ -827,7 +830,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.ftok.tok = Token::Gt;
         self.ftok.span = mk_sp(ftok.span.lo, span_mid);
         self.ftok.column_width = 1;
-        self.next_token();
 
         ftok.tok = Token::Gt;
         ftok.span = mk_sp(span_mid, ftok.span.hi);
@@ -836,6 +838,9 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         ftok.is_first_token = false;
         ftok.newlines_before = 0;
         ftok.column_width = 1;
+
+        // push both tokens through
+        self.next_token();
         self.push_token(ftok);
     }
 }

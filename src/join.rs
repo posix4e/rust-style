@@ -1,4 +1,5 @@
 use style::FormatStyle;
+use std::mem;
 use syntax::parse::token::{Token, DelimToken};
 use unwrapped_line::UnwrappedLine;
 
@@ -18,6 +19,7 @@ pub fn join_lines(style: &FormatStyle, lines: Vec<UnwrappedLine>) -> Vec<Unwrapp
         i += 1;
     }
 
+    let mut temp = vec![];
     let mut out = vec![];
     let mut lines = lines.into_iter();
     for j in joins {
@@ -25,7 +27,12 @@ pub fn join_lines(style: &FormatStyle, lines: Vec<UnwrappedLine>) -> Vec<Unwrapp
         for _ in 0..j {
             line = join(line, lines.next().unwrap());
         }
-        line.children = join_lines(style, line.children);
+        for token in &mut line.tokens {
+            // FIXME: there has to be a better way
+            mem::swap(&mut token.children, &mut temp);
+            temp = join_lines(style, temp);
+            mem::swap(&mut token.children, &mut temp);
+        }
         out.push(line);
     }
 
@@ -36,7 +43,7 @@ pub fn join_lines(style: &FormatStyle, lines: Vec<UnwrappedLine>) -> Vec<Unwrapp
 
 fn try_join_empty_block(lines: &[UnwrappedLine]) -> Option<usize> {
     let join = lines.len() >= 2 &&
-        lines[0].children.is_empty() &&
+        lines[0].tokens.last().unwrap().children.is_empty() &&
         lines[0].tokens.last().unwrap().tok == Token::OpenDelim(DelimToken::Brace) &&
         lines[1].tokens.first().unwrap().tok == Token::CloseDelim(DelimToken::Brace);
     if join { Some(1) } else { None }
@@ -45,7 +52,6 @@ fn try_join_empty_block(lines: &[UnwrappedLine]) -> Option<usize> {
 // TODO: more joins
 
 fn join(mut a: UnwrappedLine, b: UnwrappedLine) -> UnwrappedLine {
-    assert!(a.children.len() == 0);
     assert!(a.block == b.block);
 
     // FIXME: replace loop with a single function call when a stable function exists in std
@@ -56,7 +62,6 @@ fn join(mut a: UnwrappedLine, b: UnwrappedLine) -> UnwrappedLine {
     let mut line = UnwrappedLine {
         tokens: a.tokens,
         level: a.level,
-        children: b.children,
         typ: a.typ,
         block: a.block,
         affected : a.affected || b.affected,
