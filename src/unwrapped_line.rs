@@ -312,7 +312,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.next_token();
 
         if self.parse_stmt_up_to(|t| *t == Token::OpenDelim(DelimToken::Brace)) {
-            self.parse_block(Block::Match);
+            self.parse_child_block(Block::Match);
         }
     }
 

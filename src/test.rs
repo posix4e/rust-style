@@ -618,9 +618,11 @@ fn test_dereference_spacing_in_match() {
     assert_fmt_eq!("\
 match *self {
     Context::LambdaArgs => 10,
+    Context::LambdaArgs => 10,
 }");
     assert_fmt_eq!("\
 match &self {
+    Context::LambdaArgs => 10,
     Context::LambdaArgs => 10,
 }");
 }
@@ -821,7 +823,7 @@ match self.current().tok {
 #[test]
 fn test_binary_or_in_pattern_guard() {
     let lines = annotated_lines("match foo { A | B if c | d == 2 => () }");
-    let toks = &lines[1].tokens;
+    let toks = &lines[0].tokens[2].children[0].tokens;
     assert_eq!(toks[1].typ, TokenType::PatternOr);
     assert_eq!(toks[5].typ, TokenType::BinaryOperator);
     assert_eq!(toks[7].typ, TokenType::BinaryOperator);
@@ -956,4 +958,18 @@ while aaaaaaaaaaaaaaa && bbbbbbbbbb && ccccccccccccccccccccccccccccccccccccccccc
               dddddddddddddddddd {
     let a = 1;
 }");
+}
+
+#[test]
+fn test_match_inside_struct_init() {
+assert_fmt_eq!("\
+let new_context = Context {
+    binding_strength: self.context_binding_strength() + match typ {
+        ContextType::Parens => 1,
+        ContextType::Generics => 10,
+        ContextType::LambdaParams => 10,
+        ContextType::WhereClause => 10,
+    },
+    typ: typ,
+};");
 }
