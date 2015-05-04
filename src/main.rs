@@ -18,7 +18,7 @@ static USAGE: &'static str = "
 Overview: A tool to format rust code.
 
 Formats the given files, and prints the result to standard output.
-If a direcory is given, all recursively contained .rs files are formatted.
+If a directory is given, all recursively contained .rs files are formatted.
 If the -w option is specified, the input files are overwritten.
 If no file arguments are specified, input is read from standard input.
 
@@ -28,14 +28,14 @@ Usage: rust-style [-w] [<file>]...
        rust-style (--help | --version)
 
 Options:
-    -h, --help                     Show this message
-    -w, --write                    Overwrite the input files
-    -V, --version                  Print version info and exit
-    -j --output-replacements-json  Outputs replacements as JSON
-    --lines=<string>               Formats lines specified, where
-                                   <string> is <uint>:<uint> -
-                                   the line number ranges. The values
-                                   are 1-based and inclusive.
+    -h, --help                      - Show this message
+    -w, --write                     - Overwrite the input files
+    -V, --version                   - Print version info and exit
+    -j, --output-replacements-json  - Outputs replacements as JSON
+    --lines=<string>                - Formats lines specified, where
+                                      <string> is <uint>:<uint> -
+                                      the line number ranges. The values
+                                      are 1-based and inclusive.
 ";
 
 #[derive(RustcDecodable, Debug)]
