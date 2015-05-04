@@ -943,3 +943,17 @@ let args: Args = Docopt::new(USAGE)
                      .and_then(|d| d.version(Some(version)).help(true).decode())
                      .unwrap_or_else(|e| e.exit());");
 }
+
+#[test]
+fn test_continuation_indent_after_non_value_keyword() {
+    assert_fmt_eq!("\
+if aaaaaaaaaaaaaaa && bbbbbbbbbb && ccccccccccccccccccccccccccccccccccccccccccccc &&
+           dddddddddddddddddd {
+    let a = 1;
+}");
+    assert_fmt_eq!("\
+while aaaaaaaaaaaaaaa && bbbbbbbbbb && ccccccccccccccccccccccccccccccccccccccccccccc &&
+              dddddddddddddddddd {
+    let a = 1;
+}");
+}

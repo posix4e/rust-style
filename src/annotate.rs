@@ -341,7 +341,13 @@ struct ExpressionParser<'a> {
 
 impl<'a> ExpressionParser<'a> {
     fn parse(&mut self, precedence: i32) {
-        while self.has_current() && self.current().tok.is_keyword(Keyword::Return) {
+        // These keywords should not be considered part of the start of a binary expression
+        while self.has_current() &&
+                (self.current().tok.is_keyword(Keyword::Return) ||
+                 self.current().tok.is_keyword(Keyword::While) ||
+                 self.current().tok.is_keyword(Keyword::Let) ||
+                 self.current().tok.is_keyword(Keyword::If) ||
+                 self.current().tok.is_keyword(Keyword::Match)) {
             self.next();
         }
 
