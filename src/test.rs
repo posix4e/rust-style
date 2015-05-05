@@ -814,9 +814,7 @@ fn test_line_break_between_patterns() {
 assert_fmt_eq!("\
 match self.current().tok {
     Token::Eq | Token::Le | Token::EqEq | Token::Ne | Token::Ge | Token::Gt | Token::AndAnd
-    | Token::OrOr | Token::BinOp(..) | Token::BinOpEq(..) => {
-        TokenType::BinaryOperator
-    }
+    | Token::OrOr | Token::BinOp(..) | Token::BinOpEq(..) => { TokenType::BinaryOperator }
 }");
 }
 
@@ -829,6 +827,16 @@ fn test_binary_or_in_pattern_guard() {
     assert_eq!(toks[7].typ, TokenType::BinaryOperator);
 }
 
+#[test]
+fn test_empty_match_block_has_no_children() {
+    let lines = annotated_lines("match foo { bar => {} }");
+    let arm = &lines[0].tokens[2].children[0];
+    assert_eq!(arm.tokens.len(), 4);
+    assert_eq!(arm.tokens[0].children.len(), 0);
+    assert_eq!(arm.tokens[1].children.len(), 0);
+    assert_eq!(arm.tokens[2].children.len(), 0);
+    assert_eq!(arm.tokens[3].children.len(), 0);
+}
 
 #[test]
 fn test_struct_init_all_or_nothing() {
@@ -962,7 +970,7 @@ while aaaaaaaaaaaaaaa && bbbbbbbbbb && ccccccccccccccccccccccccccccccccccccccccc
 
 #[test]
 fn test_match_inside_struct_init() {
-assert_fmt_eq!("\
+    assert_fmt_eq!("\
 let new_context = Context {
     binding_strength: self.context_binding_strength() + match typ {
         ContextType::Parens => 1,
@@ -972,4 +980,26 @@ let new_context = Context {
     },
     typ: typ,
 };");
+}
+
+#[test]
+fn test_unsafe_block_in_match() {
+    assert_fmt_eq!("\
+match foo {
+    bar => unsafe {
+        let a = 2;
+        let b = 3;
+    }
+}");
+    assert_fmt_eq!("\
+match foo {
+    bar => unsafe {
+        let a = 2;
+        let b = 3;
+    },
+    baz => {
+        let a = 3;
+        let b = 2;
+    }
+}");
 }

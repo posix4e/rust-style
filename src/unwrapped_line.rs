@@ -288,6 +288,15 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    fn try_parse_child_block(&mut self, block: Block) -> bool {
+        if self.ftok.tok == Token::OpenDelim(DelimToken::Brace) {
+            self.parse_child_block(block);
+            true
+        } else {
+            false
+        }
+    }
+
     fn parse_if_then_else(&mut self) {
         assert!(self.ftok.tok.is_keyword(Keyword::If), "expected 'if'");
         self.next_token();
@@ -320,7 +329,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     fn parse_match_arm(&mut self) {
         if self.parse_decl_up_to(|t| *t == Token::FatArrow) {
             self.next_token();
-            if self.try_parse_brace_block(Block::Statements) {
+            if self.try_parse_child_block(Block::Statements) {
                 if self.ftok.tok == Token::Comma {
                     self.next_token();
                 }
@@ -533,7 +542,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.parse_delim_pair(Context::Statements, DelimToken::Brace);
                 },
                 Token::OpenDelim(DelimToken::Brace) => {
-                    self.parse_block(Block::Statements);
+                    self.parse_child_block(Block::Statements);
                 },
                 Token::OpenDelim(delim) => {
                     self.parse_delim_pair(Context::Statements, delim);
@@ -556,7 +565,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.next_token();
                     self.parse_type();
                 },
-                Token::Ident(..) => {
+                Token::Ident(..) if !self.ftok.tok.is_any_keyword() => {
                     self.next_token();
                     may_be_struct_init = true;
                     continue;

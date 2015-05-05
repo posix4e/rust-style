@@ -347,7 +347,8 @@ impl<'a> ExpressionParser<'a> {
                  self.current().tok.is_keyword(Keyword::While) ||
                  self.current().tok.is_keyword(Keyword::Let) ||
                  self.current().tok.is_keyword(Keyword::If) ||
-                 self.current().tok.is_keyword(Keyword::Match)) {
+                 self.current().tok.is_keyword(Keyword::Match) ||
+                 self.current().tok.is_keyword(Keyword::While)) {
             self.next();
         }
 
@@ -618,9 +619,10 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (_, &Token::DotDotDot) => false,
         (&Token::DotDotDot, _) => false,
 
+        (&Token::OpenDelim(DelimToken::Brace), &Token::CloseDelim(DelimToken::Brace))
+            if prev.children.is_empty() => false,
         (&Token::OpenDelim(DelimToken::Brace), _) => true,
         (_, &Token::OpenDelim(DelimToken::Brace)) => true,
-
         (&Token::CloseDelim(DelimToken::Brace), _) => true,
         (_, &Token::CloseDelim(DelimToken::Brace)) => true,
 
