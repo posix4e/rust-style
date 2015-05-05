@@ -20,6 +20,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             line: line,
             context_stack: vec![],
             in_pattern_guard: false,
+            seen_fn_decl_arrow: false,
         }.parse_line();
 
         // The expression parser adds invisible braces to the tokens in respect to their precedence.
@@ -63,6 +64,7 @@ struct AnnotatingParser<'a> {
     line: &'a mut UnwrappedLine,
     context_stack: Vec<Context>,
     in_pattern_guard: bool,
+    seen_fn_decl_arrow: bool,
 }
 
 impl<'a> AnnotatingParser<'a> {
@@ -144,6 +146,7 @@ impl<'a> AnnotatingParser<'a> {
             self.current_mut().typ = typ.unwrap_or_else(|| self.determine_token_type());
             self.in_pattern_guard = self.in_pattern_guard ||
                 self.current().tok.is_keyword(Keyword::If) && self.line.block == Block::Match;
+            self.seen_fn_decl_arrow = self.seen_fn_decl_arrow || self.current().typ == TokenType::FnDeclArrow;
             self.current_index += 1;
         }
     }
@@ -325,6 +328,12 @@ impl<'a> AnnotatingParser<'a> {
             Token::BinOp(..) |
             Token::BinOpEq(..) => {
                 TokenType::BinaryOperator
+            }
+
+            Token::RArrow if self.line.typ == LineType::FnDecl &&
+                             !self.seen_fn_decl_arrow &&
+                             self.context_stack.is_empty() => {
+                TokenType::FnDeclArrow
             }
 
             _ => TokenType::Unknown,

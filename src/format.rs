@@ -277,6 +277,8 @@ pub struct LineState {
     pub column: u32,
     // The indent of the first token
     pub first_indent: u32,
+    // If some, the column to indent when breaking on function return type arrow
+    pub fn_decl_arrow_indent: Option<u32>,
     // A stack keeping track of properties applying to indentation scope.
     pub stack: Vec<ParenState>,
 }

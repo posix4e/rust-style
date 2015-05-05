@@ -2,6 +2,7 @@ use reformat;
 use replacement::Replacement;
 use std::default::Default;
 use syntax;
+use syntax::parse::token::Token;
 use token::{FormatTokenLexer, Precedence, TokenType};
 use unwrapped_line::UnwrappedLine;
 
@@ -839,6 +840,35 @@ fn test_empty_match_block_has_no_children() {
 }
 
 #[test]
+fn test_fn_decl_arrow_annotated() {
+    let lines = annotated_lines("fn aaaa() -> bbb {}");
+    let toks = &lines[0].tokens;
+    assert_eq!(toks[4].typ, TokenType::FnDeclArrow);
+    assert_eq!(toks[4].tok, Token::RArrow);
+
+    let lines = annotated_lines("fn aaaa<P>() -> bbb where P: Fn() -> ccc {}");
+    let toks = &lines[0].tokens;
+    assert_eq!(toks[7].typ, TokenType::FnDeclArrow);
+    assert_eq!(toks[7].tok, Token::RArrow);
+    assert_eq!(toks[15].typ, TokenType::Unknown);
+    assert_eq!(toks[15].tok, Token::RArrow);
+
+    let lines = annotated_lines("fn aaaa<P: Fn() -> ccc>() -> bbb {}");
+    let toks = &lines[0].tokens;
+    assert_eq!(toks[8].typ, TokenType::Unknown);
+    assert_eq!(toks[8].tok, Token::RArrow);
+    assert_eq!(toks[13].typ, TokenType::FnDeclArrow);
+    assert_eq!(toks[13].tok, Token::RArrow);
+
+    let lines = annotated_lines("fn aaaa() -> fn() -> u32 {}");
+    let toks = &lines[0].tokens;
+    assert_eq!(toks[4].typ, TokenType::FnDeclArrow);
+    assert_eq!(toks[4].tok, Token::RArrow);
+    assert_eq!(toks[8].typ, TokenType::Unknown);
+    assert_eq!(toks[8].tok, Token::RArrow);
+}
+
+#[test]
 fn test_struct_init_all_or_nothing() {
     assert_fmt_eq!("let a = Foo { one: 111111 };");
     assert_fmt_eq!("let a = Foo { one: 111111, two: 22222222 };");
@@ -1001,5 +1031,28 @@ match foo {
         let a = 3;
         let b = 2;
     }
+}");
+}
+
+#[test]
+fn test_fn_return_arrow_position() {
+    assert_fmt_eq!("\
+pub fn add_token_to_state(&self, line: &mut UnwrappedLine, state: &mut LineState, newline: bool,
+                          dry_run: bool, whitespace: &mut WhitespaceManager, something: bool)
+                          -> Penalty {
+    let a = 2;
+}");
+
+    assert_fmt_eq!("\
+pub fn add_token_to_state(&self, line: &mut UnwrappedLine, state: &mut LineState, newline: bool,
+                          dry_run: bool, whitespace: &mut WhitespaceManager) -> Penalty {
+    let a = 2;
+}");
+
+    // This may or may not be the desired formatting.
+    assert_fmt_eq!("\
+pub fn add_token_to_state(&self, line: &mut UnwrappedLine, state: &mut LineState, newline: bool)
+                          -> Penalty {
+    let a = 2;
 }");
 }

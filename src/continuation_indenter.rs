@@ -2,7 +2,7 @@ use format::{LineState, ParenState};
 use std::cmp;
 use style::{FormatStyle, Penalty};
 use syntax::parse::token::{Token, DelimToken};
-use token::{FormatToken, Precedence};
+use token::{FormatToken, Precedence, TokenType};
 use unwrapped_line::{UnwrappedLine, LineType};
 use whitespace_manager::WhitespaceManager;
 
@@ -22,6 +22,7 @@ impl ContinuationIndenter {
             column: first_indent,
             first_indent: first_indent,
             next_token_index: 0,
+            fn_decl_arrow_indent: None,
             stack: vec![ParenState {
                 indent: first_indent + self.style.continuation_indent_width,
                 nested_block_indent: first_indent,
@@ -136,6 +137,13 @@ impl ContinuationIndenter {
     }
 
     fn move_state_to_next_token(&self, line: &UnwrappedLine, state: &mut LineState) -> Penalty {
+        // remember the position of the fn opening brace parameters
+        if line.typ == LineType::FnDecl &&
+                   state.current(line).tok == Token::OpenDelim(DelimToken::Paren) &&
+                   state.fn_decl_arrow_indent.is_none() {
+            state.fn_decl_arrow_indent = Some(state.column + 1);
+        }
+
         self.move_state_past_fake_lparens(line, state);
         self.move_state_past_delim_open(line, state);
         self.move_state_past_delim_close(line, state);
@@ -262,6 +270,9 @@ impl ContinuationIndenter {
                 Some(indent) => indent,
                 None => stack_top.indent + self.style.method_chain_indent_width,
             }
+        }
+        if current.typ == TokenType::FnDeclArrow && state.fn_decl_arrow_indent.is_some() {
+            return state.fn_decl_arrow_indent.unwrap();
         }
 
         stack_top.indent
