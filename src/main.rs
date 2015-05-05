@@ -1,3 +1,5 @@
+#![cfg(not(test))]
+
 extern crate docopt;
 extern crate glob;
 extern crate rustc_serialize;
@@ -46,7 +48,6 @@ struct Args {
     flag_output_replacements_json: bool,
 }
 
-#[allow(dead_code)]
 fn main() {
     let mut exit_code = 0;
 
