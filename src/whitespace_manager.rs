@@ -16,11 +16,6 @@ struct Change {
     spaces: u32,
     start_of_token_column: u32,
     newlines_before: u32,
-
-    // FIXME: These are often empty strings. Allocations could easily be avoided.
-    //        This is assuming empty strings cause allocations.
-    previous_line_postfix: String,
-    current_line_prefix: String,
 }
 
 struct IsBeforeInFile(Span);
@@ -82,8 +77,6 @@ impl WhitespaceManager {
             spaces: spaces,
             newlines_before: newlines_before,
             start_of_token_column: start_of_token_column,
-            previous_line_postfix: "".to_string(),
-            current_line_prefix: "".to_string(),
         });
     }
 
@@ -109,11 +102,10 @@ impl WhitespaceManager {
 
         for c in changes {
             if c.create_replacement {
-                let mut text = c.previous_line_postfix;
+                let mut text = String::new();
                 self.append_newline_text(&mut text, c.newlines_before);
                 self.append_indent_text(&mut text, c.indent_level, cmp::max(0, c.spaces),
                                         c.start_of_token_column - cmp::max(0, c.spaces));
-                text.push_str(&c.current_line_prefix);
 
                 let start_byte = c.preceding_whitespace_span.lo.0;
                 let end_byte = if c.token == Token::Eof {
