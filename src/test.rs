@@ -982,6 +982,11 @@ let a = iter::repeat(1.0f32)
 let args: Args = Docopt::new(USAGE)
                      .and_then(|d| d.version(Some(version)).help(true).decode())
                      .unwrap_or_else(|e| e.exit());");
+
+    assert_fmt_eq!("\
+let output = input.filter(|&item| item % 2 == 0) // Keep Evens
+                 .map(|item| item * 2) // Multiply by two.
+                 .fold(0, |accumulator, item| accumulator + item);");
 }
 
 #[test]

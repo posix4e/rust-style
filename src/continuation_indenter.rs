@@ -298,6 +298,9 @@ fn is_between_struct_parameter(line: &UnwrappedLine, state: &LineState) -> bool 
 
 fn is_chained_method_call(line: &UnwrappedLine, state: &LineState) -> bool {
     let current = &line.tokens[state.next_token_index];
-    let previous = &line.tokens[state.next_token_index - 1];
-    current.tok == Token::Dot && previous.closes_scope()
+    let previous = line.prev_non_comment_token(state.next_token_index);
+    match previous {
+        None => false,
+        Some(previous) => current.tok == Token::Dot && previous.closes_scope()
+    }
 }
