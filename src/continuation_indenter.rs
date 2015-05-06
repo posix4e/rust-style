@@ -139,8 +139,8 @@ impl ContinuationIndenter {
     fn move_state_to_next_token(&self, line: &UnwrappedLine, state: &mut LineState) -> Penalty {
         // remember the position of the fn opening brace parameters
         if line.typ == LineType::FnDecl &&
-                   state.current(line).tok == Token::OpenDelim(DelimToken::Paren) &&
-                   state.fn_decl_arrow_indent.is_none() {
+               state.current(line).tok == Token::OpenDelim(DelimToken::Paren) &&
+               state.fn_decl_arrow_indent.is_none() && state.stack.len() == 1 {
             state.fn_decl_arrow_indent = Some(state.column + 1);
         }
 
@@ -224,9 +224,10 @@ impl ContinuationIndenter {
         let new_paren_state = {
             let top = state.stack_top();
             if current.tok == Token::OpenDelim(DelimToken::Paren) ||
-               current.tok == Token::OpenDelim(DelimToken::Brace) && line.typ == LineType::Use ||
-               current.tok == Token::OpenDelim(DelimToken::Bracket) ||
-               current.typ == TokenType::GenericBracket {
+                   current.tok == Token::OpenDelim(DelimToken::Brace) &&
+                       line.typ == LineType::Use ||
+                   current.tok == Token::OpenDelim(DelimToken::Bracket) ||
+                   current.typ == TokenType::GenericBracket {
                 ParenState {
                     indent: state.column + 1,
                     nested_block_indent: top.nested_block_indent,

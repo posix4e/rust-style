@@ -1060,6 +1060,10 @@ pub fn add_token_to_state(&self, line: &mut UnwrappedLine, state: &mut LineState
                           -> Penalty {
     let a = 2;
 }");
+
+    assert_fmt_eq!("\
+fn aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa<R, F: Fn(&mut Self) -> R>(&mut self, typ: ContextType, f: F)
+                                                               -> R {}");
 }
 
 #[test]
