@@ -582,7 +582,7 @@ deeeeeeeeeeeeeeeeeeeeeeeeeeallocate(ptr as *mut u8, size_of::<RcBox<T>>(),
 fn test_continuation_indent() {
     assert_fmt_eq!("\
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
-        bbbbbbbbbbbbbbbbbbbbbbbb");
+    bbbbbbbbbbbbbbbbbbbbbbbb");
     assert_fmt_eq!("\
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb,
                                                                 cccccccccccccc)");
@@ -592,9 +592,9 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbbbbbbbb, 
     assert_fmt_eq!("\
 let join = lines.len() >= 2 && lines[0].children.is_empty() &&
            lines[0].tokens.last().unwrap().tok.very_looooooooooooong_dummy_name ==
-                   Token::OpenDelim(DelimToken::Brace) &&
+               Token::OpenDelim(DelimToken::Brace) &&
            lines[1].tokens.first().unwrap().tok.very_looooooooooooong_dummy_name ==
-                   Token::CloseDelim(DelimToken::Brace);");
+               Token::CloseDelim(DelimToken::Brace);");
 }
 
 #[test]
@@ -807,7 +807,7 @@ fn test_higher_precedence_has_higher_penalty() {
     // EqEq should have lower a penalty, so it breaks after == instead of +
     assert_fmt_eq!("\
 ccccccccccccccccc + cccccccccccccccccccccccccccccccc ==
-        dddddddddddddddddddd + ddddddddddddddddddddddd");
+    dddddddddddddddddddd + ddddddddddddddddddddddd");
 }
 
 #[test]
@@ -993,12 +993,12 @@ let output = input.filter(|&item| item % 2 == 0) // Keep Evens
 fn test_continuation_indent_after_non_value_keyword() {
     assert_fmt_eq!("\
 if aaaaaaaaaaaaaaa && bbbbbbbbbb && ccccccccccccccccccccccccccccccccccccccccccccc &&
-           dddddddddddddddddd {
+       dddddddddddddddddd {
     let a = 1;
 }");
     assert_fmt_eq!("\
 while aaaaaaaaaaaaaaa && bbbbbbbbbb && ccccccccccccccccccccccccccccccccccccccccccccc &&
-              dddddddddddddddddd {
+          dddddddddddddddddd {
     let a = 1;
 }");
 }
