@@ -458,6 +458,41 @@ fn test_consecutive_comments() {
 }
 
 #[test]
+fn test_fake_parens_around_if_condition() {
+    for kw in ["if", "match", "while"].iter() {
+        let string = format!("{} a && b {{ }}", kw);
+        let tok = &annotated_lines(&string)[0].tokens;
+        assert_eq!(tok[0].starts_binary_expression, false);
+        assert_eq!(tok[1].starts_binary_expression, true);
+        assert_eq!(tok[2].starts_binary_expression, false);
+        assert_eq!(tok[3].starts_binary_expression, false);
+        assert_eq!(tok[4].starts_binary_expression, false);
+        assert_eq!(tok[5].starts_binary_expression, false);
+
+        assert_eq!(tok[0].ends_binary_expression, false);
+        assert_eq!(tok[1].ends_binary_expression, false);
+        assert_eq!(tok[2].ends_binary_expression, false);
+        assert_eq!(tok[3].ends_binary_expression, true);
+        assert_eq!(tok[4].ends_binary_expression, false);
+        assert_eq!(tok[5].ends_binary_expression, false);
+
+        assert_eq!(tok[0].fake_lparens, &[]);
+        assert_eq!(tok[1].fake_lparens, &[Precedence::LogicalAnd]);
+        assert_eq!(tok[2].fake_lparens, &[]);
+        assert_eq!(tok[3].fake_lparens, &[]);
+        assert_eq!(tok[4].fake_lparens, &[]);
+        assert_eq!(tok[5].fake_lparens, &[]);
+
+        assert_eq!(tok[0].fake_rparens, 0);
+        assert_eq!(tok[1].fake_rparens, 0);
+        assert_eq!(tok[2].fake_rparens, 0);
+        assert_eq!(tok[3].fake_rparens, 1);
+        assert_eq!(tok[4].fake_rparens, 0);
+        assert_eq!(tok[5].fake_rparens, 0);
+    }
+}
+
+#[test]
 fn test_precedence_token() {
     let tok = &annotated_lines("53 + 21")[0].tokens;
     assert_eq!(tok[0].starts_binary_expression, true);
@@ -1071,4 +1106,11 @@ fn test_generics_indentation() {
     assert_fmt_eq!("\
 fn aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa<bbbbbbbbbb, ccccccccccccc,
                                                                 dddddddddd, eeeeeeeeeeeee>() {}");
+}
+
+#[test]
+fn test_short_if_expr() {
+    assert_fmt_eq!("let a = if b { c } else { d };");
+    assert_fmt_eq!("let a = if b { c } else if d { e } else { f };");
+    assert_fmt_eq!("let a = something(if b { c } else { d });");
 }

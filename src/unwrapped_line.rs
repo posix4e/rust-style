@@ -305,14 +305,14 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             return;
         }
 
-        self.parse_block(Block::Statements);
+        self.parse_child_block(Block::Statements);
         if self.ftok.tok.is_keyword(Keyword::Else) {
             self.next_token();
             if self.ftok.tok.is_keyword(Keyword::If) {
                 self.parse_if_then_else();
                 return;
             }
-            self.try_parse_brace_block(Block::Statements);
+            self.try_parse_child_block(Block::Statements);
         }
     }
 

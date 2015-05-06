@@ -29,7 +29,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             style: style,
             current_index: 0,
             line: line,
-        }.parse(0);
+        }.parse(0, false);
 
         // Decide if tokens must be set with whitespace in between them using the information
         // the annotating parser put in.
@@ -349,7 +349,7 @@ struct ExpressionParser<'a> {
 }
 
 impl<'a> ExpressionParser<'a> {
-    fn parse(&mut self, precedence: i32) {
+    fn parse(&mut self, precedence: i32, mut end_at_opening_brace: bool) {
         // These keywords should not be considered part of the start of a binary expression
         while self.has_current() &&
                 (self.current().tok.is_keyword(Keyword::Return) ||
@@ -358,6 +358,11 @@ impl<'a> ExpressionParser<'a> {
                  self.current().tok.is_keyword(Keyword::If) ||
                  self.current().tok.is_keyword(Keyword::Match) ||
                  self.current().tok.is_keyword(Keyword::While)) {
+
+            end_at_opening_brace = end_at_opening_brace ||
+                                   self.current().tok.is_keyword(Keyword::While) ||
+                                   self.current().tok.is_keyword(Keyword::If) ||
+                                   self.current().tok.is_keyword(Keyword::Match);
             self.next();
         }
 
@@ -365,7 +370,7 @@ impl<'a> ExpressionParser<'a> {
         if precedence > PRECEDENCE_DOT { return; }
 
         if precedence == PRECEDENCE_UNARY {
-            return self.parse_unary_operator();
+            return self.parse_unary_operator(end_at_opening_brace);
         }
 
         let start_index = self.current_index;
@@ -374,10 +379,15 @@ impl<'a> ExpressionParser<'a> {
 
         while self.has_current() {
             // Recursive call to consume operators with higher precedence.
-            self.parse(precedence + 1);
+            self.parse(precedence + 1, end_at_opening_brace);
 
             if !self.has_current() { break; }
             if self.current().closes_scope() { break; }
+
+            // check if we found a statement brace
+            if end_at_opening_brace && self.current().tok == Token::OpenDelim(DelimToken::Brace) {
+                break;
+            }
 
             // check if current operator has higher precedence
             let current_precedence = self.current_precedence();
@@ -386,9 +396,11 @@ impl<'a> ExpressionParser<'a> {
             }
 
             if self.current().opens_scope() {
-                while self.has_current() && !self.current().closes_scope(){
+                while self.has_current() && !self.current().closes_scope() {
+                    // Inside a new delim scope
+                    let end_at_opening_brace = false;
                     self.next();
-                    self.parse(0);
+                    self.parse(0, end_at_opening_brace);
                 }
                 self.next();
             } else {
@@ -413,14 +425,14 @@ impl<'a> ExpressionParser<'a> {
         }
     }
 
-    fn parse_unary_operator(&mut self) {
+    fn parse_unary_operator(&mut self, end_at_opening_brace: bool) {
         if !self.has_current() || self.current().typ != TokenType::UnaryOperator {
-            return self.parse(PRECEDENCE_DOT);
+            return self.parse(PRECEDENCE_DOT, end_at_opening_brace);
         }
 
         let start_index = self.current_index;
         self.next();
-        self.parse_unary_operator();
+        self.parse_unary_operator(end_at_opening_brace);
         self.add_fake_parenthesis(start_index, Precedence::Unknown);
     }
 
@@ -682,7 +694,6 @@ fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
         (&Token::OpenDelim(DelimToken::Brace), _) => true,
         (_, &Token::CloseDelim(DelimToken::Brace)) => true,
 
-        (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::If) => true,
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => true,
 
         _ if prev.typ == TokenType::BinaryOperator => true,

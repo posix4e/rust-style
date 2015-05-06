@@ -231,17 +231,30 @@ impl<'a> LineFormatter<'a> {
             return false;
         }
 
+        // Cannot merge when child has a trailing comment
+        if previous.children[0].tokens.last().unwrap().is_trailing_comment(&previous.children[0]) {
+            return false;
+        }
+
+        // Don't merge when child has semicolon
+        // This may actually need to be allowed as a style option to allow things like: if foo { return; }
+        if previous.children[0].tokens.last().unwrap().tok == Token::Semi {
+            return false;
+        }
+
         // Check the line fits. The is + 2 for the trailing " }"
         if previous.children[0].tokens.last().unwrap().total_length + state.column + 2 > self.style.column_limit {
             return false;
         }
 
+        // Place the child on the same line
         if !dry_run {
             self.whitespace.replace_whitespace(&mut previous.children[0].tokens[0], 0, 0, 1, state.column);
         }
         *penalty += self.format_line(&mut previous.children[0], state.column + 1, dry_run);
         state.column += 1 + previous.children[0].tokens.last().unwrap().total_length;
-        return true
+
+        true
     }
 }
 
