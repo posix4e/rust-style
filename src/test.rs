@@ -12,6 +12,12 @@ fn fmt(source: &str) -> String {
     Replacement::apply_all(&replacements(source), source)
 }
 
+fn fmt_rng(source: &str, line_ranges: &[(u32, u32)]) -> String {
+    let style = Default::default();
+    let replacements = super::reformat(&source, &style, Some(line_ranges));
+    Replacement::apply_all(&replacements, source)
+}
+
 fn replacements(source: &str) -> Vec<Replacement> {
     let style = Default::default();
     super::reformat(source, &style, None)
@@ -1122,3 +1128,185 @@ let aaaaaa = if bbbbbbbbb {
     dddddddddddd
 };")
 }
+
+#[test]
+fn test_format_lines_single_line() {
+    let input = "\
+let a = 1+2;
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_1 = "\
+let a = 1 + 2;
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_2 = "\
+let a = 1+2;
+let b = 3 + 4;
+let c= 5+6;
+";
+    let expected_3 = "\
+let a = 1+2;
+let b =3 +4;
+let c = 5 + 6;
+";
+
+    assert_eq!(fmt_rng(&input, vec![(0, 0)].as_ref()), expected_1);
+    assert_eq!(fmt_rng(&input, vec![(1, 1)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, vec![(2, 2)].as_ref()), expected_3);
+
+}
+
+#[test]
+fn test_format_lines_multiple_lines() {
+    let input = "\
+let a = 1+2;
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_1 = "\
+let a = 1 + 2;
+let b = 3 + 4;
+let c= 5+6;
+";
+    let expected_2 = "\
+let a = 1+2;
+let b = 3 + 4;
+let c = 5 + 6;
+";
+    let expected_3 = "\
+let a = 1 + 2;
+let b = 3 + 4;
+let c = 5 + 6;
+";
+
+    assert_eq!(fmt_rng(&input, vec![(0, 1)].as_ref()), expected_1);
+    assert_eq!(fmt_rng(&input, vec![(1, 2)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, vec![(0, 2)].as_ref()), expected_3);
+}
+
+#[test]
+fn test_format_lines_multiple_ranges() {
+    let input = "\
+let a = 1+2;
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_1 = "\
+let a = 1 + 2;
+let b = 3 + 4;
+let c= 5+6;
+";
+    let expected_2 = "\
+let a = 1+2;
+let b = 3 + 4;
+let c = 5 + 6;
+";
+    let expected_3 = "\
+let a = 1 + 2;
+let b =3 +4;
+let c = 5 + 6;
+";
+
+    assert_eq!(fmt_rng(&input, vec![(0, 0), (1, 1)].as_ref()), expected_1);
+    assert_eq!(fmt_rng(&input, vec![(1, 1), (2, 2)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, vec![(0, 0), (2, 2)].as_ref()), expected_3);
+}
+
+#[test]
+fn test_format_lines_leading_white_space() {
+    let input = "\
+let a = 1+2;
+
+
+
+
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_1 = "\
+let a = 1 + 2;
+
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_2 = "\
+let a = 1+2;
+
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_3 = "\
+let a = 1+2;
+
+let b = 3 + 4;
+let c= 5+6;
+";
+
+    assert_eq!(fmt_rng(&input, vec![(0, 0)].as_ref()), expected_1);
+    assert_eq!(fmt_rng(&input, vec![(1, 1)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, vec![(2, 2)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, vec![(3, 3)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, vec![(4, 4)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, vec![(5, 5)].as_ref()), expected_3);
+}
+
+/*#[test]
+fn test_format_lines_after_multi_line_string() {
+    let input = "\
+let a = \"
+blah, blah\";
+
+
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_1 = "\
+let a = \"
+blah, blah\";
+
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_2 = "\
+let a = \"
+blah, blah\";
+
+let b = 3 + 4;
+let c= 5+6;
+";
+
+    assert_eq!(fmt_rng(&input, vec![(3, 3)].as_ref()), expected_1);
+    assert_eq!(fmt_rng(&input, vec![(4, 4)].as_ref()), expected_2);
+}
+
+#[test]
+fn test_format_lines_after_comment_block() {
+    let input = "\
+/* comment
+*/
+
+
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_1 = "\
+/* comment
+*/
+
+let b =3 +4;
+let c= 5+6;
+";
+    let expected_2 = "\
+/* comment
+*/
+
+let b = 3 + 4;
+let c= 5+6;
+";
+
+    assert_eq!(fmt_rng(&input, vec![(3, 3)].as_ref()), expected_1);
+    assert_eq!(fmt_rng(&input, vec![(4, 4)].as_ref()), expected_2);
+}
+*/
