@@ -1061,3 +1061,10 @@ pub fn add_token_to_state(&self, line: &mut UnwrappedLine, state: &mut LineState
     let a = 2;
 }");
 }
+
+#[test]
+fn test_generics_indentation() {
+    assert_fmt_eq!("\
+fn aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa<bbbbbbbbbb, ccccccccccccc,
+                                                                dddddddddd, eeeeeeeeeeeee>() {}");
+}

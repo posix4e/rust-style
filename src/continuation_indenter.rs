@@ -145,8 +145,8 @@ impl ContinuationIndenter {
         }
 
         self.move_state_past_fake_lparens(line, state);
-        self.move_state_past_delim_open(line, state);
-        self.move_state_past_delim_close(line, state);
+        self.move_state_past_scope_opener(line, state);
+        self.move_state_past_scope_closer(line, state);
         self.move_state_past_fake_rparens(line, state);
 
         let mut penalty = 0;
@@ -172,8 +172,9 @@ impl ContinuationIndenter {
             // Special case indentation when fake parens coincides with real scope open,
             // Or it is an assignment.
             if prev.precedence() == Some(Precedence::Assignment) ||
-               prev.tok == Token::OpenDelim(DelimToken::Bracket) ||
-               prev.tok == Token::OpenDelim(DelimToken::Paren) {
+                prev.tok == Token::OpenDelim(DelimToken::Bracket) ||
+                prev.tok == Token::OpenDelim(DelimToken::Paren) ||
+                prev.tok == Token::Lt && prev.typ == TokenType::GenericBracket {
                 // Align token with opening brace.
                 indent = state.column;
             } else if prev.tok == Token::OpenDelim(DelimToken::Brace) {
@@ -214,12 +215,18 @@ impl ContinuationIndenter {
         }
     }
 
-    fn move_state_past_delim_open(&self, line: &UnwrappedLine, state: &mut LineState) {
+    fn move_state_past_scope_opener(&self, line: &UnwrappedLine, state: &mut LineState) {
         let current = state.current(line);
+        if !current.opens_scope() {
+            return;
+        }
+
         let new_paren_state = {
             let top = state.stack_top();
             if current.tok == Token::OpenDelim(DelimToken::Paren) ||
-               current.tok == Token::OpenDelim(DelimToken::Brace) && line.typ == LineType::Use {
+               current.tok == Token::OpenDelim(DelimToken::Brace) && line.typ == LineType::Use ||
+               current.tok == Token::OpenDelim(DelimToken::Bracket) ||
+               current.typ == TokenType::GenericBracket {
                 ParenState {
                     indent: state.column + 1,
                     nested_block_indent: top.nested_block_indent,
@@ -237,24 +244,20 @@ impl ContinuationIndenter {
                     ..ParenState::default()
                 }
             } else {
-                return;
+                unreachable!("scope opener not handled");
             }
         };
 
         state.stack.push(new_paren_state);
     }
 
-    fn move_state_past_delim_close(&self, line: &UnwrappedLine, state: &mut LineState) {
+    fn move_state_past_scope_closer(&self, line: &UnwrappedLine, state: &mut LineState) {
         let current = state.current(line);
-        match current.tok {
-            Token::CloseDelim(DelimToken::Brace) |
-            Token::CloseDelim(DelimToken::Paren) => {
-                // Don't removing the first level
-                if state.stack.len() > 1 {
-                    state.stack.pop();
-                }
+        if current.closes_scope() {
+            // Don't removing the first level
+            if state.stack.len() > 1 {
+                state.stack.pop();
             }
-            _ => {},
         }
     }
 
