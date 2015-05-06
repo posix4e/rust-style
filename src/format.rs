@@ -247,6 +247,11 @@ impl<'a> LineFormatter<'a> {
             return false;
         }
 
+        // If the first token of the child had a newline, keep it
+        if previous.children[0].tokens[0].newlines_before > 0 {
+            return false;
+        }
+
         // Place the child on the same line
         if !dry_run {
             self.whitespace.replace_whitespace(&mut previous.children[0].tokens[0], 0, 0, 1, state.column);

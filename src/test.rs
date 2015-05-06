@@ -1113,4 +1113,12 @@ fn test_short_if_expr() {
     assert_fmt_eq!("let a = if b { c } else { d };");
     assert_fmt_eq!("let a = if b { c } else if d { e } else { f };");
     assert_fmt_eq!("let a = something(if b { c } else { d });");
+
+    // retain newlines if present
+    assert_fmt_eq!("\
+let aaaaaa = if bbbbbbbbb {
+    cccccccccccc
+} else {
+    dddddddddddd
+};")
 }
