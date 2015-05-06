@@ -346,8 +346,12 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
         }
 
         let mut column_width = 0;
-        for _ in self.span_str(tok_sp.sp).chars() {
+        let mut row_height = 0;
+        for character in self.span_str(tok_sp.sp).chars() {
             column_width += 1;
+            if character == '\n' {
+                row_height += 1;
+            }
         }
 
         let comment_type = match tok_sp.tok {
@@ -380,6 +384,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
         };
 
         column += column_width;
+        row += row_height;
 
         self.column = column;
         self.row = row;

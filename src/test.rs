@@ -1252,7 +1252,7 @@ let c= 5+6;
     assert_eq!(fmt_rng(&input, vec![(5, 5)].as_ref()), expected_3);
 }
 
-/*#[test]
+#[test]
 fn test_format_lines_after_multi_line_string() {
     let input = "\
 let a = \"
@@ -1309,4 +1309,3 @@ let c= 5+6;
     assert_eq!(fmt_rng(&input, vec![(3, 3)].as_ref()), expected_1);
     assert_eq!(fmt_rng(&input, vec![(4, 4)].as_ref()), expected_2);
 }
-*/
