@@ -6,7 +6,6 @@ mod affected_lines;
 mod annotate;
 mod continuation_indenter;
 mod format;
-mod join;
 mod replacement;
 mod style;
 mod token;
@@ -25,12 +24,12 @@ mod internal {
     use style::{FormatStyle, LineRanges};
     use token::FormatTokenLexer;
     use unwrapped_line::UnwrappedLine;
-    use {affected_lines, annotate, join, format, syntax};
+    use {affected_lines, annotate, format, syntax};
 
     pub fn annotated_lines(lexer: &mut FormatTokenLexer, style: &FormatStyle) -> Vec<UnwrappedLine> {
         let mut lines = UnwrappedLine::parse_lines(lexer);
         annotate::annotate_lines(&mut lines[..], style);
-        join::join_lines(&style, lines)
+        lines
     }
 
     /// Format a string, specifying style and the line ranges to be formatted.
