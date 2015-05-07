@@ -2,7 +2,7 @@ use typed_arena::Arena;
 use continuation_indenter::ContinuationIndenter;
 use replacement::Replacement;
 use std::cmp::{self, Ordering};
-use std::collections::{BinaryHeap, HashSet};
+use std::collections::{BinaryHeap, HashSet, HashMap};
 use style::{FormatStyle, Penalty};
 use syntax::parse::token::{Token, DelimToken};
 use token::{FormatTokenLexer, FormatToken, FormatDecision};
@@ -15,6 +15,7 @@ pub fn format(lexer: &FormatTokenLexer, style: FormatStyle, lines: &mut [Unwrapp
         whitespace: WhitespaceManager::new(style.clone()),
         indenter: ContinuationIndenter::new(style),
         arena: &Arena::new(),
+        penalty_cache: HashMap::new(),
     };
 
     formatter.format(lines, false, 0, false);
@@ -26,12 +27,24 @@ struct LineFormatter<'a> {
     whitespace: WhitespaceManager,
     indenter: ContinuationIndenter,
     arena: &'a Arena<StateNode<'a>>,
+    penalty_cache: HashMap<CacheKey, Penalty>,
 }
 
 impl<'a> LineFormatter<'a> {
-    fn format(&mut self, lines: &mut [UnwrappedLine], dry_run: bool, additional_indent: u32, fix_indentation: bool) -> Penalty {
-        let mut penalty = 0;
+    fn format(&mut self, lines: &mut [UnwrappedLine], dry_run: bool, additional_indent: u32,
+              fix_indentation: bool) -> Penalty {
+        let cache_key = CacheKey::new(lines, additional_indent);
 
+        // If these lines has already been calculated in a previous dry run,
+        // just return the previously calculated value, instead of recalculating it.
+        if dry_run {
+            match self.penalty_cache.get(&cache_key) {
+                Some(penalty) => return *penalty,
+                None => (),
+            }
+        }
+
+        let mut penalty = 0;
         for i in 0..lines.len() {
             assert!(lines[i].tokens.len() > 0);
             let indent = additional_indent + lines[i].level * self.style.indent_width;
@@ -41,13 +54,15 @@ impl<'a> LineFormatter<'a> {
                 continue;
             }
 
-            // TODO:
-            // If everything fits on a single line, just put it there,
-            // instead of going through the line breaking algorithm.
-
             if lines[i].affected {
                 self.format_first_token(&mut lines[i], indent, dry_run);
-                penalty += self.format_line(&mut lines[i], indent, dry_run);
+
+                // If everything fits on a single line, just put it there.
+                if lines[i].tokens.last().unwrap().total_length + indent < self.style.column_limit {
+                    self.format_on_single_line(&mut lines[i], indent, dry_run);
+                } else {
+                    penalty += self.analyze_solution_space(&mut lines[i], indent, dry_run);
+                }
             } else if lines[i].children_affected {
                 for token in &mut lines[i].tokens {
                     penalty += self.format(&mut token.children, dry_run, 0, false);
@@ -60,6 +75,9 @@ impl<'a> LineFormatter<'a> {
                 }
             }
         }
+
+        let previous_penalty = self.penalty_cache.insert(cache_key, penalty);
+        assert!(previous_penalty.is_none() || previous_penalty.unwrap() == penalty);
 
         penalty
     }
@@ -80,8 +98,8 @@ impl<'a> LineFormatter<'a> {
         }
     }
 
-    fn format_first_token(&mut self, curr_line: &mut UnwrappedLine, indent: u32, dry_run: bool) {
-        let token = &mut curr_line.tokens[0];
+    fn format_first_token(&mut self, line: &mut UnwrappedLine, indent: u32, dry_run: bool) {
+        let token = &mut line.tokens[0];
         let mut newlines = cmp::min(token.newlines_before,
             self.style.max_empty_lines_to_keep + 1);
 
@@ -98,13 +116,27 @@ impl<'a> LineFormatter<'a> {
         }
 
         if !dry_run {
-            self.whitespace.replace_whitespace(token, newlines, curr_line.level, indent, indent);
+            self.whitespace.replace_whitespace(token, newlines, line.level, indent, indent);
         }
+    }
+
+    fn format_on_single_line(&mut self, line: &mut UnwrappedLine, indent: u32, dry_run: bool) -> Penalty {
+        let newline = false;
+        let mut penalty = 0;
+        let mut state = self.indenter.get_initial_state(line, indent);
+
+        // first token alread formatted
+        while !state.path_complete(line) {
+            self.format_children(newline, dry_run, &mut penalty, &mut state, line);
+            self.indenter.add_token_to_state(line, &mut state, newline, dry_run, &mut self.whitespace);
+        }
+
+        penalty
     }
 
     // Use a variant of Dijkstra's algorithm to find the line with the lowest penalty,
     // By breaking and not breaking at every possible line breaking point.
-    fn format_line(&mut self, line: &mut UnwrappedLine, indent: u32, dry_run: bool) -> Penalty {
+    fn analyze_solution_space(&mut self, line: &mut UnwrappedLine, indent: u32, dry_run: bool) -> Penalty {
         let mut seen = HashSet::<&LineState>::new();
         let mut queue = BinaryHeap::<QueueItem>::new();
         let mut penalty = 0;
@@ -256,7 +288,7 @@ impl<'a> LineFormatter<'a> {
         if !dry_run {
             self.whitespace.replace_whitespace(&mut previous.children[0].tokens[0], 0, 0, 1, state.column);
         }
-        *penalty += self.format_line(&mut previous.children[0], state.column + 1, dry_run);
+        *penalty += self.analyze_solution_space(&mut previous.children[0], state.column + 1, dry_run);
         state.column += 1 + previous.children[0].tokens.last().unwrap().total_length;
 
         true
@@ -359,5 +391,20 @@ impl<'a> PartialOrd for QueueItem<'a> {
 impl<'a> Ord for QueueItem<'a> {
     fn cmp(&self, other: &QueueItem) -> Ordering {
         self.partial_cmp(&other).unwrap()
+    }
+}
+
+#[derive(Hash, Eq, PartialEq)]
+struct CacheKey {
+    lines_address: usize,
+    indent: u32,
+}
+
+impl CacheKey {
+    fn new(lines: &[UnwrappedLine], indent: u32) -> CacheKey {
+        CacheKey {
+            lines_address: lines.as_ptr() as usize,
+            indent: indent,
+        }
     }
 }

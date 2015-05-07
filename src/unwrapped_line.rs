@@ -234,6 +234,13 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             _ => panic!("expected a delimeter"),
         };
         self.next_token();
+
+        // Join empty blocks
+        if self.ftok.tok == Token::CloseDelim(delim) {
+            self.next_token();
+            return;
+        }
+
         self.add_line();
 
         let intial_level = self.level;
