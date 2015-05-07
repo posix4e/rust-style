@@ -1309,3 +1309,17 @@ let c= 5+6;
     assert_eq!(fmt_rng(&input, vec![(3, 3)].as_ref()), expected_1);
     assert_eq!(fmt_rng(&input, vec![(4, 4)].as_ref()), expected_2);
 }
+
+#[test]
+fn test_uses_most_common_line_ending() {
+    assert_fmt_eq!("let a = 3;\nlet b = 2;\nlet c = 3;\nlet d = 4;\nlet d = 4;\n");
+    assert_fmt_eq!("let a = 3;\r\nlet b = 2;\r\nlet c = 3;\r\nlet d = 4;\r\nlet d = 4;\r\n");
+
+    let input = "let a = 3;\r\nlet b = 2;\r\nlet c = 3;\nlet d = 4;\r\nlet d = 4;\n";
+    let expected = "let a = 3;\r\nlet b = 2;\r\nlet c = 3;\r\nlet d = 4;\r\nlet d = 4;\r\n";
+    assert_eq!(fmt(input), expected);
+
+    let input = "let a = 3;\nlet b = 2;\r\nlet c = 3;\nlet d = 4;\nlet b = 2;\r\n";
+    let expected = "let a = 3;\nlet b = 2;\nlet c = 3;\nlet d = 4;\nlet b = 2;\n";
+    assert_eq!(fmt(input), expected);
+}

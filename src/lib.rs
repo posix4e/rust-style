@@ -21,7 +21,7 @@ pub use internal::reformat;
 
 mod internal {
     use replacement::Replacement;
-    use style::{FormatStyle, LineRanges};
+    use style::{FormatStyle, LineRanges, LineEnding};
     use token::FormatTokenLexer;
     use unwrapped_line::UnwrappedLine;
     use {affected_lines, annotate, format, syntax};
@@ -39,6 +39,7 @@ mod internal {
             return vec![];
         }
 
+        let line_ending = LineEnding::derive_from_source(source);
         let session = syntax::parse::new_parse_sess();
         let lexer = &mut FormatTokenLexer::new(source, &session, &style);
         let lines = &mut annotated_lines(lexer, &style);
@@ -50,7 +51,7 @@ mod internal {
             affected_lines::mark_all_affected(lines);
         }
 
-        let mut replacements = format::format(lexer, style.clone(), lines);
+        let mut replacements = format::format(lexer, style.clone(), line_ending, lines);
         // TODO: assert for replacement duplicates somewhere
         // Remove replacements that do not change anything
         replacements.retain(|r| r.text != lexer.src_str(r.start_byte, r.end_byte));

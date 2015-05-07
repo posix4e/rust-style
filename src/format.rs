@@ -1,18 +1,19 @@
-use typed_arena::Arena;
 use continuation_indenter::ContinuationIndenter;
 use replacement::Replacement;
 use std::cmp::{self, Ordering};
 use std::collections::{BinaryHeap, HashSet, HashMap};
-use style::{FormatStyle, Penalty};
+use style::{FormatStyle, Penalty, LineEnding};
 use syntax::parse::token::{Token, DelimToken};
 use token::{FormatTokenLexer, FormatToken, FormatDecision};
+use typed_arena::Arena;
 use unwrapped_line::UnwrappedLine;
 use whitespace_manager::WhitespaceManager;
 
-pub fn format(lexer: &FormatTokenLexer, style: FormatStyle, lines: &mut [UnwrappedLine]) -> Vec<Replacement> {
+pub fn format(lexer: &FormatTokenLexer, style: FormatStyle, line_ending: LineEnding,
+              lines: &mut [UnwrappedLine]) -> Vec<Replacement> {
     let mut formatter = LineFormatter {
         style: style.clone(),
-        whitespace: WhitespaceManager::new(style.clone()),
+        whitespace: WhitespaceManager::new(style.clone(), line_ending),
         indenter: ContinuationIndenter::new(style),
         arena: &Arena::new(),
         penalty_cache: HashMap::new(),

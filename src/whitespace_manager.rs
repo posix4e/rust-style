@@ -1,7 +1,7 @@
 use replacement::Replacement;
 use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
-use style::{UseTabs, FormatStyle};
+use style::{UseTabs, FormatStyle, LineEnding};
 use syntax::codemap::{mk_sp, Span, BytePos};
 use syntax::parse::token::Token;
 use token::{FormatTokenLexer, FormatToken, FormatDecision};
@@ -46,15 +46,14 @@ impl Ord for IsBeforeInFile {
 
 pub struct WhitespaceManager {
     changes: Vec<Change>,
-    use_crlf: bool,
+    line_ending: LineEnding,
     style: FormatStyle,
 }
 
 impl WhitespaceManager {
-    pub fn new(style: FormatStyle) -> WhitespaceManager {
+    pub fn new(style: FormatStyle, line_ending: LineEnding) -> WhitespaceManager {
         WhitespaceManager {
-            // FIXME: determine wheter to use CRLF or not
-            use_crlf: false,
+            line_ending: line_ending,
             changes: vec![],
             style: style,
         }
@@ -141,7 +140,10 @@ impl WhitespaceManager {
 
     fn append_newline_text(&self, text: &mut String, newlines: u32) {
         for _ in 0..newlines {
-            text.push_str(if self.use_crlf { "\r\n" } else { "\n" });
+            text.push_str(match self.line_ending {
+                LineEnding::CRLF => "\r\n",
+                LineEnding::LF => "\n",
+            })
         }
     }
 

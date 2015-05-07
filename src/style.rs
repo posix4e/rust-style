@@ -37,6 +37,20 @@ impl Default for FormatStyle {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum LineEnding {
+    CRLF,
+    LF,
+}
+
+impl LineEnding {
+    pub fn derive_from_source(src: &str) -> LineEnding {
+        let crlf_count = src.chars().filter(|&c| c == '\r').count() * 2;
+        let lf_count = src.chars().filter(|&c| c == '\n').count();
+        if crlf_count > lf_count { LineEnding::CRLF } else { LineEnding::LF }
+    }
+}
+
 pub struct LineRanges {
     ranges: Vec<(u32, u32)>,
 }
