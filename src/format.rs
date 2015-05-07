@@ -9,12 +9,12 @@ use typed_arena::Arena;
 use unwrapped_line::UnwrappedLine;
 use whitespace_manager::WhitespaceManager;
 
-pub fn format(lexer: &FormatTokenLexer, style: FormatStyle, line_ending: LineEnding,
+pub fn format(lexer: &FormatTokenLexer, style: &FormatStyle, line_ending: LineEnding,
               lines: &mut [UnwrappedLine]) -> Vec<Replacement> {
     let mut formatter = LineFormatter {
-        style: style.clone(),
-        whitespace: WhitespaceManager::new(style.clone(), line_ending),
-        indenter: ContinuationIndenter::new(style),
+        style: style,
+        whitespace: WhitespaceManager::new(style, line_ending),
+        indenter: ContinuationIndenter { style: style },
         arena: &Arena::new(),
         penalty_cache: HashMap::new(),
     };
@@ -24,9 +24,9 @@ pub fn format(lexer: &FormatTokenLexer, style: FormatStyle, line_ending: LineEnd
 }
 
 struct LineFormatter<'a> {
-    style: FormatStyle,
-    whitespace: WhitespaceManager,
-    indenter: ContinuationIndenter,
+    style: &'a FormatStyle,
+    whitespace: WhitespaceManager<'a>,
+    indenter: ContinuationIndenter<'a>,
     arena: &'a Arena<StateNode<'a>>,
     penalty_cache: HashMap<CacheKey, Penalty>,
 }

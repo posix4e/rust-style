@@ -6,17 +6,11 @@ use token::{FormatToken, Precedence, TokenType};
 use unwrapped_line::{UnwrappedLine, LineType};
 use whitespace_manager::WhitespaceManager;
 
-pub struct ContinuationIndenter {
-    style: FormatStyle,
+pub struct ContinuationIndenter<'a> {
+    pub style: &'a FormatStyle,
 }
 
-impl ContinuationIndenter {
-    pub fn new(style: FormatStyle) -> ContinuationIndenter {
-        ContinuationIndenter {
-            style: style,
-        }
-    }
-
+impl<'a> ContinuationIndenter<'a> {
     pub fn get_initial_state(&self, line: &UnwrappedLine, first_indent: u32) -> LineState {
         let mut state = LineState {
             column: first_indent,

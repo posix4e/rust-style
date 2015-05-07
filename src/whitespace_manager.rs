@@ -44,14 +44,14 @@ impl Ord for IsBeforeInFile {
     }
 }
 
-pub struct WhitespaceManager {
+pub struct WhitespaceManager<'a> {
     changes: Vec<Change>,
     line_ending: LineEnding,
-    style: FormatStyle,
+    style: &'a FormatStyle,
 }
 
-impl WhitespaceManager {
-    pub fn new(style: FormatStyle, line_ending: LineEnding) -> WhitespaceManager {
+impl<'a> WhitespaceManager<'a> {
+    pub fn new(style: &FormatStyle, line_ending: LineEnding) -> WhitespaceManager {
         WhitespaceManager {
             line_ending: line_ending,
             changes: vec![],

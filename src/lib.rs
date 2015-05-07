@@ -51,7 +51,7 @@ mod internal {
             affected_lines::mark_all_affected(lines);
         }
 
-        let mut replacements = format::format(lexer, style.clone(), line_ending, lines);
+        let mut replacements = format::format(lexer, style, line_ending, lines);
         // TODO: assert for replacement duplicates somewhere
         // Remove replacements that do not change anything
         replacements.retain(|r| r.text != lexer.src_str(r.start_byte, r.end_byte));
