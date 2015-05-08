@@ -1,4 +1,4 @@
-##rust-style
+##rust-style [![Build Status](https://travis-ci.org/sp0/rust-style.svg)](https://travis-ci.org/sp0/rust-style)
 
 A tool to format rust code.
 
