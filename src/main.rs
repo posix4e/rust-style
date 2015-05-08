@@ -49,40 +49,54 @@ struct Args {
 }
 
 fn main() {
-    let mut exit_code = 0;
-
-    // Block to allow destructors to run before exit is called
-    {
-        let debug = if cfg!(debug_assertions) { " debug" } else { "" };
-        let version = format!("rust-style version {}{}", env!("CARGO_PKG_VERSION"), debug);
-        let args: Args = Docopt::new(USAGE)
-            .and_then(|d| d.version(Some(version)).help(true).decode())
-            .unwrap_or_else(|e| e.exit());
-
-        let style = FormatStyle::default();
-        let (actions, action_args) = get_actions(&args).unwrap();
-
-        for action in &actions {
-            match perform_input(action) {
-                Ok(ref source) => {
-                    let ranges = action_args.ranges.as_ref().map(|r| &r[..]);
-                    let replacements = reformat(source, &style, ranges);
-                    perform_output(action, &action_args, source, &replacements).unwrap();
-                },
-                Err(ref msg) => {
-                    writeln!(&mut stderr(), "{}", msg).unwrap();
-                    exit_code = 1;
-                },
-            }
-        }
-    }
+    let exit_code = run();
 
     if exit_code != 0 {
         std::process::exit(exit_code);
     }
 }
 
-fn get_actions(args: &Args) -> FormatResult<(Vec<Action>, ActionArgs)> {
+fn run() -> i32 {
+    let debug = if cfg!(debug_assertions) { " debug" } else { "" };
+    let version = format!("rust-style version {}{}", env!("CARGO_PKG_VERSION"), debug);
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.version(Some(version)).help(true).decode())
+        .unwrap_or_else(|e| e.exit());
+
+    let style = FormatStyle::default();
+    let args_result = get_actions(&args);
+
+    if args_result.is_err() {
+        write_argument_error(&args_result.err().unwrap());
+        return 1;
+    }
+
+    let (actions, action_args) = args_result.unwrap();
+
+    let mut exit_code = 0;
+    for action in &actions {
+        match perform_input(action) {
+            Err(ref error) => {
+                write_input_error(&action.input, error);
+                exit_code = 1;
+            },
+            Ok(ref source) => {
+                let ranges = action_args.ranges.as_ref().map(|r| &r[..]);
+                let replacements = reformat(source, &style, ranges);
+                let output_result = perform_output(action, &action_args, source, &replacements);
+
+                if output_result.is_err() {
+                    write_output_error(&action.output, &output_result.unwrap_err());
+                    exit_code = 1;
+                }
+            },
+        }
+    }
+
+    exit_code
+}
+
+fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
     let ranges = if args.flag_lines.is_empty() {
         None
     } else {
@@ -90,12 +104,14 @@ fn get_actions(args: &Args) -> FormatResult<(Vec<Action>, ActionArgs)> {
         for range_string in &args.flag_lines {
             let range_values = Vec::<&str>::from_iter(range_string.split(':'));
             if range_values.len() != 2 {
-                return Err(FormatError::CustomError("incorrect format for line ranges"));
+                return Err(ArgumentsError::ParseLinesError(
+                    "Incorrect format for line ranges, expecting --lines=<uint>:<uint>."));
             }
             let a = try!(range_values[0].parse::<u32>());
             let b = try!(range_values[1].parse::<u32>());
             if a == 0 || b == 0 {
-                return Err(FormatError::CustomError("cannot specify line 0"));
+                return Err(ArgumentsError::ParseLinesError(
+                    "Cannot specify line 0, expecting 1-based line numbers."));
             }
             // converted from 1-based to 0-based
             ranges.push((a - 1, b - 1));
@@ -150,36 +166,28 @@ fn get_actions(args: &Args) -> FormatResult<(Vec<Action>, ActionArgs)> {
     Ok((actions, action_args))
 }
 
-fn perform_input(action: &Action) -> Result<String, String> {
+fn perform_input(action: &Action) -> IoResult<String> {
     let mut source_input = String::new();
 
     match action.input {
         Input::StdIn => {
-            match stdin().read_to_string(&mut source_input) {
-                Err(ref e) => Err(format!("Failed to read stdin: {}", Error::description(e))),
-                Ok(_) => Ok(source_input),
-            }
+            try!(stdin().read_to_string(&mut source_input));
         },
         Input::File(ref path_string) => {
             let path = Path::new(path_string);
+            let mut file = try!(File::open(path));
 
-            let mut file = match File::open(path) {
-                Err(_) => return Err(format!("Couldn't open file: {}", path.display())),
-                Ok(file) => file,
-            };
-
-            match file.read_to_string(&mut source_input) {
-                Err(_) => Err(format!("Couldn't read file: {}", path.display())),
-                Ok(_) => Ok(source_input),
-            }
+            try!(file.read_to_string(&mut source_input));
         }
     }
+
+    Ok(source_input)
 }
 
-fn perform_output(action: &Action, args: &ActionArgs, source: &String, replacements: &Vec<Replacement>)
-                  -> FormatResult<()> {
+fn perform_output(action: &Action, args: &ActionArgs, source: &String,
+                  replacements: &Vec<Replacement>) -> IoResult<()> {
     let output = if args.output_json {
-        try!(json::encode(replacements))
+        json::encode(replacements).unwrap()
     } else {
         Replacement::apply_all(replacements, source)
     };
@@ -197,6 +205,42 @@ fn perform_output(action: &Action, args: &ActionArgs, source: &String, replaceme
     }
 
     Ok(())
+}
+
+fn write_argument_error(error: &ArgumentsError) {
+    let (arg_type, details) = match *error {
+        ArgumentsError::IoError(ref err)         => ("file", format!("{}", err)),
+        ArgumentsError::GlobError(ref err)       => ("file", format!("{}", err)),
+        ArgumentsError::PatternError(ref err)    => ("file", format!("{}", err)),
+        ArgumentsError::ParseIntError(ref err)   => ("line", format!("{}", err)),
+        ArgumentsError::ParseLinesError(ref err) => ("line", format!("{}", err)),
+    };
+
+    writeln!(&mut stderr(), "Failed to proccess {} arguments. {}", arg_type, details).unwrap();
+}
+
+fn write_input_error(input_type: &Input, error: &io::Error) {
+    match *input_type {
+        Input::StdIn => {
+            writeln!(&mut stderr(), "Failed to read from stdin. {}", error).unwrap();
+        },
+        Input::File(ref path) => {
+            let path = path.to_str().unwrap();
+            writeln!(&mut stderr(), "Couldn't read from file: {}. {}", path,  error).unwrap();
+        },
+    }
+}
+
+fn write_output_error(output_type: &Output, error: &io::Error) {
+    match *output_type {
+        Output::StdOut => {
+            writeln!(&mut stderr(), "Failed to write to stdout. {}", error).unwrap();
+        },
+        Output::File(ref path) => {
+            let path = path.to_str().unwrap();
+            writeln!(&mut stderr(), "Couldn't write to file: {}. {}", path, error).unwrap();
+        },
+    }
 }
 
 struct ActionArgs {
@@ -219,44 +263,35 @@ enum Output {
     File(PathBuf),
 }
 
-type FormatResult<T> = Result<T, FormatError>;
+type ArgumentResult<T> = Result<T, ArgumentsError>;
+type IoResult<T> = Result<T, io::Error>;
 
 #[derive(Debug)]
-enum FormatError {
+enum ArgumentsError {
     IoError(io::Error),
     GlobError(glob::GlobError),
     PatternError(glob::PatternError),
-    JsonError(rustc_serialize::json::EncoderError),
-    ParseError(std::num::ParseIntError),
-    CustomError(&'static str),
+    ParseIntError(std::num::ParseIntError),
+    ParseLinesError(&'static str),
 }
 
-impl From<io::Error> for FormatError {
+impl From<io::Error> for ArgumentsError {
     fn from(error: io::Error) -> Self {
-        FormatError::IoError(error)
+        ArgumentsError::IoError(error)
     }
 }
-
-impl From<glob::GlobError> for FormatError {
+impl From<glob::GlobError> for ArgumentsError {
     fn from(error: glob::GlobError) -> Self {
-        FormatError::GlobError(error)
+        ArgumentsError::GlobError(error)
     }
 }
-
-impl From<glob::PatternError> for FormatError {
+impl From<glob::PatternError> for ArgumentsError {
     fn from(error: glob::PatternError) -> Self {
-        FormatError::PatternError(error)
+        ArgumentsError::PatternError(error)
     }
 }
-
-impl From<rustc_serialize::json::EncoderError> for FormatError {
-    fn from(error: rustc_serialize::json::EncoderError) -> Self {
-        FormatError::JsonError(error)
-    }
-}
-
-impl From<std::num::ParseIntError> for FormatError {
+impl From<std::num::ParseIntError> for ArgumentsError {
     fn from(error: std::num::ParseIntError) -> Self {
-        FormatError::ParseError(error)
+        ArgumentsError::ParseIntError(error)
     }
 }
