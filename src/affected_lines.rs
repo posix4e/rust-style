@@ -1,4 +1,4 @@
-use style::LineRanges;
+use format_options::LineRanges;
 use token::FormatToken;
 use unwrapped_line::UnwrappedLine;
 

@@ -1,6 +1,6 @@
 use format::{LineState, ParenState};
+use format_options::{FormatStyle, Penalty};
 use std::cmp;
-use style::{FormatStyle, Penalty};
 use syntax::parse::token::{Token, DelimToken};
 use token::{FormatToken, Precedence, TokenType};
 use unwrapped_line::{UnwrappedLine, LineType};
