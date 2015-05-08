@@ -1,7 +1,7 @@
+use format_options::{UseTabs, FormatStyle, LineEnding};
 use replacement::Replacement;
 use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
-use style::{UseTabs, FormatStyle, LineEnding};
 use syntax::codemap::{mk_sp, Span, BytePos};
 use syntax::parse::token::Token;
 use token::{FormatTokenLexer, FormatToken, FormatDecision};

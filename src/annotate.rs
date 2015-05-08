@@ -1,4 +1,4 @@
-use style::{FormatStyle, Penalty};
+use format_options::{FormatStyle, Penalty};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken};
 use token::{FormatToken, TokenType, Precedence, PRECEDENCE_UNARY, PRECEDENCE_DOT};

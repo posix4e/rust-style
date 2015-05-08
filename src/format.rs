@@ -1,8 +1,8 @@
 use continuation_indenter::ContinuationIndenter;
+use format_options::{FormatStyle, Penalty, LineEnding};
 use replacement::Replacement;
 use std::cmp::{self, Ordering};
 use std::collections::{BinaryHeap, HashSet, HashMap};
-use style::{FormatStyle, Penalty, LineEnding};
 use syntax::parse::token::{Token, DelimToken};
 use token::{FormatTokenLexer, FormatToken, FormatDecision};
 use typed_arena::Arena;

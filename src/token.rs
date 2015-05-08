@@ -1,4 +1,4 @@
-use style::{FormatStyle, Penalty};
+use format_options::{FormatStyle, Penalty};
 use syntax::codemap::{mk_sp, Span, Pos, BytePos};
 use syntax::parse::lexer::{StringReader, Reader};
 use syntax::parse::ParseSess;
