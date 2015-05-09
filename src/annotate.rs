@@ -712,6 +712,7 @@ fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
         (&Token::OpenDelim(DelimToken::Brace), _) => true,
         (_, &Token::CloseDelim(DelimToken::Brace)) => true,
 
+        (_, &Token::Ident(..)) if curr.typ == TokenType::PatternGuardIf => true,
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => true,
 
         _ if prev.typ == TokenType::BinaryOperator => true,
@@ -730,6 +731,7 @@ fn split_penalty(prev: &FormatToken, curr: &FormatToken) -> Penalty {
     match (&prev.tok, &curr.tok) {
         (&Token::Comma, _) => 1,
         (_, &Token::RArrow) => 1,
+        (&Token::FatArrow, _) => 10,
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => 1,
         (&Token::Eq, _) | (&Token::BinOpEq(..), _) => 100,
         (_, &Token::Dot) => 10,

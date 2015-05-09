@@ -1398,3 +1398,12 @@ match whatever {
 }");
 }
 
+#[test]
+fn test_break_before_match_guard() {
+    assert_fmt_eq!("\
+match something {
+    (&Token::Not, &Token::OpenDelim(DelimToken::Paren))
+    | (&Token::Not, &Token::OpenDelim(DelimToken::Bracket))
+        if prev.typ == TokenType::Postfix => false,
+}");
+}
