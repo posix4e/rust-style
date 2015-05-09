@@ -721,8 +721,8 @@ fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
         (&Token::Comma, _) |
         (_, &Token::RArrow) |
         (&Token::FatArrow, _) |
-        // FIXME: dots should only break on method calls
         (_, &Token::Dot) => true,
+
         _ => false,
     }
 }
@@ -734,7 +734,7 @@ fn split_penalty(prev: &FormatToken, curr: &FormatToken) -> Penalty {
         (&Token::FatArrow, _) => 10,
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => 1,
         (&Token::Eq, _) | (&Token::BinOpEq(..), _) => 100,
-        (_, &Token::Dot) => 10,
+        (_, &Token::Dot) => 150,
         (_, &Token::OpenDelim(DelimToken::Brace)) => 1,
         _ => match prev.precedence() {
             None | Some(Precedence::Unknown) => 3,

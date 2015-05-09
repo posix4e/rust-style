@@ -1407,3 +1407,16 @@ match something {
         if prev.typ == TokenType::Postfix => false,
 }");
 }
+
+#[test]
+fn test_break_add_before_dot() {
+    assert_fmt_eq!("\
+child_lengthhhhhhhhhhhhhhhhh = prev.children[0].tokens.last().unwrap().total_length +
+                               style.column_limit;
+");
+    assert_fmt_eq!("\
+child_lengthhhhhhhhhhhhhhhhh =
+    prev.children[0].tokens.last().unwrap().total_length.something.something + style.column_limit;
+");
+}
+
