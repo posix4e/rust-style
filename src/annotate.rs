@@ -519,7 +519,7 @@ fn calculate_formatting_information(line: &mut UnwrappedLine, style: &FormatStyl
                 child_length = prev.children[0].tokens.last().unwrap().total_length + style.column_limit;
             }
 
-            if must_break_before_ || prev.children.len() > 1 {
+            if must_break_before_ || prev.children.len() > 1 || curr.last_line_column_width.is_some() {
                 total_length = prev.total_length + style.column_limit;
             } else {
                 total_length = prev.total_length + curr.column_width + child_length + spaces_required_before;

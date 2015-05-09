@@ -146,14 +146,24 @@ impl<'a> ContinuationIndenter<'a> {
         let mut penalty = 0;
         let current = state.current(line);
         state.column += current.column_width;
-        state.next_token_index += 1;
+        penalty += self.excess_character_penalty(state);
 
-        if state.column > self.style.column_limit {
-            let excess_characters = (state.column - self.style.column_limit) as Penalty;
-            penalty += self.style.penalty_excess_character * excess_characters;
+        // Handle multiline tokens
+        if let Some(last_line_column_width) = state.current(line).last_line_column_width {
+            state.column = last_line_column_width;
+            penalty += self.excess_character_penalty(state);
         }
 
+        state.next_token_index += 1;
         penalty
+    }
+
+    fn excess_character_penalty(&self, state: &LineState) -> Penalty {
+        if state.column <= self.style.column_limit {
+            return 0;
+        }
+        let excess_characters = (state.column - self.style.column_limit) as Penalty;
+        self.style.penalty_excess_character * excess_characters
     }
 
     fn move_state_past_fake_lparens(&self, line: &UnwrappedLine, state: &mut LineState) {

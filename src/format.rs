@@ -36,7 +36,7 @@ impl<'a> LineFormatter<'a> {
               fix_indentation: bool) -> Penalty {
         let cache_key = CacheKey::new(lines, additional_indent);
 
-        // If these lines has already been calculated in a previous dry run,
+        // If these lines have already been calculated in a previous dry run,
         // just return the previously calculated value, instead of recalculating it.
         if dry_run {
             match self.penalty_cache.get(&cache_key) {

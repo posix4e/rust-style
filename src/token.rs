@@ -109,6 +109,8 @@ pub struct FormatToken {
     pub column_width: u32,
     // The total length of the line up to and including this token.
     pub total_length: u32,
+    // The column width of the final line of this token, if it is multiline.
+    pub last_line_column_width: Option<u32>,
 
     // Children lines that come after this token
     pub children: Vec<UnwrappedLine>,
@@ -159,6 +161,7 @@ impl Default for FormatToken {
             original_row: 0,
             total_length: 0,
             column_width: 0,
+            last_line_column_width: None,
             children: vec![],
             decision: FormatDecision::Unformatted,
             split_penalty: 0,
@@ -347,11 +350,16 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
 
         let mut column_width = 0;
         let mut row_height = 0;
+        let mut last_line_column_width = None;
         for character in self.span_str(tok_sp.sp).chars() {
-            column_width += 1;
             if character == '\n' {
+                last_line_column_width = Some(0);
                 row_height += 1;
             }
+            match last_line_column_width {
+                Some(ref mut last) => *last += 1,
+                None => column_width += 1,
+            };
         }
 
         let comment_type = match tok_sp.tok {
@@ -379,6 +387,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             original_row: row,
             decision: FormatDecision::Unformatted,
             column_width: column_width,
+            last_line_column_width: last_line_column_width,
             comment_type: comment_type,
             ..FormatToken::default()
         };

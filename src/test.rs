@@ -1323,3 +1323,19 @@ fn test_uses_most_common_line_ending() {
     let expected = "let a = 3;\nlet b = 2;\nlet c = 3;\nlet d = 4;\nlet b = 2;\n";
     assert_eq!(fmt(input), expected);
 }
+
+#[test]
+fn test_multi_line_string() {
+    assert_fmt_eq!("\
+static USAGE: &'static str = \"\
+This is a long string. This is a long string. This is a long string
+This is a long string. This is a long string. This is a long string
+This is a long string. This is a long string. This is a long string\";");
+
+    assert_fmt_eq!("\
+static USAGE: &'static str = some_call(\"\\
+This is a long string. This is a long string. This is a long string
+This is a long string. This is a long string. This is a long string
+This is a long string. This is a long string. This is a long string\", aaaaaaaaa, bbbbbbbb,
+                                       ccccccccccc, ddddddddd, eeeeeeeeee);");
+}

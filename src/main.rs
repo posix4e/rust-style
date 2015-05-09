@@ -280,16 +280,19 @@ impl From<io::Error> for ArgumentsError {
         ArgumentsError::IoError(error)
     }
 }
+
 impl From<glob::GlobError> for ArgumentsError {
     fn from(error: glob::GlobError) -> Self {
         ArgumentsError::GlobError(error)
     }
 }
+
 impl From<glob::PatternError> for ArgumentsError {
     fn from(error: glob::PatternError) -> Self {
         ArgumentsError::PatternError(error)
     }
 }
+
 impl From<std::num::ParseIntError> for ArgumentsError {
     fn from(error: std::num::ParseIntError) -> Self {
         ArgumentsError::ParseIntError(error)
