@@ -570,6 +570,42 @@ fn test_precedence_token() {
 }
 
 #[test]
+fn test_binary_expr_in_match_guard() {
+    let lines = annotated_lines("match whatever { A | B if b == c && d && e => {} }");
+    let tok = &lines[0].tokens[2].children[0].tokens;
+
+    assert_eq!(tok[0].fake_lparens, &[Precedence::PatternOr]);
+    assert_eq!(tok[1].fake_lparens, &[]);
+    assert_eq!(tok[2].fake_lparens, &[]);
+    assert_eq!(tok[3].fake_lparens, &[]);
+    assert_eq!(tok[4].fake_lparens, &[Precedence::Relational, Precedence::LogicalAnd]);
+    assert_eq!(tok[5].fake_lparens, &[]);
+    assert_eq!(tok[6].fake_lparens, &[]);
+    assert_eq!(tok[7].fake_lparens, &[]);
+    assert_eq!(tok[8].fake_lparens, &[]);
+    assert_eq!(tok[9].fake_lparens, &[]);
+    assert_eq!(tok[10].fake_lparens, &[]);
+    assert_eq!(tok[11].fake_lparens, &[]);
+    assert_eq!(tok[12].fake_lparens, &[]);
+    assert_eq!(tok[13].fake_lparens, &[]);
+
+    assert_eq!(tok[0].fake_rparens, 0);
+    assert_eq!(tok[1].fake_rparens, 0);
+    assert_eq!(tok[2].fake_rparens, 1);
+    assert_eq!(tok[3].fake_rparens, 0);
+    assert_eq!(tok[4].fake_rparens, 0);
+    assert_eq!(tok[5].fake_rparens, 0);
+    assert_eq!(tok[6].fake_rparens, 1);
+    assert_eq!(tok[7].fake_rparens, 0);
+    assert_eq!(tok[8].fake_rparens, 0);
+    assert_eq!(tok[9].fake_rparens, 0);
+    assert_eq!(tok[10].fake_rparens, 1);
+    assert_eq!(tok[11].fake_rparens, 0);
+    assert_eq!(tok[12].fake_rparens, 0);
+    assert_eq!(tok[13].fake_rparens, 0);
+}
+
+#[test]
 fn test_precedence_format() {
     assert_fmt_eq!("\
 let a = 111 * 222 * 333 * 444 * 555 * 111 * 222 * 333 * 444 +
@@ -865,6 +901,7 @@ fn test_binary_or_in_pattern_guard() {
     let lines = annotated_lines("match foo { A | B if c | d == 2 => () }");
     let toks = &lines[0].tokens[2].children[0].tokens;
     assert_eq!(toks[1].typ, TokenType::PatternOr);
+    assert_eq!(toks[3].typ, TokenType::PatternGuardIf);
     assert_eq!(toks[5].typ, TokenType::BinaryOperator);
     assert_eq!(toks[7].typ, TokenType::BinaryOperator);
 }
@@ -1338,4 +1375,15 @@ This is a long string. This is a long string. This is a long string
 This is a long string. This is a long string. This is a long string
 This is a long string. This is a long string. This is a long string\", aaaaaaaaa, bbbbbbbb,
                                        ccccccccccc, ddddddddd, eeeeeeeeee);");
+}
+
+#[test]
+fn test_boolean_expr_in_match_guard() {
+    assert_fmt_eq!("\
+match whatever {
+    Token::RArrow if self.line.typ == LineType::FnDecl && !self.seen_fn_decl_arrow &&
+                         self.context_stack.is_empty() => {
+        TokenType::FnDeclArrow
+    }
+}");
 }

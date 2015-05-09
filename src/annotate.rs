@@ -144,8 +144,7 @@ impl<'a> AnnotatingParser<'a> {
         if self.has_current() {
             self.current_mut().binding_strength = self.context_binding_strength();
             self.current_mut().typ = typ.unwrap_or_else(|| self.determine_token_type());
-            self.in_pattern_guard = self.in_pattern_guard ||
-                self.current().tok.is_keyword(Keyword::If) && self.line.block == Block::Match;
+            self.in_pattern_guard = self.in_pattern_guard || self.current().typ == TokenType::PatternGuardIf;
             self.seen_fn_decl_arrow = self.seen_fn_decl_arrow || self.current().typ == TokenType::FnDeclArrow;
             self.current_index += 1;
         }
@@ -336,6 +335,10 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::FnDeclArrow
             }
 
+            Token::Ident(..) if self.current().tok.is_keyword(Keyword::If) && self.line.block == Block::Match => {
+                TokenType::PatternGuardIf
+            }
+
             _ => TokenType::Unknown,
         }
     }
@@ -351,13 +354,13 @@ struct ExpressionParser<'a> {
 impl<'a> ExpressionParser<'a> {
     fn parse(&mut self, precedence: i32, mut end_at_opening_brace: bool) {
         // These keywords should not be considered part of the start of a binary expression
-        while self.has_current() &&
-                (self.current().tok.is_keyword(Keyword::Return) ||
-                 self.current().tok.is_keyword(Keyword::While) ||
-                 self.current().tok.is_keyword(Keyword::Let) ||
-                 self.current().tok.is_keyword(Keyword::If) ||
-                 self.current().tok.is_keyword(Keyword::Match) ||
-                 self.current().tok.is_keyword(Keyword::While)) {
+        while self.has_current() && (self.current().tok.is_keyword(Keyword::Return) ||
+                                     self.current().tok.is_keyword(Keyword::While) ||
+                                     self.current().tok.is_keyword(Keyword::Let) ||
+                                     self.current().tok.is_keyword(Keyword::If) &&
+                                         self.current().typ != TokenType::PatternGuardIf ||
+                                     self.current().tok.is_keyword(Keyword::Match) ||
+                                     self.current().tok.is_keyword(Keyword::While)) {
 
             end_at_opening_brace = end_at_opening_brace ||
                                    self.current().tok.is_keyword(Keyword::While) ||
@@ -384,15 +387,27 @@ impl<'a> ExpressionParser<'a> {
             if !self.has_current() { break; }
             if self.current().closes_scope() { break; }
 
-            // check if we found a statement brace
-            if end_at_opening_brace && self.current().tok == Token::OpenDelim(DelimToken::Brace) {
-                break;
-            }
-
-            // check if current operator has higher precedence
+            // Check if current operator has higher precedence.
             let current_precedence = self.current_precedence();
             if current_precedence != -1 && current_precedence < precedence {
                 break;
+            }
+
+            if precedence > 0 {
+                // Check if we found a statement brace.
+                if end_at_opening_brace && self.current().tok == Token::OpenDelim(DelimToken::Brace) {
+                    break;
+                }
+
+                // Check for pattern guards
+                if self.current().typ == TokenType::PatternGuardIf {
+                    break;
+                }
+
+                // In match patterns, => token ends boolean expression.
+                if self.current().tok == Token::FatArrow {
+                    break;
+                }
             }
 
             if self.current().opens_scope() {

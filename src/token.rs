@@ -24,6 +24,7 @@ pub enum TokenType {
     LambdaParamsEnd,
     GenericBracket,
     PatternOr,
+    PatternGuardIf,
     FnDeclArrow,
     Unknown
 }
