@@ -43,7 +43,9 @@ impl<'a> ContinuationIndenter<'a> {
     }
 
     pub fn must_break(&self, line: &UnwrappedLine, state: &LineState) -> bool {
-        if state.current(line).must_break_before {
+        let current = state.current(line);
+
+        if current.must_break_before {
             return true;
         }
         if state.stack_top().break_between_paramters && is_between_struct_parameter(line, state) {
@@ -289,16 +291,18 @@ impl<'a> ContinuationIndenter<'a> {
 
 fn is_between_struct_parameter(line: &UnwrappedLine, state: &LineState) -> bool {
     let current = &line.tokens[state.next_token_index];
-    let previous = &line.tokens[state.next_token_index - 1];
 
-    if previous.tok == Token::Comma && !current.is_trailing_comment(line) {
-        return true;
-    }
-    if let Token::OpenDelim(DelimToken::Brace) = previous.tok {
-        return true;
-    }
     if let Token::CloseDelim(DelimToken::Brace) = current.tok {
         return true;
+    }
+
+    if let Some(previous) = line.prev_non_comment_token(state.next_token_index) {
+        if previous.tok == Token::Comma && !current.is_trailing_comment(line) {
+            return true;
+        }
+        if let Token::OpenDelim(DelimToken::Brace) = previous.tok {
+            return true;
+        }
     }
 
     false

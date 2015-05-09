@@ -698,6 +698,9 @@ fn must_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToke
     if prev.is_trailing_comment(line) {
         return true;
     }
+    if curr.newlines_before > 0 && prev.tok == Token::OpenDelim(DelimToken::Brace) {
+        return true;
+    }
     false
 }
 

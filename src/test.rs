@@ -999,6 +999,16 @@ let a = call(Foo {
 }
 
 #[test]
+fn test_retain_struct_init_newline() {
+    assert_fmt_eq!("let a = Something { blah1: blah, blah2: blah, }");
+    assert_fmt_eq!("\
+let a = Something {
+    blah1: blah,
+    blah2: blah,
+}");
+}
+
+#[test]
 fn test_fn_type() {
     assert_fmt_eq!("\
 struct TyDesc {
@@ -1387,3 +1397,4 @@ match whatever {
     }
 }");
 }
+
