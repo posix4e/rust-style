@@ -603,6 +603,38 @@ fn test_binary_expr_in_match_guard() {
     assert_eq!(tok[11].fake_rparens, 0);
     assert_eq!(tok[12].fake_rparens, 0);
     assert_eq!(tok[13].fake_rparens, 0);
+
+
+    let lines = annotated_lines("match whatever { A if b == c && !d.e => {} }");
+    let tok = &lines[0].tokens[2].children[0].tokens;
+
+    assert_eq!(tok[0].fake_lparens, &[]);
+    assert_eq!(tok[1].fake_lparens, &[]);
+    assert_eq!(tok[2].fake_lparens, &[Precedence::Relational, Precedence::LogicalAnd]);
+    assert_eq!(tok[3].fake_lparens, &[]);
+    assert_eq!(tok[4].fake_lparens, &[]);
+    assert_eq!(tok[5].fake_lparens, &[]);
+    assert_eq!(tok[6].fake_lparens, &[Precedence::Unknown]);
+    assert_eq!(tok[7].fake_lparens, &[Precedence::Unknown]);
+    assert_eq!(tok[8].fake_lparens, &[]);
+    assert_eq!(tok[9].fake_lparens, &[]);
+    assert_eq!(tok[10].fake_lparens, &[]);
+    assert_eq!(tok[11].fake_lparens, &[]);
+    assert_eq!(tok[12].fake_lparens, &[]);
+
+    assert_eq!(tok[0].fake_rparens, 0);
+    assert_eq!(tok[1].fake_rparens, 0);
+    assert_eq!(tok[2].fake_rparens, 0);
+    assert_eq!(tok[3].fake_rparens, 0);
+    assert_eq!(tok[4].fake_rparens, 1);
+    assert_eq!(tok[5].fake_rparens, 0);
+    assert_eq!(tok[6].fake_rparens, 0);
+    assert_eq!(tok[7].fake_rparens, 0);
+    assert_eq!(tok[8].fake_rparens, 0);
+    assert_eq!(tok[9].fake_rparens, 3);
+    assert_eq!(tok[10].fake_rparens, 0);
+    assert_eq!(tok[11].fake_rparens, 0);
+    assert_eq!(tok[12].fake_rparens, 0);
 }
 
 #[test]
@@ -892,7 +924,9 @@ fn test_line_break_between_patterns() {
 assert_fmt_eq!("\
 match self.current().tok {
     Token::Eq | Token::Le | Token::EqEq | Token::Ne | Token::Ge | Token::Gt | Token::AndAnd
-    | Token::OrOr | Token::BinOp(..) | Token::BinOpEq(..) => { TokenType::BinaryOperator }
+    | Token::OrOr | Token::BinOp(..) | Token::BinOpEq(..) => {
+        TokenType::BinaryOperator
+    }
 }");
 }
 
@@ -1420,3 +1454,18 @@ child_lengthhhhhhhhhhhhhhhhh =
 ");
 }
 
+#[test]
+fn test_indentation_after_break_before_if_guard() {
+    // Not the best indentation since it aligns with the if guard.
+    // This is a problem with having a continuation_width == indent_width.
+    // There is other ways to avoid it, such as using a newline brace.
+    assert_fmt_eq!("\
+fn something() {
+    match whatever {
+        Token::BinOp(BinOpToken::Or)
+            if self.line.block == Block::Match && !self.in_pattern_guard => {
+            TokenType::PatternOr
+        }
+    }
+}");
+}

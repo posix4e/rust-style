@@ -336,7 +336,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     fn parse_match_arm(&mut self) {
         if self.parse_decl_up_to(|t| *t == Token::FatArrow) {
             self.next_token();
-            if self.try_parse_child_block(Block::Statements) {
+            if self.try_parse_brace_block(Block::Statements) {
                 if self.ftok.tok == Token::Comma {
                     self.next_token();
                 }
