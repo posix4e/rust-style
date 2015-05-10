@@ -204,10 +204,14 @@ fn process_field(style: &mut FormatStyle, key: &str, value: &toml::Value) -> Res
         ("max_empty_lines_to_keep",   &Value::Integer(integer)) => style.max_empty_lines_to_keep   = integer as u32,
         ("penalty_excess_character",  &Value::Integer(integer)) => style.penalty_excess_character  = integer as u64,
         ("use_tabs",                  &Value::String(ref tabs)) => {
-            style.use_tabs = match tabs.as_ref() {
-                "Never"          => UseTabs::Never,
-                "Always"         => UseTabs::Always,
-                "ForIndentation" => UseTabs::ForIndentation,
+            // FIXME: replace when string.to_lowercase() is stable
+            let mut lower_tabs = String::with_capacity(tabs.len());
+            lower_tabs.extend(tabs[..].chars().flat_map(|c| c.to_lowercase()));
+
+            style.use_tabs = match lower_tabs.as_ref() {
+                "never"          => UseTabs::Never,
+                "always"         => UseTabs::Always,
+                "forindentation" => UseTabs::ForIndentation,
                 _ => return Err(StyleError::InvalidPair(format!("{}", key), format!("{}", value))),
             };
         },
