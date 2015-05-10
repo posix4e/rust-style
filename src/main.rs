@@ -4,10 +4,11 @@ extern crate docopt;
 extern crate glob;
 extern crate rustc_serialize;
 extern crate rust_style;
+extern crate toml;
 
 use docopt::Docopt;
+use rust_style::{reformat, UseTabs, Replacement, FormatStyle};
 use rustc_serialize::json;
-use rust_style::{reformat, Replacement, FormatStyle};
 use std::default::Default;
 use std::error::Error;
 use std::fs::{self, File};
@@ -15,6 +16,7 @@ use std::io::prelude::*;
 use std::io::{stdin, stdout, stderr, self};
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
+use toml::Value;
 
 static USAGE: &'static str = "
 Overview: A tool to format rust code.
@@ -166,6 +168,54 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
     Ok((actions, action_args))
 }
 
+#[allow(dead_code)]
+fn load_style_format(path_string: &str) -> Result<FormatStyle, StyleError> {
+    let mut style = FormatStyle::default();
+
+    let path = Path::new(path_string);
+    let mut file = try!(File::open(path));
+
+    let mut style_text = String::new();
+    try!(file.read_to_string(&mut style_text));
+
+    let mut parser = toml::Parser::new(style_text.as_ref());
+    let parse_result = parser.parse();
+
+    if parse_result == None {
+        return Err(StyleError::ParseError(parser.errors));
+    }
+
+    let parse_result = parse_result.unwrap();
+
+    for (key, value) in &parse_result {
+        try!(process_field(&mut style, key.as_ref(), value));
+    }
+
+    Ok(style)
+}
+
+fn process_field(style: &mut FormatStyle, key: &str, value: &toml::Value) -> Result<(), StyleError> {
+    match (key, value) {
+        ("column_limit",              &Value::Integer(integer)) => style.column_limit              = integer as u32,
+        ("indent_width",              &Value::Integer(integer)) => style.indent_width              = integer as u32,
+        ("tab_width",                 &Value::Integer(integer)) => style.tab_width                 = integer as u32,
+        ("continuation_indent_width", &Value::Integer(integer)) => style.continuation_indent_width = integer as u32,
+        ("method_chain_indent_width", &Value::Integer(integer)) => style.method_chain_indent_width = integer as u32,
+        ("max_empty_lines_to_keep",   &Value::Integer(integer)) => style.max_empty_lines_to_keep   = integer as u32,
+        ("penalty_excess_character",  &Value::Integer(integer)) => style.penalty_excess_character  = integer as u64,
+        ("use_tabs",                  &Value::String(ref tabs)) => {
+            style.use_tabs = match tabs.as_ref() {
+                "Never"          => UseTabs::Never,
+                "Always"         => UseTabs::Always,
+                "ForIndentation" => UseTabs::ForIndentation,
+                _ => return Err(StyleError::InvalidPair(format!("{}", key), format!("{}", value))),
+            };
+        },
+        _ => return Err(StyleError::InvalidPair(format!("{}", key), format!("{}", value))),
+    }
+    Ok(())
+}
+
 fn perform_input(action: &Action) -> IoResult<String> {
     let mut source_input = String::new();
 
@@ -212,6 +262,7 @@ fn perform_output(action: &Action, args: &ActionArgs, source: &String,
     Ok(())
 }
 
+#[allow(unused_variables)]
 fn write_argument_error(error: &ArgumentsError) {
     let (arg_type, details) = match *error {
         ArgumentsError::IoError(ref err)         => ("file", format!("{}", err)),
@@ -219,6 +270,14 @@ fn write_argument_error(error: &ArgumentsError) {
         ArgumentsError::PatternError(ref err)    => ("file", format!("{}", err)),
         ArgumentsError::ParseIntError(ref err)   => ("line", format!("{}", err)),
         ArgumentsError::ParseLinesError(ref err) => ("line", format!("{}", err)),
+        ArgumentsError::StyleLoadError(ref file_path, ref style_error) => {
+            let msg =  match *style_error {
+                StyleError::IoError(ref err)     => format!("{}", err),
+                StyleError::ParseError(ref errs) => format!("A toml parsing error occurred: {}", "TODO: errs"),
+                StyleError::InvalidPair(ref key, ref value) => format!("Invalid key/value: {}/{}.", key, value),
+            };
+            ("style", format!("Error loading {} rust-style file. {}",  file_path, msg))
+        }
     };
 
     writeln!(&mut stderr(), "Failed to proccess {} arguments. {}", arg_type, details).unwrap();
@@ -278,6 +337,8 @@ enum ArgumentsError {
     PatternError(glob::PatternError),
     ParseIntError(std::num::ParseIntError),
     ParseLinesError(&'static str),
+    #[allow(dead_code)]
+    StyleLoadError(String, StyleError),
 }
 
 impl From<io::Error> for ArgumentsError {
@@ -303,3 +364,17 @@ impl From<std::num::ParseIntError> for ArgumentsError {
         ArgumentsError::ParseIntError(error)
     }
 }
+
+#[derive(Debug)]
+enum StyleError {
+    IoError(io::Error),
+    ParseError(Vec<toml::ParserError>),
+    InvalidPair(String, String)
+}
+
+impl From<io::Error> for StyleError {
+    fn from(error: io::Error) -> Self {
+        StyleError::IoError(error)
+    }
+}
+
