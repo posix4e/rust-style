@@ -480,10 +480,18 @@ impl<'a> ExpressionParser<'a> {
     }
 
     fn current_precedence(&self) -> i32 {
+        let next = self.line.next_non_comment_token(self.current_index);
+        let next_tok = next.map(|t| &t.tok);
+
         if self.current().typ == TokenType::UnaryOperator {
             PRECEDENCE_UNARY
         } else if self.current().tok == Token::Dot {
             PRECEDENCE_DOT
+        } else if self.current().tok.is_ident() && Some(&Token::Colon) == next_tok {
+            // Struct field initialization
+            Precedence::Comma.to_i32()
+        } else if self.current().tok == Token::Colon {
+            Precedence::Comma.to_i32()
         } else {
             self.current()
                 .precedence()

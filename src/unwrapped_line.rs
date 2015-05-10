@@ -67,6 +67,12 @@ impl UnwrappedLine {
             .next()
     }
 
+    pub fn next_non_comment_token(&self, index: usize) -> Option<&FormatToken> {
+        self.tokens[index + 1..].iter()
+            .filter(|t| !t.is_comment())
+            .next()
+    }
+
     pub fn reset_token_indices(&mut self) {
         for i in 0..self.tokens.len() {
             self.tokens[i].index = i;

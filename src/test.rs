@@ -1469,3 +1469,13 @@ fn something() {
     }
 }");
 }
+
+#[test]
+fn test_binary_expr_in_struct_init() {
+    assert_fmt_eq!("\
+let a = SomeStruct {
+    blah: 123,
+    break_between_paramters: state.stack_top().break_between_paramters &&
+                                 p.to_i32() <= Precedence::Comma.to_i32(),
+};");
+}
