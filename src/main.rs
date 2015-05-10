@@ -187,7 +187,12 @@ fn perform_input(action: &Action) -> IoResult<String> {
 fn perform_output(action: &Action, args: &ActionArgs, source: &String,
                   replacements: &Vec<Replacement>) -> IoResult<()> {
     let output = if args.output_json {
-        json::encode(replacements).unwrap()
+        let result = json::encode(replacements);
+        if result.is_err() {
+            // should not ever occur
+            panic!("Unexpected error: {}", result.unwrap_err());
+        }
+        result.unwrap()
     } else {
         Replacement::apply_all(replacements, source)
     };

@@ -33,7 +33,7 @@ struct LineFormatter<'a> {
 
 impl<'a> LineFormatter<'a> {
     fn format(&mut self, lines: &mut [UnwrappedLine], dry_run: bool, additional_indent: u32,
-              fix_indentation: bool) -> Penalty {
+              fix_bad_indentation: bool) -> Penalty {
         let cache_key = CacheKey::new(lines, additional_indent);
 
         // If these lines have already been calculated in a previous dry run,
@@ -49,13 +49,15 @@ impl<'a> LineFormatter<'a> {
         for i in 0..lines.len() {
             assert!(lines[i].tokens.len() > 0);
             let indent = additional_indent + lines[i].level * self.style.indent_width;
+            let fix_indentation = fix_bad_indentation &&
+                                  (indent != lines[i].tokens[0].original_column);
 
             if lines[i].tokens[0].tok == Token::Eof {
                 self.format_eof(lines, i, dry_run);
                 continue;
             }
 
-            if lines[i].affected {
+            if lines[i].affected || fix_indentation {
                 self.format_first_token(&mut lines[i], indent, dry_run);
 
                 // If everything fits on a single line, just put it there.
@@ -250,8 +252,8 @@ impl<'a> LineFormatter<'a> {
 
         if newline {
             let additional_indent = state.stack_top().indent - previous.children[0].level * self.style.indent_width;
-            let fix_indentation = true;
-            *penalty += self.format(&mut previous.children, dry_run, additional_indent, fix_indentation);
+            let fix_bad_indentation = true;
+            *penalty += self.format(&mut previous.children, dry_run, additional_indent, fix_bad_indentation);
             return true;
         }
 
