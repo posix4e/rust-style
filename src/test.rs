@@ -1479,3 +1479,15 @@ let a = SomeStruct {
                                  p.to_i32() <= Precedence::Comma.to_i32(),
 };");
 }
+
+#[test]
+fn test_method_chaining_with_parens() {
+    assert_fmt_eq!("\
+impl Foo {
+    fn bar() {
+        let categories = elem.get_children(\"category\", None)
+                             .map(|e| ViaXml::from_xml(e.clone()).unwrap())
+                             .collect();
+    }
+}");
+}
