@@ -108,21 +108,14 @@ impl FromValue for u64 {
 impl FromValue for UseTabs {
     fn from_value(key: &str, value: &Value) -> Result<UseTabs, StyleParseError> {
         match value.as_str() {
+            Some("Never") => Ok(UseTabs::Never),
+            Some("Always") => Ok(UseTabs::Always),
+            Some("ForIndentation") => Ok(UseTabs::ForIndentation),
+            Some(..) =>
+                Err(StyleParseError::InvalidValue(key.to_string(), value.to_string(),
+                                                  "Never|Always|ForIndentation".to_string())),
             None => Err(StyleParseError::InvalidValueType(key.to_string(), value.to_string(),
                                                           "u64".to_string())),
-            Some(value) => {
-                // TODO: remove unnecessary allocation. Use case insensitive string comparison?
-                let mut lower = String::with_capacity(value.len());
-                lower.extend(value[..].chars().flat_map(|c| c.to_lowercase()));
-                match &lower[..] {
-                    "never" => Ok(UseTabs::Never),
-                    "always" => Ok(UseTabs::Always),
-                    "forindentation" => Ok(UseTabs::ForIndentation),
-                    _ => Err(StyleParseError::InvalidValue(key.to_string(), value.to_string(),
-                                                           "Never|Always|ForIndentation"
-                                                               .to_string()))
-                }
-            }
         }
     }
 }
@@ -215,6 +208,15 @@ use_tabs = \"Always\"
     #[test]
     fn test_toml_invalid_value() {
         let toml = "use_tabs = \"blah\"";
+        match FormatStyle::from_toml_str(toml) {
+            Err(StyleParseError::InvalidValue(..)) => {},
+            val => panic!(format!("unexpected value: {:?}", val)),
+        }
+    }
+
+    #[test]
+    fn test_toml_use_tab_case_sensitive() {
+        let toml = "use_tabs = \"always\"";
         match FormatStyle::from_toml_str(toml) {
             Err(StyleParseError::InvalidValue(..)) => {},
             val => panic!(format!("unexpected value: {:?}", val)),
