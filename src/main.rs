@@ -10,7 +10,7 @@ use rust_style::{reformat, Replacement, FormatStyle, StyleParseError};
 use rustc_serialize::json;
 use std::default::Default;
 use std::error::Error;
-use std::fs::{self, File};
+use std::fs::{self, File, Metadata, ReadDir};
 use std::io::prelude::*;
 use std::io::{stdin, stdout, stderr, self};
 use std::iter::FromIterator;
@@ -139,10 +139,10 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
 
         for file in &args.arg_file {
             let path = Path::new(file).to_path_buf();
-            let metadata = match fs::metadata(file) {
-                Ok(metadata) => metadata,
-                Err(err) => return Err(ArgsError::DoesNotExist(file.clone(), err)),
-            };
+            if !path._exists() {
+                return Err(ArgsError::DoesNotExist(file.clone()));
+            }
+            let metadata = fs::metadata(file).unwrap();
             if metadata.is_dir() {
                 // recursively find all *.rs files
                 let pattern = path.join("**/*.rs");
@@ -178,9 +178,9 @@ fn load_style_format(path_str: &str) -> ArgumentResult<FormatStyle> {
     };
 
     let mut toml_text = String::new();
-    let result = file.read_to_string(&mut toml_text);
-    if result.is_err() {
-        return Err(ArgsError::StyleLoadError(path_str.to_string(), result.unwrap_err()));
+    match file.read_to_string(&mut toml_text) {
+        Ok(_) => (),
+        Err(err) => return Err(ArgsError::StyleLoadError(path_str.to_string(), err)),
     }
 
     let arg_result = match FormatStyle::from_toml_str(toml_text.as_ref()) {
@@ -239,8 +239,8 @@ fn perform_output(action: &Action, args: &ActionArgs, source: &String,
 
 fn write_argument_error(error: &ArgsError) {
     let details = match *error {
-        ArgsError::DoesNotExist(ref path, ref err) =>
-            format!("File '{}' does not exist. {}", path, err),
+        ArgsError::DoesNotExist(ref path) =>
+            format!("File '{}' does not exist.", path),
         ArgsError::GlobError(ref err) =>
             format!("Glob error accessing path '{}'. {}", err.path().display(), err.error()),
         ArgsError::PatternError(ref err) => format!("Invalid file pattern used. {}", err),
@@ -252,8 +252,14 @@ fn write_argument_error(error: &ArgsError) {
             format!("Cannot load style file '{}'. {}", path, err),
         ArgsError::StyleParseError(ref path, ref err) => {
             let msg = match *err {
-                StyleParseError::ParseError(ref errs) =>
-                    format!("Failed to parse style toml: {}", "TODO errs"),
+                StyleParseError::ParseError(ref errs) => {
+                    let mut errors_string = String::new();
+                    for error in errs {
+                        errors_string.push_str(error.desc.as_ref());
+                        errors_string.push_str(", ");
+                    }
+                    format!("Failed to parse style toml: {}", errors_string)
+                },
                 StyleParseError::InvalidKey(ref key, ref value) =>
                     format!("Invalid key for '{} = {}'", key, value),
                 StyleParseError::InvalidValue(ref key, ref value, ref expect) =>
@@ -319,15 +325,13 @@ type IoResult<T> = Result<T, io::Error>;
 
 #[derive(Debug)]
 enum ArgsError {
-    DoesNotExist(String, io::Error),
+    DoesNotExist(/*path:*/ String),
     GlobError(glob::GlobError),
     PatternError(glob::PatternError),
     ParseIntError(std::num::ParseIntError),
     ParseLinesError(&'static str),
-    #[allow(dead_code)]
-    StyleLoadError(String, io::Error),
-    #[allow(dead_code)]
-    StyleParseError(String, StyleParseError),
+    StyleLoadError(/*path:*/ String, io::Error),
+    StyleParseError(/*path:*/ String, StyleParseError),
 }
 
 impl From<glob::GlobError> for ArgsError {
@@ -345,5 +349,34 @@ impl From<glob::PatternError> for ArgsError {
 impl From<std::num::ParseIntError> for ArgsError {
     fn from(error: std::num::ParseIntError) -> Self {
         ArgsError::ParseIntError(error)
+    }
+}
+
+// TODO: remove both below when stabilised
+pub trait PathExts {
+    fn _metadata(&self) -> io::Result<Metadata>;
+    // fn _symlink_metadata(&self) -> io::Result<Metadata>;
+    // fn _canonicalize(&self) -> io::Result<PathBuf>;
+    fn _read_link(&self) -> io::Result<PathBuf>;
+    fn _read_dir(&self) -> io::Result<ReadDir>;
+    fn _exists(&self) -> bool;
+    fn _is_file(&self) -> bool;
+    fn _is_dir(&self) -> bool;
+}
+impl PathExts for Path {
+    fn _metadata(&self) -> io::Result<Metadata> { fs::metadata(self) }
+    // unstable calls
+    // fn _symlink_metadata(&self) -> io::Result<Metadata> { fs::symlink_metadata(self) }
+    // fn _canonicalize(&self) -> io::Result<PathBuf> { fs::canonicalize(self) }
+    fn _read_link(&self) -> io::Result<PathBuf> { fs::read_link(self) }
+    fn _read_dir(&self) -> io::Result<ReadDir> { fs::read_dir(self) }
+    fn _exists(&self) -> bool { fs::metadata(self).is_ok() }
+
+    fn _is_file(&self) -> bool {
+        fs::metadata(self).map(|s| s.is_file()).unwrap_or(false)
+    }
+
+    fn _is_dir(&self) -> bool {
+        fs::metadata(self).map(|s| s.is_dir()).unwrap_or(false)
     }
 }
