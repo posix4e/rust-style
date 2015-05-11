@@ -278,7 +278,7 @@ impl<'a> ContinuationIndenter<'a> {
         if is_chained_method_call(line, state) {
             return match stack_top.method_chain_indent {
                 Some(indent) => indent,
-                None => stack_top.indent + self.style.method_chain_indent_width,
+                None => stack_top.indent + self.style.continuation_indent_width,
             }
         }
         if current.typ == TokenType::FnDeclArrow && state.fn_decl_arrow_indent.is_some() {

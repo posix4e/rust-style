@@ -170,23 +170,22 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
 }
 
 #[allow(dead_code)]
-fn load_style_format(path_string: &String) -> ArgumentResult<FormatStyle> {
-    let path_string_ref: &str = path_string.as_ref();
-    let path = Path::new(path_string_ref);
+fn load_style_format(path_str: &str) -> ArgumentResult<FormatStyle> {
+    let path = Path::new(path_str);
     let mut file = match File::open(path) {
         Ok(file) => file,
-        Err(err) => return Err(ArgsError::StyleLoadError(path_string.clone(), err)),
+        Err(err) => return Err(ArgsError::StyleLoadError(path_str.to_string(), err)),
     };
 
     let mut toml_text = String::new();
     let result = file.read_to_string(&mut toml_text);
     if result.is_err() {
-        return Err(ArgsError::StyleLoadError(path_string.clone(), result.unwrap_err()));
+        return Err(ArgsError::StyleLoadError(path_str.to_string(), result.unwrap_err()));
     }
 
     let arg_result = match FormatStyle::from_toml_str(toml_text.as_ref()) {
         Ok(style) => Ok(style),
-        Err(err) => Err(ArgsError::StyleParseError(path_string.clone(), err)),
+        Err(err) => Err(ArgsError::StyleParseError(path_str.to_string(), err)),
     };
 
     return arg_result;
@@ -239,25 +238,36 @@ fn perform_output(action: &Action, args: &ActionArgs, source: &String,
 }
 
 fn write_argument_error(error: &ArgsError) {
-    let (arg_type, details) = match *error {
-        ArgsError::DoesNotExist(ref path, ref err)    => ("file", format!("File '{}' does not exist. {}", path, err)),
-        ArgsError::GlobError(ref err)                 => ("file", format!("Glob error accessing path '{}'. {}", err.path().display(), err.error())),
-        ArgsError::PatternError(ref err)              => ("file", format!("Invalid file pattern used. {}", err)),
-        ArgsError::ParseIntError(ref err)             => ("line", format!("Error occurred when parsing lines. {}.", err)),
-        ArgsError::ParseLinesError(ref err)           => ("line", format!("Error occurred when parsing lines. {}", err)),
-        ArgsError::StyleLoadError(ref path, ref err)  => ("style", format!("Cannot load style file '{}'. {}", path, err)),
+    let details = match *error {
+        ArgsError::DoesNotExist(ref path, ref err) =>
+            format!("File '{}' does not exist. {}", path, err),
+        ArgsError::GlobError(ref err) =>
+            format!("Glob error accessing path '{}'. {}", err.path().display(), err.error()),
+        ArgsError::PatternError(ref err) => format!("Invalid file pattern used. {}", err),
+        ArgsError::ParseIntError(ref err) =>
+            format!("Error occurred when parsing lines. {}.", err),
+        ArgsError::ParseLinesError(ref err) =>
+            format!("Error occurred when parsing lines. {}", err),
+        ArgsError::StyleLoadError(ref path, ref err) =>
+            format!("Cannot load style file '{}'. {}", path, err),
         ArgsError::StyleParseError(ref path, ref err) => {
-            let msg =  match *err {
-                StyleParseError::ParseError(ref errs) => format!("{}", "TODO errs"),
-                StyleParseError::InvalidKey(ref key, ref value) => format!("Invalid key for '{} = {}'", key, value),
-                StyleParseError::InvalidValue(ref key, ref value, ref expect) => format!("Invalid value for '{} = {}'. Expecting value: {}.", value, key, expect),
-                StyleParseError::InvalidValueType(ref key, ref value, ref expect) => format!("Invalid value type for '{} = {}'. Expecting type: {}.", value, key, expect),
+            let msg = match *err {
+                StyleParseError::ParseError(ref errs) =>
+                    format!("Failed to parse style toml: {}", "TODO errs"),
+                StyleParseError::InvalidKey(ref key, ref value) =>
+                    format!("Invalid key for '{} = {}'", key, value),
+                StyleParseError::InvalidValue(ref key, ref value, ref expect) =>
+                    format!("Invalid value for '{} = {}'. Expecting value: {}.", value, key,
+                            expect),
+                StyleParseError::InvalidValueType(ref key, ref value, ref expect) =>
+                    format!("Invalid value type for '{} = {}'. Expecting type: {}.", value, key,
+                            expect),
             };
-            ("style", format!("Parsing error when loading style file '{}'. {}",  path, msg))
+            format!("Parsing error when loading style file '{}'. {}", path, msg)
         }
     };
 
-    writeln!(&mut stderr(), "Failed to proccess {} arguments. {}", arg_type, details).unwrap();
+    writeln!(&mut stderr(), "Failed to process arguments. {}", details).unwrap();
 }
 
 fn write_input_error(input_type: &Input, error: &io::Error) {
