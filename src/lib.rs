@@ -1,6 +1,7 @@
 extern crate typed_arena;
 extern crate rustc_serialize;
 extern crate syntex_syntax as syntax;
+extern crate toml;
 
 mod affected_lines;
 mod annotate;
@@ -15,7 +16,7 @@ mod whitespace_manager;
 #[cfg(test)]
 mod test;
 
-pub use format_options::{FormatStyle, Penalty, UseTabs};
+pub use format_options::{FormatStyle, StyleParseError, Penalty, UseTabs};
 pub use internal::reformat;
 pub use replacement::Replacement;
 

@@ -4,10 +4,9 @@ extern crate docopt;
 extern crate glob;
 extern crate rustc_serialize;
 extern crate rust_style;
-extern crate toml;
 
 use docopt::Docopt;
-use rust_style::{reformat, UseTabs, Replacement, FormatStyle};
+use rust_style::{reformat, Replacement, FormatStyle, StyleParseError};
 use rustc_serialize::json;
 use std::default::Default;
 use std::error::Error;
@@ -16,7 +15,6 @@ use std::io::prelude::*;
 use std::io::{stdin, stdout, stderr, self};
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
-use toml::Value;
 
 static USAGE: &'static str = "
 Overview: A tool to format rust code.
@@ -106,13 +104,13 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
         for range_string in &args.flag_lines {
             let range_values = Vec::<&str>::from_iter(range_string.split(':'));
             if range_values.len() != 2 {
-                return Err(ArgumentsError::ParseLinesError(
+                return Err(ArgsError::ParseLinesError(
                     "Incorrect format for line ranges, expecting --lines=<uint>:<uint>."));
             }
             let a = try!(range_values[0].parse::<u32>());
             let b = try!(range_values[1].parse::<u32>());
             if a == 0 || b == 0 {
-                return Err(ArgumentsError::ParseLinesError(
+                return Err(ArgsError::ParseLinesError(
                     "Cannot specify line 0, expecting 1-based line numbers."));
             }
             // converted from 1-based to 0-based
@@ -141,7 +139,10 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
 
         for file in &args.arg_file {
             let path = Path::new(file).to_path_buf();
-            let metadata = try!(fs::metadata(file));
+            let metadata = match fs::metadata(file) {
+                Ok(metadata) => metadata,
+                Err(err) => return Err(ArgsError::DoesNotExist(file.clone(), err)),
+            };
             if metadata.is_dir() {
                 // recursively find all *.rs files
                 let pattern = path.join("**/*.rs");
@@ -169,55 +170,26 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
 }
 
 #[allow(dead_code)]
-fn load_style_format(path_string: &str) -> Result<FormatStyle, StyleError> {
-    let mut style = FormatStyle::default();
+fn load_style_format(path_string: &String) -> ArgumentResult<FormatStyle> {
+    let path_string_ref: &str = path_string.as_ref();
+    let path = Path::new(path_string_ref);
+    let mut file = match File::open(path) {
+        Ok(file) => file,
+        Err(err) => return Err(ArgsError::StyleLoadError(path_string.clone(), err)),
+    };
 
-    let path = Path::new(path_string);
-    let mut file = try!(File::open(path));
-
-    let mut style_text = String::new();
-    try!(file.read_to_string(&mut style_text));
-
-    let mut parser = toml::Parser::new(style_text.as_ref());
-    let parse_result = parser.parse();
-
-    if parse_result == None {
-        return Err(StyleError::ParseError(parser.errors));
+    let mut toml_text = String::new();
+    let result = file.read_to_string(&mut toml_text);
+    if result.is_err() {
+        return Err(ArgsError::StyleLoadError(path_string.clone(), result.unwrap_err()));
     }
 
-    let parse_result = parse_result.unwrap();
+    let arg_result = match FormatStyle::from_toml_str(toml_text.as_ref()) {
+        Ok(style) => Ok(style),
+        Err(err) => Err(ArgsError::StyleParseError(path_string.clone(), err)),
+    };
 
-    for (key, value) in &parse_result {
-        try!(process_field(&mut style, key.as_ref(), value));
-    }
-
-    Ok(style)
-}
-
-fn process_field(style: &mut FormatStyle, key: &str, value: &toml::Value) -> Result<(), StyleError> {
-    match (key, value) {
-        ("column_limit",              &Value::Integer(integer)) => style.column_limit              = integer as u32,
-        ("indent_width",              &Value::Integer(integer)) => style.indent_width              = integer as u32,
-        ("tab_width",                 &Value::Integer(integer)) => style.tab_width                 = integer as u32,
-        ("continuation_indent_width", &Value::Integer(integer)) => style.continuation_indent_width = integer as u32,
-        ("method_chain_indent_width", &Value::Integer(integer)) => style.method_chain_indent_width = integer as u32,
-        ("max_empty_lines_to_keep",   &Value::Integer(integer)) => style.max_empty_lines_to_keep   = integer as u32,
-        ("penalty_excess_character",  &Value::Integer(integer)) => style.penalty_excess_character  = integer as u64,
-        ("use_tabs",                  &Value::String(ref tabs)) => {
-            // FIXME: replace when string.to_lowercase() is stable
-            let mut lower_tabs = String::with_capacity(tabs.len());
-            lower_tabs.extend(tabs[..].chars().flat_map(|c| c.to_lowercase()));
-
-            style.use_tabs = match lower_tabs.as_ref() {
-                "never"          => UseTabs::Never,
-                "always"         => UseTabs::Always,
-                "forindentation" => UseTabs::ForIndentation,
-                _ => return Err(StyleError::InvalidPair(format!("{}", key), format!("{}", value))),
-            };
-        },
-        _ => return Err(StyleError::InvalidPair(format!("{}", key), format!("{}", value))),
-    }
-    Ok(())
+    return arg_result;
 }
 
 fn perform_input(action: &Action) -> IoResult<String> {
@@ -266,21 +238,22 @@ fn perform_output(action: &Action, args: &ActionArgs, source: &String,
     Ok(())
 }
 
-#[allow(unused_variables)]
-fn write_argument_error(error: &ArgumentsError) {
+fn write_argument_error(error: &ArgsError) {
     let (arg_type, details) = match *error {
-        ArgumentsError::IoError(ref err)         => ("file", format!("{}", err)),
-        ArgumentsError::GlobError(ref err)       => ("file", format!("{}", err)),
-        ArgumentsError::PatternError(ref err)    => ("file", format!("{}", err)),
-        ArgumentsError::ParseIntError(ref err)   => ("line", format!("{}", err)),
-        ArgumentsError::ParseLinesError(ref err) => ("line", format!("{}", err)),
-        ArgumentsError::StyleLoadError(ref file_path, ref style_error) => {
-            let msg =  match *style_error {
-                StyleError::IoError(ref err)     => format!("{}", err),
-                StyleError::ParseError(ref errs) => format!("A toml parsing error occurred: {}", "TODO: errs"),
-                StyleError::InvalidPair(ref key, ref value) => format!("Invalid key/value: {}/{}.", key, value),
+        ArgsError::DoesNotExist(ref path, ref err)    => ("file", format!("File '{}' does not exist. {}", path, err)),
+        ArgsError::GlobError(ref err)                 => ("file", format!("Glob error accessing path '{}'. {}", err.path().display(), err.error())),
+        ArgsError::PatternError(ref err)              => ("file", format!("Invalid file pattern used. {}", err)),
+        ArgsError::ParseIntError(ref err)             => ("line", format!("Error occurred when parsing lines. {}.", err)),
+        ArgsError::ParseLinesError(ref err)           => ("line", format!("Error occurred when parsing lines. {}", err)),
+        ArgsError::StyleLoadError(ref path, ref err)  => ("style", format!("Cannot load style file '{}'. {}", path, err)),
+        ArgsError::StyleParseError(ref path, ref err) => {
+            let msg =  match *err {
+                StyleParseError::ParseError(ref errs) => format!("{}", "TODO errs"),
+                StyleParseError::InvalidKey(ref key, ref value) => format!("Invalid key for '{} = {}'", key, value),
+                StyleParseError::InvalidValue(ref key, ref value, ref expect) => format!("Invalid value for '{} = {}'. Expecting value: {}.", value, key, expect),
+                StyleParseError::InvalidValueType(ref key, ref value, ref expect) => format!("Invalid value type for '{} = {}'. Expecting type: {}.", value, key, expect),
             };
-            ("style", format!("Error loading {} rust-style file. {}",  file_path, msg))
+            ("style", format!("Parsing error when loading style file '{}'. {}",  path, msg))
         }
     };
 
@@ -331,54 +304,36 @@ enum Output {
     File(PathBuf),
 }
 
-type ArgumentResult<T> = Result<T, ArgumentsError>;
+type ArgumentResult<T> = Result<T, ArgsError>;
 type IoResult<T> = Result<T, io::Error>;
 
 #[derive(Debug)]
-enum ArgumentsError {
-    IoError(io::Error),
+enum ArgsError {
+    DoesNotExist(String, io::Error),
     GlobError(glob::GlobError),
     PatternError(glob::PatternError),
     ParseIntError(std::num::ParseIntError),
     ParseLinesError(&'static str),
     #[allow(dead_code)]
-    StyleLoadError(String, StyleError),
+    StyleLoadError(String, io::Error),
+    #[allow(dead_code)]
+    StyleParseError(String, StyleParseError),
 }
 
-impl From<io::Error> for ArgumentsError {
-    fn from(error: io::Error) -> Self {
-        ArgumentsError::IoError(error)
-    }
-}
-
-impl From<glob::GlobError> for ArgumentsError {
+impl From<glob::GlobError> for ArgsError {
     fn from(error: glob::GlobError) -> Self {
-        ArgumentsError::GlobError(error)
+        ArgsError::GlobError(error)
     }
 }
 
-impl From<glob::PatternError> for ArgumentsError {
+impl From<glob::PatternError> for ArgsError {
     fn from(error: glob::PatternError) -> Self {
-        ArgumentsError::PatternError(error)
+        ArgsError::PatternError(error)
     }
 }
 
-impl From<std::num::ParseIntError> for ArgumentsError {
+impl From<std::num::ParseIntError> for ArgsError {
     fn from(error: std::num::ParseIntError) -> Self {
-        ArgumentsError::ParseIntError(error)
+        ArgsError::ParseIntError(error)
     }
 }
-
-#[derive(Debug)]
-enum StyleError {
-    IoError(io::Error),
-    ParseError(Vec<toml::ParserError>),
-    InvalidPair(String, String)
-}
-
-impl From<io::Error> for StyleError {
-    fn from(error: io::Error) -> Self {
-        StyleError::IoError(error)
-    }
-}
-
