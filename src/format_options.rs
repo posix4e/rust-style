@@ -15,8 +15,8 @@ pub enum UseTabs {
 pub struct FormatStyle {
     pub column_limit: u32,
     pub indent_width: u32,
-    pub tab_width: u32,
     pub continuation_indent_width: u32,
+    pub tab_width: u32,
     pub use_tabs: UseTabs,
     pub max_empty_lines_to_keep: u32,
     pub penalty_excess_character: Penalty,
@@ -27,8 +27,8 @@ impl Default for FormatStyle {
         FormatStyle {
             column_limit: 99,
             indent_width: 4,
-            tab_width: 4,
             continuation_indent_width: 4,
+            tab_width: 4,
             use_tabs: UseTabs::Never,
             max_empty_lines_to_keep: 1,
             penalty_excess_character: 1000000,
@@ -36,31 +36,37 @@ impl Default for FormatStyle {
     }
 }
 
+macro_rules! process_fields {
+    ($default:ident, $result:ident, {$($field: ident),+}) => (
+        FormatStyle {
+            $(
+                $field: try!(process_field($default.$field, stringify!($field), &mut $result)),
+            )+
+        }
+    )
+}
+
 impl FormatStyle {
     pub fn from_toml_str(toml_text: &str) -> Result<FormatStyle, StyleParseError> {
-        let def = FormatStyle::default();
+        let default_style = FormatStyle::default();
         let mut parser = toml::Parser::new(toml_text);
-        let mut result = match parser.parse() {
+        let mut parser_result = match parser.parse() {
             None => return Err(StyleParseError::ParseError(parser.errors)),
             Some(result) => result,
         };
 
-        let style = FormatStyle {
-            column_limit: try!(process_field(def.column_limit, "column_limit", &mut result)),
-            indent_width: try!(process_field(def.indent_width, "indent_width", &mut result)),
-            tab_width: try!(process_field(def.tab_width, "tab_width", &mut result)),
-            continuation_indent_width: try!(process_field(def.continuation_indent_width,
-                                                          "continuation_indent_width",
-                                                          &mut result)),
-            max_empty_lines_to_keep: try!(process_field(def.max_empty_lines_to_keep,
-                                                        "max_empty_lines_to_keep", &mut result)),
-            penalty_excess_character: try!(process_field(def.penalty_excess_character,
-                                                         "penalty_excess_character", &mut result)),
-            use_tabs: try!(process_field(def.use_tabs, "use_tabs", &mut result)),
-        };
+        let style = process_fields!(default_style, parser_result, {
+            column_limit,
+            indent_width,
+            continuation_indent_width,
+            tab_width,
+            use_tabs,
+            max_empty_lines_to_keep,
+            penalty_excess_character
+        });
 
         // Any values which were not removed have an invalid key
-        for (key, value) in &result {
+        for (key, value) in &parser_result {
            return Err(StyleParseError::InvalidKey(key.to_string(), value.to_string()));
         }
 
