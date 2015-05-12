@@ -10,11 +10,12 @@ use rust_style::{reformat, Replacement, FormatStyle, StyleParseError};
 use rustc_serialize::json;
 use std::default::Default;
 use std::error::Error;
-use std::fs::{self, File, Metadata, ReadDir};
+use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{stdin, stdout, stderr, self};
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
+use rust_style::unstable::PathExts;
 
 static USAGE: &'static str = "
 Overview: A tool to format rust code.
@@ -63,7 +64,6 @@ fn run() -> i32 {
         .and_then(|d| d.version(Some(version)).help(true).decode())
         .unwrap_or_else(|e| e.exit());
 
-    let style = FormatStyle::default();
     let args_result = get_actions(&args);
 
     if args_result.is_err() {
@@ -82,7 +82,7 @@ fn run() -> i32 {
             },
             Ok(ref source) => {
                 let ranges = action_args.ranges.as_ref().map(|r| &r[..]);
-                let replacements = reformat(source, &style, ranges);
+                let replacements = reformat(source, &action.style, ranges);
                 let output_result = perform_output(action, &action_args, source, &replacements);
 
                 if output_result.is_err() {
@@ -125,16 +125,11 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
 
     let actions = if args.arg_file.is_empty() {
         vec![Action {
+            style: FormatStyle::default(),
             input: Input::StdIn,
             output: Output::StdOut,
         }]
     } else {
-        let new_action = |input: PathBuf| Action {
-            output: if args.flag_write { Output::File(input.clone()) }
-                    else { Output::StdOut },
-            input: Input::File(input),
-        };
-
         let mut actions = vec![];
 
         for file in &args.arg_file {
@@ -156,10 +151,11 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
 
                 let paths = try!(glob::glob_with(pattern, &match_options));
                 for result in paths {
-                    actions.push(new_action(try!(result)));
+                    let path = try!(result);
+                    actions.push(try!(create_file_action(path, &args)));
                 }
             } else {
-                actions.push(new_action(path));
+                actions.push(try!(create_file_action(path, &args)));
             }
         }
 
@@ -169,6 +165,55 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
     Ok((actions, action_args))
 }
 
+fn create_file_action(input: PathBuf, args: &Args) -> ArgumentResult<Action> {
+    let style = try!(search_style_format(input.clone()));
+    let output = if args.flag_write {
+        Output::File(input.clone())
+    } else {
+        Output::StdOut
+    };
+
+    Ok(Action {
+        style: style,
+        output: output,
+        input: Input::File(input),
+    })
+}
+
+fn search_style_format(_: PathBuf) -> ArgumentResult<FormatStyle> {
+    Ok(FormatStyle::default())
+}
+
+/*
+fn search_style_format(start: PathBuf) -> ArgumentResult<FormatStyle> {
+    let target = ".rust-style.toml";
+    let mut node = start._canonicalize().unwrap();
+
+    // removes existing file component from the path
+    if node.as_path()._is_file() {
+        node.pop();
+    }
+
+    let mut root_reached = false;
+    while !root_reached {
+        node.push(target);
+
+        let target_found = {
+            let path = node.as_path();
+            path._exists() && path._is_file() &&
+                path.file_name().unwrap() == target
+        };
+
+        if target_found {
+            return load_style_format(node.to_str().unwrap());
+        }
+
+        root_reached = !node.pop() || !node.pop();
+    }
+
+    Ok(FormatStyle::default())
+}
+*/
 #[allow(dead_code)]
 fn load_style_format(path_str: &str) -> ArgumentResult<FormatStyle> {
     let path = Path::new(path_str);
@@ -306,6 +351,7 @@ struct ActionArgs {
 }
 
 struct Action {
+    style: FormatStyle,
     input: Input,
     output: Output,
 }
@@ -349,34 +395,5 @@ impl From<glob::PatternError> for ArgsError {
 impl From<std::num::ParseIntError> for ArgsError {
     fn from(error: std::num::ParseIntError) -> Self {
         ArgsError::ParseIntError(error)
-    }
-}
-
-// TODO: remove both below when stabilised
-pub trait PathExts {
-    fn _metadata(&self) -> io::Result<Metadata>;
-    // fn _symlink_metadata(&self) -> io::Result<Metadata>;
-    // fn _canonicalize(&self) -> io::Result<PathBuf>;
-    fn _read_link(&self) -> io::Result<PathBuf>;
-    fn _read_dir(&self) -> io::Result<ReadDir>;
-    fn _exists(&self) -> bool;
-    fn _is_file(&self) -> bool;
-    fn _is_dir(&self) -> bool;
-}
-impl PathExts for Path {
-    fn _metadata(&self) -> io::Result<Metadata> { fs::metadata(self) }
-    // unstable calls
-    // fn _symlink_metadata(&self) -> io::Result<Metadata> { fs::symlink_metadata(self) }
-    // fn _canonicalize(&self) -> io::Result<PathBuf> { fs::canonicalize(self) }
-    fn _read_link(&self) -> io::Result<PathBuf> { fs::read_link(self) }
-    fn _read_dir(&self) -> io::Result<ReadDir> { fs::read_dir(self) }
-    fn _exists(&self) -> bool { fs::metadata(self).is_ok() }
-
-    fn _is_file(&self) -> bool {
-        fs::metadata(self).map(|s| s.is_file()).unwrap_or(false)
-    }
-
-    fn _is_dir(&self) -> bool {
-        fs::metadata(self).map(|s| s.is_dir()).unwrap_or(false)
     }
 }

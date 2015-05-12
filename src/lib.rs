@@ -12,6 +12,7 @@ mod replacement;
 mod token;
 mod unwrapped_line;
 mod whitespace_manager;
+pub mod unstable;
 
 #[cfg(test)]
 mod test;
