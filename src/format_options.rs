@@ -13,6 +13,8 @@ pub enum UseTabs {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct FormatStyle {
+    pub bin_pack_arguments: bool,
+    pub bin_pack_parameters: bool,
     pub column_limit: u32,
     pub indent_width: u32,
     pub continuation_indent_width: u32,
@@ -25,6 +27,8 @@ pub struct FormatStyle {
 impl Default for FormatStyle {
     fn default() -> FormatStyle {
         FormatStyle {
+            bin_pack_arguments: true,
+            bin_pack_parameters: true,
             column_limit: 99,
             indent_width: 4,
             continuation_indent_width: 4,
@@ -56,6 +60,8 @@ impl FormatStyle {
         };
 
         let style = process_fields!(default_style, parser_result, {
+            bin_pack_arguments,
+            bin_pack_parameters,
             column_limit,
             indent_width,
             continuation_indent_width,
@@ -101,6 +107,16 @@ impl FromValue for u64 {
             Some(value) => Ok(value as u64),
             None => Err(StyleParseError::InvalidValueType(key.to_string(), value.to_string(),
                                                           "u64".to_string()))
+        }
+    }
+}
+
+impl FromValue for bool {
+    fn from_value(key: &str, value: &Value) -> Result<bool, StyleParseError> {
+        match value.as_bool() {
+            Some(value) => Ok(value),
+            None => Err(StyleParseError::InvalidValueType(key.to_string(), value.to_string(),
+                                                          "bool".to_string()))
         }
     }
 }
@@ -175,6 +191,8 @@ mod test {
             use_tabs: UseTabs::Always,
             tab_width: 64,
             indent_width: 16,
+            bin_pack_parameters: false,
+            bin_pack_arguments: true,
             ..FormatStyle::default()
         };
 
@@ -182,6 +200,8 @@ mod test {
 indent_width = 16
 tab_width = 64
 use_tabs = \"Always\"
+bin_pack_parameters = false
+bin_pack_arguments = true
 ");
 
         assert_eq!(expected, result.unwrap());

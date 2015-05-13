@@ -20,7 +20,7 @@ pub fn annotate_lines(lines: &mut [UnwrappedLine], style: &FormatStyle) {
             line: line,
             context_stack: vec![],
             in_pattern_guard: false,
-            seen_fn_decl_arrow: false,
+            seen_fn_decl_params: false,
         }.parse_line();
 
         // The expression parser adds invisible braces to the tokens in respect to their precedence.
@@ -64,7 +64,7 @@ struct AnnotatingParser<'a> {
     line: &'a mut UnwrappedLine,
     context_stack: Vec<Context>,
     in_pattern_guard: bool,
-    seen_fn_decl_arrow: bool,
+    seen_fn_decl_params: bool,
 }
 
 impl<'a> AnnotatingParser<'a> {
@@ -145,7 +145,14 @@ impl<'a> AnnotatingParser<'a> {
             self.current_mut().binding_strength = self.context_binding_strength();
             self.current_mut().typ = typ.unwrap_or_else(|| self.determine_token_type());
             self.in_pattern_guard = self.in_pattern_guard || self.current().typ == TokenType::PatternGuardIf;
-            self.seen_fn_decl_arrow = self.seen_fn_decl_arrow || self.current().typ == TokenType::FnDeclArrow;
+
+            if !self.seen_fn_decl_params && self.current().typ == TokenType::FnDeclParamsEnd &&
+                   self.current().matching_paren.is_some() {
+                let start_index = self.current().matching_paren.unwrap();
+                self.line.tokens[start_index].typ = TokenType::FnDeclParamsStart;
+                self.seen_fn_decl_params = true;
+            }
+
             self.current_index += 1;
         }
     }
@@ -208,14 +215,18 @@ impl<'a> AnnotatingParser<'a> {
 
     fn parse_paren(&mut self) -> Result<(), ()> {
         assert_eq!(self.current().tok, Token::OpenDelim(DelimToken::Paren));
-        self.next(); // advance over the opening parens
+        let start_index = self.current_index;
+        self.next(); // advance over the opening paren
 
         self.using_context(ContextType::Parens, |this| {
             while this.has_current() {
                 match &this.current().tok {
                     // end the paren parsing
                     &Token::CloseDelim(DelimToken::Paren) => {
-                        // consume the closing parens in this context
+                        let end_index = this.current_index;
+                        this.line.tokens[start_index].matching_paren = Some(end_index);
+                        this.line.tokens[end_index].matching_paren = Some(start_index);
+
                         this.next();
                         return Ok(());
                     }
@@ -287,6 +298,7 @@ impl<'a> AnnotatingParser<'a> {
                 &Token::Ident(..) if tok.is_keyword(Keyword::Trait) => return LineType::TraitDecl,
                 &Token::Ident(..) if tok.is_keyword(Keyword::Fn) => return LineType::FnDecl,
                 &Token::Ident(..) if tok.is_keyword(Keyword::Type) => return LineType::TypeDecl,
+                _ if !tok.is_any_keyword() => return LineType::Unknown,
                 _ => {},
             }
         }
@@ -294,6 +306,8 @@ impl<'a> AnnotatingParser<'a> {
     }
 
     fn determine_token_type(&self) -> TokenType {
+        let prev = self.line.prev_non_comment_token(self.current_index);
+
         match self.current().tok {
             Token::Not |
             Token::BinOp(BinOpToken::Star) |
@@ -329,13 +343,19 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::BinaryOperator
             }
 
-            Token::RArrow if self.line.typ == LineType::FnDecl &&
-                             !self.seen_fn_decl_arrow &&
-                             self.context_stack.is_empty() => {
+            Token::CloseDelim(DelimToken::Paren) if self.line.typ == LineType::FnDecl &&
+                                                        self.context_stack.len() == 1 &&
+                                                        !self.seen_fn_decl_params => {
+                TokenType::FnDeclParamsEnd
+            }
+
+            Token::RArrow
+                if prev.map(|t| t.typ == TokenType::FnDeclParamsEnd).unwrap_or(false) => {
                 TokenType::FnDeclArrow
             }
 
-            Token::Ident(..) if self.current().tok.is_keyword(Keyword::If) && self.line.block == Block::Match => {
+            Token::Ident(..) if self.current().tok.is_keyword(Keyword::If) &&
+                                    self.line.block == Block::Match => {
                 TokenType::PatternGuardIf
             }
 

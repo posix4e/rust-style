@@ -22,18 +22,20 @@ pub enum TokenType {
     UnaryOperator,
     LambdaParamsStart,
     LambdaParamsEnd,
+    FnDeclParamsStart,
+    FnDeclParamsEnd,
+    FnDeclArrow,
     GenericBracket,
     PatternOr,
     PatternGuardIf,
-    FnDeclArrow,
     Unknown
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Precedence {
     Unknown        = 0,  // Not a binary operator
-    PatternOr      = 1,  // | (in a pattern context)
-    Comma          = 2,  // ,
+    Comma          = 1,  // ,
+    PatternOr      = 2,  // | (in a pattern context)
     Assignment     = 3,  // = += -= *= /= <<= >>= &= ^= |=
     LogicalOr      = 4,  // ||
     LogicalAnd     = 5,  // &&
@@ -57,8 +59,8 @@ impl Precedence {
         //        But FromPrimitive was removed. Fix this with its safe replacement.
         Some(match val {
             0  => Precedence::Unknown,
-            1  => Precedence::PatternOr,
-            2  => Precedence::Comma,
+            1  => Precedence::Comma,
+            2  => Precedence::PatternOr,
             3  => Precedence::Assignment,
             4  => Precedence::LogicalOr,
             5  => Precedence::LogicalAnd,
@@ -146,6 +148,9 @@ pub struct FormatToken {
     pub fake_lparens: Vec<Precedence>,
     // The number of fake parenthesis which end on this token
     pub fake_rparens: u32,
+
+    // The index of the matching real paren, if this is a real paren
+    pub matching_paren: Option<usize>,
 }
 
 impl Default for FormatToken {
@@ -177,6 +182,7 @@ impl Default for FormatToken {
             last_operator: false,
             fake_lparens: vec![],
             fake_rparens: 0,
+            matching_paren: None,
         }
     }
 }

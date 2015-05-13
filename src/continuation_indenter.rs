@@ -6,6 +6,7 @@ use token::{FormatToken, Precedence, TokenType};
 use unwrapped_line::{UnwrappedLine, LineType};
 use whitespace_manager::WhitespaceManager;
 
+
 pub struct ContinuationIndenter<'a> {
     pub style: &'a FormatStyle,
 }
@@ -17,6 +18,7 @@ impl<'a> ContinuationIndenter<'a> {
             first_indent: first_indent,
             next_token_index: 0,
             fn_decl_arrow_indent: None,
+            fn_decl_arrow_must_break: false,
             stack: vec![ParenState {
                 indent: first_indent + self.style.continuation_indent_width,
                 nested_block_indent: first_indent,
@@ -48,7 +50,10 @@ impl<'a> ContinuationIndenter<'a> {
         if current.must_break_before {
             return true;
         }
-        if state.stack_top().break_between_paramters && is_between_struct_parameter(line, state) {
+        if state.stack_top().break_between_paramters && is_between_parameter(line, state) {
+            return true;
+        }
+        if current.typ == TokenType::FnDeclArrow && state.fn_decl_arrow_must_break {
             return true;
         }
         if state.stack_top().method_chain_indent.is_some() && is_chained_method_call(line, state) {
@@ -96,6 +101,7 @@ impl<'a> ContinuationIndenter<'a> {
             // Bin packing is being avoided, and this token was added to a new line.
             // Ensure breaking occurs between every parameter for the rest of this scope.
             state.stack_top_mut().break_between_paramters = true;
+            state.fn_decl_arrow_must_break = true;
         }
 
         if is_chained_method_call(line, state) && state.stack_top().method_chain_indent.is_none() {
@@ -117,7 +123,7 @@ impl<'a> ContinuationIndenter<'a> {
             whitespace.replace_whitespace(state.current_mut(line), newlines, indent, spaces, state.column + spaces);
         }
 
-        if state.stack_top().avoid_bin_packing && is_between_struct_parameter(line, state) {
+        if state.stack_top().avoid_bin_packing && is_between_parameter(line, state) {
             // Bin packing is being avoided, and this token was added to the current line.
             // Avoid breaking for the rest of this scope.
             state.stack_top_mut().no_line_break = true;
@@ -134,9 +140,7 @@ impl<'a> ContinuationIndenter<'a> {
 
     fn move_state_to_next_token(&self, line: &UnwrappedLine, state: &mut LineState) -> Penalty {
         // remember the position of the fn opening brace parameters
-        if line.typ == LineType::FnDecl &&
-               state.current(line).tok == Token::OpenDelim(DelimToken::Paren) &&
-               state.fn_decl_arrow_indent.is_none() && state.stack.len() == 1 {
+        if state.current(line).typ == TokenType::FnDeclParamsStart {
             state.fn_decl_arrow_indent = Some(state.column + 1);
         }
 
@@ -239,6 +243,10 @@ impl<'a> ContinuationIndenter<'a> {
                     nested_block_indent: top.nested_block_indent,
                     indent_level: top.indent_level,
                     no_line_break: top.no_line_break,
+                    avoid_bin_packing: !self.style.bin_pack_parameters &&
+                                           current.typ == TokenType::FnDeclParamsStart ||
+                                       !self.style.bin_pack_arguments &&
+                                           current.typ != TokenType::FnDeclParamsStart,
                     ..ParenState::default()
                 }
             } else if current.tok == Token::OpenDelim(DelimToken::Brace) {
@@ -289,7 +297,7 @@ impl<'a> ContinuationIndenter<'a> {
     }
 }
 
-fn is_between_struct_parameter(line: &UnwrappedLine, state: &LineState) -> bool {
+fn is_between_parameter(line: &UnwrappedLine, state: &LineState) -> bool {
     let current = &line.tokens[state.next_token_index];
 
     if let Token::CloseDelim(DelimToken::Brace) = current.tok {

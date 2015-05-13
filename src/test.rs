@@ -1,15 +1,21 @@
+use format_options::FormatStyle;
 use reformat;
 use replacement::Replacement;
 use std::default::Default;
+use syntax::parse::token::{Token, DelimToken};
 use syntax;
-use syntax::parse::token::Token;
 use token::{FormatTokenLexer, Precedence, TokenType};
 use unwrapped_line::UnwrappedLine;
 
-// TODO: tests using different style options
-
 fn fmt(source: &str) -> String {
-    Replacement::apply_all(&replacements(source), source)
+    let style = FormatStyle::default();
+    let replacements = super::reformat(source, &style, None);
+    Replacement::apply_all(&replacements, source)
+}
+
+fn fmt_style(source: &str, style: &FormatStyle) -> String {
+    let replacements = super::reformat(source, &style, None);
+    Replacement::apply_all(&replacements, source)
 }
 
 fn fmt_rng(source: &str, line_ranges: &[(u32, u32)]) -> String {
@@ -31,8 +37,11 @@ fn annotated_lines(source: &str) -> Vec<UnwrappedLine> {
 }
 
 macro_rules! assert_fmt_eq(
-    ($s:expr) => (
-        assert_eq!(fmt($s), $s)
+    ($style:expr, $text:expr) => (
+        assert_eq!(fmt_style($text, $style), $text)
+    );
+    ($text:expr) => (
+        assert_eq!(fmt($text), $text)
     )
 );
 
@@ -952,30 +961,58 @@ fn test_empty_match_block_has_no_children() {
 }
 
 #[test]
-fn test_fn_decl_arrow_annotated() {
+fn test_fn_decl_annotated() {
     let lines = annotated_lines("fn aaaa() -> bbb {}");
     let toks = &lines[0].tokens;
+    assert_eq!(toks[2].typ, TokenType::FnDeclParamsStart);
+    assert_eq!(toks[2].tok, Token::OpenDelim(DelimToken::Paren));
+    assert_eq!(toks[3].typ, TokenType::FnDeclParamsEnd);
+    assert_eq!(toks[3].tok, Token::CloseDelim(DelimToken::Paren));
     assert_eq!(toks[4].typ, TokenType::FnDeclArrow);
     assert_eq!(toks[4].tok, Token::RArrow);
 
     let lines = annotated_lines("fn aaaa<P>() -> bbb where P: Fn() -> ccc {}");
     let toks = &lines[0].tokens;
+    assert_eq!(toks[5].typ, TokenType::FnDeclParamsStart);
+    assert_eq!(toks[5].tok, Token::OpenDelim(DelimToken::Paren));
+    assert_eq!(toks[6].typ, TokenType::FnDeclParamsEnd);
+    assert_eq!(toks[6].tok, Token::CloseDelim(DelimToken::Paren));
     assert_eq!(toks[7].typ, TokenType::FnDeclArrow);
     assert_eq!(toks[7].tok, Token::RArrow);
+    assert_eq!(toks[13].typ, TokenType::Unknown);
+    assert_eq!(toks[13].tok, Token::OpenDelim(DelimToken::Paren));
+    assert_eq!(toks[14].typ, TokenType::Unknown);
+    assert_eq!(toks[14].tok, Token::CloseDelim(DelimToken::Paren));
     assert_eq!(toks[15].typ, TokenType::Unknown);
     assert_eq!(toks[15].tok, Token::RArrow);
 
     let lines = annotated_lines("fn aaaa<P: Fn() -> ccc>() -> bbb {}");
     let toks = &lines[0].tokens;
+    assert_eq!(toks[6].typ, TokenType::Unknown);
+    assert_eq!(toks[6].tok, Token::OpenDelim(DelimToken::Paren));
+    assert_eq!(toks[7].typ, TokenType::Unknown);
+    assert_eq!(toks[7].tok, Token::CloseDelim(DelimToken::Paren));
     assert_eq!(toks[8].typ, TokenType::Unknown);
     assert_eq!(toks[8].tok, Token::RArrow);
+    assert_eq!(toks[11].typ, TokenType::FnDeclParamsStart);
+    assert_eq!(toks[11].tok, Token::OpenDelim(DelimToken::Paren));
+    assert_eq!(toks[12].typ, TokenType::FnDeclParamsEnd);
+    assert_eq!(toks[12].tok, Token::CloseDelim(DelimToken::Paren));
     assert_eq!(toks[13].typ, TokenType::FnDeclArrow);
     assert_eq!(toks[13].tok, Token::RArrow);
 
     let lines = annotated_lines("fn aaaa() -> fn() -> u32 {}");
     let toks = &lines[0].tokens;
+    assert_eq!(toks[2].typ, TokenType::FnDeclParamsStart);
+    assert_eq!(toks[2].tok, Token::OpenDelim(DelimToken::Paren));
+    assert_eq!(toks[3].typ, TokenType::FnDeclParamsEnd);
+    assert_eq!(toks[3].tok, Token::CloseDelim(DelimToken::Paren));
     assert_eq!(toks[4].typ, TokenType::FnDeclArrow);
     assert_eq!(toks[4].tok, Token::RArrow);
+    assert_eq!(toks[6].typ, TokenType::Unknown);
+    assert_eq!(toks[6].tok, Token::OpenDelim(DelimToken::Paren));
+    assert_eq!(toks[7].typ, TokenType::Unknown);
+    assert_eq!(toks[7].tok, Token::CloseDelim(DelimToken::Paren));
     assert_eq!(toks[8].typ, TokenType::Unknown);
     assert_eq!(toks[8].tok, Token::RArrow);
 }
@@ -1490,4 +1527,55 @@ impl Foo {
                              .collect();
     }
 }");
+}
+
+#[test]
+fn test_bin_pack_parameters() {
+    let style = &FormatStyle { bin_pack_parameters: false, ..FormatStyle::default() };
+    assert_fmt_eq!(style, "\
+fn foo(aaaaaaaa: AAAAAAAAA, bbbbbbbbb: BBBBBBBBBBB, ccccccccccc: CCCCCCCCCCCCC) {}");
+        assert_fmt_eq!(style, "\
+fn foo(aaaaaaaa: AAAAAAAAA,
+       bbbbbbbbb: BBBBBBBBBBB,
+       ccccccccccc: CCCCCCCCCCCCC,
+       dddddddd: DDDDDDDDDDD) {}");
+    assert_fmt_eq!(style, "\
+fn foo(aaaaaaaa: AAAAAAAAA,
+       bbbbbbbbb: BBBBBBBBBBB,
+       ccccccccccc: CCCCCCCCCCCCC,
+       dddddddd: DDDDDDDDDDD)
+       -> EEEEEEEEEEEEEEEEE {}");
+
+    let style = &FormatStyle { bin_pack_parameters: true, ..FormatStyle::default() };
+    assert_fmt_eq!(style, "\
+fn foo(aaaaaaaa: AAAAAAAAA, bbbbbbbbb: BBBBBBBBBBB, ccccccccccc: CCCCCCCCCCCCC) {}");
+    assert_fmt_eq!(style, "\
+fn foo(aaaaaaaa: AAAAAAAAA, bbbbbbbbb: BBBBBBBBBBB, ccccccccccc: CCCCCCCCCCCCC,
+       dddddddd: DDDDDDDDDDD) {}");
+    assert_fmt_eq!(style, "\
+fn foo(aaaaaaaa: AAAAAAAAA, bbbbbbbbb: BBBBBBBBBBB, ccccccccccc: CCCCCCCCCCCCC,
+       dddddddd: DDDDDDDDDDD) -> EEEEEEEEEEEEEEEEE {}");
+}
+
+#[test]
+fn test_bin_pack_arguments() {
+    let style = &FormatStyle { bin_pack_arguments: false, ..FormatStyle::default() };
+    assert_fmt_eq!(style, "\
+let a = something(aaaaaaaaaa, bbbbbbbbbbbb, ccccccccccc, dddddddddddd, eeeeeeeeeeeee, fffffffff);");
+    assert_fmt_eq!(style, "\
+let a = something(aaaaaaaaaa,
+                  bbbbbbbbbbb,
+                  ccccccccccccccc,
+                  ddddddddddddddd,
+                  eeeeeeeeeeeeeeee,
+                  fffffffffffffffffff,
+                  ggggggg,
+                  hhhhhhhhhhhhhhhhhhhhh);");
+
+    let style = &FormatStyle { bin_pack_arguments: true, ..FormatStyle::default() };
+    assert_fmt_eq!(style, "\
+let a = something(aaaaaaaaaa, bbbbbbbbbbbb, ccccccccccc, dddddddddddd, eeeeeeeeeeeee, fffffffff);");
+    assert_fmt_eq!(style, "\
+let a = something(aaaaaaaaaa, bbbbbbbbbbb, ccccccccccccccc, ddddddddddddddd, eeeeeeeeeeeeeeee,
+                  fffffffffffffffffff, ggggggg, hhhhhhhhhhhhhhhhhhhhh);");
 }
