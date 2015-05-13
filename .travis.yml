@@ -1,7 +1,5 @@
 language: rust
-rust:
-    - beta
-    - nightly
+rust: nightly
 sudo: false
 
 script:

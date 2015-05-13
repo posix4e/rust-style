@@ -1,3 +1,4 @@
+#![feature(fs_canonicalize)]
 #![cfg(not(test))]
 
 extern crate docopt;
@@ -166,7 +167,7 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
 }
 
 fn create_file_action(input: PathBuf, args: &Args) -> ArgumentResult<Action> {
-    let style = try!(search_style_format(input.clone()));
+    let style = try!(search_style_format(&input));
     let output = if args.flag_write {
         Output::File(input.clone())
     } else {
@@ -180,14 +181,9 @@ fn create_file_action(input: PathBuf, args: &Args) -> ArgumentResult<Action> {
     })
 }
 
-fn search_style_format(_: PathBuf) -> ArgumentResult<FormatStyle> {
-    Ok(FormatStyle::default())
-}
-
-/*
-fn search_style_format(start: PathBuf) -> ArgumentResult<FormatStyle> {
+fn search_style_format(start: &Path) -> ArgumentResult<FormatStyle> {
     let target = ".rust-style.toml";
-    let mut node = start._canonicalize().unwrap();
+    let mut node = std::fs::canonicalize(start).unwrap();
 
     // removes existing file component from the path
     if node.as_path()._is_file() {
@@ -213,8 +209,7 @@ fn search_style_format(start: PathBuf) -> ArgumentResult<FormatStyle> {
 
     Ok(FormatStyle::default())
 }
-*/
-#[allow(dead_code)]
+
 fn load_style_format(path_str: &str) -> ArgumentResult<FormatStyle> {
     let path = Path::new(path_str);
     let mut file = match File::open(path) {

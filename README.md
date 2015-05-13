@@ -8,6 +8,8 @@ This project was previously called rustfmt. Not to be confused with the similarl
 
 ###Building rust-style
 
+A recent nightly version of Rust is required.
+
 ~~~
 cargo build --release
 ~~~
