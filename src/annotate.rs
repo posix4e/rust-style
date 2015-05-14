@@ -376,17 +376,16 @@ struct ExpressionParser<'a> {
 }
 
 impl<'a> ExpressionParser<'a> {
-    fn parse(&mut self, precedence: i32, mut end_at_opening_brace: bool) {
+    fn parse(&mut self, precedence: i32, mut in_control_structure: bool) {
         // These keywords should not be considered part of the start of a binary expression
         while self.has_current() && (self.current().tok.is_keyword(Keyword::Return) ||
                                      self.current().tok.is_keyword(Keyword::While) ||
-                                     self.current().tok.is_keyword(Keyword::Let) ||
                                      self.current().tok.is_keyword(Keyword::If) &&
                                          self.current().typ != TokenType::PatternGuardIf ||
                                      self.current().tok.is_keyword(Keyword::Match) ||
                                      self.current().tok.is_keyword(Keyword::While)) {
 
-            end_at_opening_brace = end_at_opening_brace ||
+            in_control_structure = in_control_structure ||
                                    self.current().tok.is_keyword(Keyword::While) ||
                                    self.current().tok.is_keyword(Keyword::If) ||
                                    self.current().tok.is_keyword(Keyword::Match);
@@ -397,7 +396,7 @@ impl<'a> ExpressionParser<'a> {
         if precedence > PRECEDENCE_DOT { return; }
 
         if precedence == PRECEDENCE_UNARY {
-            return self.parse_unary_operator(end_at_opening_brace);
+            return self.parse_unary_operator(in_control_structure);
         }
 
         let start_index = self.current_index;
@@ -406,7 +405,7 @@ impl<'a> ExpressionParser<'a> {
 
         while self.has_current() {
             // Recursive call to consume operators with higher precedence.
-            self.parse(precedence + 1, end_at_opening_brace);
+            self.parse(precedence + 1, in_control_structure);
 
             if !self.has_current() { break; }
             if self.current().closes_scope() { break; }
@@ -419,7 +418,7 @@ impl<'a> ExpressionParser<'a> {
 
             if precedence > 0 {
                 // Check if we found a statement brace.
-                if end_at_opening_brace && self.current().tok == Token::OpenDelim(DelimToken::Brace) {
+                if in_control_structure && self.current().tok == Token::OpenDelim(DelimToken::Brace) {
                     break;
                 }
 
@@ -472,14 +471,14 @@ impl<'a> ExpressionParser<'a> {
         }
     }
 
-    fn parse_unary_operator(&mut self, end_at_opening_brace: bool) {
+    fn parse_unary_operator(&mut self, in_control_structure: bool) {
         if !self.has_current() || self.current().typ != TokenType::UnaryOperator {
-            return self.parse(PRECEDENCE_DOT, end_at_opening_brace);
+            return self.parse(PRECEDENCE_DOT, in_control_structure);
         }
 
         let start_index = self.current_index;
         self.next();
-        self.parse_unary_operator(end_at_opening_brace);
+        self.parse_unary_operator(in_control_structure);
         self.add_fake_parenthesis(start_index, Precedence::Unknown);
     }
 
@@ -512,17 +511,18 @@ impl<'a> ExpressionParser<'a> {
     }
 
     fn current_precedence(&self) -> i32 {
-        let next = self.line.next_non_comment_token(self.current_index);
-        let next_tok = next.map(|t| &t.tok);
+        let prev1 = self.line.prev_non_comment_token(self.current_index);
+        let prev2 = prev1.and_then(|t| self.line.prev_non_comment_token(t.index));
+        let is_field_init = self.current().tok == Token::Colon &&
+                            prev1.map(|t| t.tok.is_ident()).unwrap_or(false) &&
+                            prev2.map(|t| t.tok == Token::OpenDelim(DelimToken::Brace) ||
+                                              t.tok == Token::Comma).unwrap_or(false);
 
         if self.current().typ == TokenType::UnaryOperator {
             PRECEDENCE_UNARY
         } else if self.current().tok == Token::Dot {
             PRECEDENCE_DOT
-        } else if self.current().tok.is_ident() && Some(&Token::Colon) == next_tok {
-            // Struct field initialization
-            Precedence::Comma.to_i32()
-        } else if self.current().tok == Token::Colon {
+        } else if is_field_init {
             Precedence::Comma.to_i32()
         } else {
             self.current()

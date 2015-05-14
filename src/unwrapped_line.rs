@@ -67,12 +67,6 @@ impl UnwrappedLine {
             .next()
     }
 
-    pub fn next_non_comment_token(&self, index: usize) -> Option<&FormatToken> {
-        self.tokens[index + 1..].iter()
-            .filter(|t| !t.is_comment())
-            .next()
-    }
-
     pub fn reset_token_indices(&mut self) {
         for i in 0..self.tokens.len() {
             self.tokens[i].index = i;
@@ -105,7 +99,6 @@ pub enum Block {
     Statements,
     StructOrEnum,
     TopLevel,
-    StructInit,
     MacroRules,
 }
 
@@ -213,7 +206,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                         Block::StructOrEnum => self.parse_enum_variant_or_struct_field(),
                         Block::Match => self.parse_match_arm(),
                         Block::MacroRules => self.parse_macro_rule(),
-                        Block::StructInit => self.parse_field_init(),
                         Block::Statements |
                         Block::TopLevel => self.parse_stmt(),
                     }
@@ -263,14 +255,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         // Eat closing delim
         self.next_token();
         self.level = intial_level;
-    }
-
-    // Parses a single field of a struct initializer
-    fn parse_field_init(&mut self) {
-        if self.parse_stmt_up_to(|t| *t == Token::Comma) {
-            self.next_token();
-            self.add_line();
-        }
     }
 
     fn parse_child_block(&mut self, block: Block) {

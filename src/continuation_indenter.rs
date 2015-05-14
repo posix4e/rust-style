@@ -284,12 +284,14 @@ impl<'a> ContinuationIndenter<'a> {
         if current.tok == Token::CloseDelim(DelimToken::Brace) && state.stack.len() > 1 {
             return state.stack[state.stack.len() - 2].nested_block_indent;
         }
+
         if is_chained_method_call(line, state) {
             return match stack_top.method_chain_indent {
                 Some(indent) => indent,
                 None => stack_top.indent + self.style.continuation_indent_width,
             }
         }
+
         if current.typ == TokenType::FnDeclArrow && state.fn_decl_arrow_indent.is_some() {
             return state.fn_decl_arrow_indent.unwrap();
         }

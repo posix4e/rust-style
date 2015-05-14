@@ -1641,3 +1641,21 @@ let opts = fncall(vec![
 ]);");
 
 }
+
+#[test]
+fn test_pointer_before_assignment() {
+    assert_fmt_eq!("\
+let aaaaaaaaa: u32 =
+    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;");
+    // These may change if/when strings are adjusted during formatting
+    assert_fmt_eq!("\
+let aaaaaaaaa =
+    \"This is a string. This is a string. This is a string. This is a string. This is a string. This is a string.\";");
+    assert_fmt_eq!("\
+let aaaaaaaaa: &str =
+    \"This is a string. This is a string. This is a string. This is a string. This is a string. This is a string.\";");
+    assert_fmt_eq!("\
+static AAAAAAAAAAAAAAAAAAAAAA: &'static str =
+    \"This is a string. This is a string. This is a string. This is a string. This is a string.\";");
+
+}
