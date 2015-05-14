@@ -696,7 +696,7 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (_, &Token::DotDotDot) => false,
         (&Token::DotDotDot, _) => false,
 
-        (&Token::OpenDelim(DelimToken::Brace), &Token::CloseDelim(DelimToken::Brace))
+        (&Token::OpenDelim(..), &Token::CloseDelim(..))
             if prev.children.is_empty() => false,
         (&Token::OpenDelim(DelimToken::Brace), _) => true,
         (_, &Token::OpenDelim(DelimToken::Brace)) => true,

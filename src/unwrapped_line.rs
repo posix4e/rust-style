@@ -274,8 +274,12 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn parse_child_block(&mut self, block: Block) {
-        // Consume opening brace
-        assert_eq!(self.ftok.tok, Token::OpenDelim(DelimToken::Brace));
+        // Consume opening delim
+        let delim = match self.ftok.tok {
+            Token::OpenDelim(DelimToken::Brace) => DelimToken::Brace,
+            Token::OpenDelim(DelimToken::Bracket) => DelimToken::Bracket,
+            _ => panic!("expected opening brace or bracket"),
+        };
         self.next_token();
 
         // Add new level to stack, so children lines are added to above brace
@@ -296,7 +300,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.line_stack.pop().unwrap();
 
         // Consume closing brace
-        if self.ftok.tok == Token::CloseDelim(DelimToken::Brace) {
+        if self.ftok.tok == Token::CloseDelim(delim) {
             self.next_token();
         }
     }
@@ -557,8 +561,11 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 Token::OpenDelim(DelimToken::Brace) => {
                     self.parse_child_block(Block::Statements);
                 },
-                Token::OpenDelim(delim) => {
-                    self.parse_delim_pair(Context::Statements, delim);
+                Token::OpenDelim(DelimToken::Bracket) => {
+                    self.parse_child_block(Block::Statements);
+                },
+                Token::OpenDelim(DelimToken::Paren) => {
+                    self.parse_delim_pair(Context::Statements, DelimToken::Paren);
                 },
                 Token::Ident(..) if self.is_macro_invocation() => {
                     self.next_token(); // macro name

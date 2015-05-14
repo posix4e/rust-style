@@ -1596,3 +1596,48 @@ let a = |b| aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
 let a = || aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;");
 }
+
+#[test]
+fn test_array_block() {
+    assert_fmt_eq!("let opts = [getopts::optflag(a, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)];");
+    assert_fmt_eq!("\
+let opts = [
+    getopts::optflag(aaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    getopts::optflag(aaaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    getopts::optflag(aaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+];");
+
+
+    assert_fmt_eq!("let opts = fncall([getopts::optflag(a, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)]);");
+    assert_fmt_eq!("\
+let opts = fncall([
+    getopts::optflag(aaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    getopts::optflag(aaaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    getopts::optflag(aaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+]);");
+
+    assert_fmt_eq!("let opts = vec![getopts::optflag(a, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)];");
+    assert_fmt_eq!("\
+let opts = vec![
+    getopts::optflag(aaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    getopts::optflag(aaaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    getopts::optflag(aaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+];");
+
+    assert_fmt_eq!("let opts = fncall(vec![getopts::optflag(a, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)]);");
+    assert_fmt_eq!("\
+let opts = fncall(vec![
+    getopts::optflag(aaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    getopts::optflag(aaaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    getopts::optflag(aaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+]);");
+
+    assert_fmt_eq!("let opts = fncall(vec![aaaaaa, aaaaaaaaaa, aaaaaaaaaaa, aaaaaaaaaaaa, aaaaaaaaaaaaaa]);");
+    assert_fmt_eq!("\
+let opts = fncall(vec![
+    aaaaaa, aaaaaaaaaa, aaaaaaaaaaa, aaaaaaaaaaaa, aaaaaaaaaaaaaa, aaaaaaaaaaaaaaaa, aaaaaaaaaaa,
+    aaaaaaaaaaaaaaaaaaaaaaaa, aaaaaaaaaaaaaaaaaaa, aaaaaaaaaaaaaaaaaa, aaaaaaaaaaaa, aaaaaaaa,
+    aaaaaaaaa, aaaaaaaaaaaaaa
+]);");
+
+}

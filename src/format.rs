@@ -277,12 +277,20 @@ impl<'a> LineFormatter<'a> {
             return false;
         }
 
+        let spaces = match previous.tok {
+            Token::OpenDelim(DelimToken::Brace) => 1,
+            Token::OpenDelim(DelimToken::Bracket) => 0,
+            _ => panic!(format!("Unexpected parent token: {:?}", previous.tok)),
+        };
+
         // Place the child on the same line
         if !dry_run {
-            self.whitespace.replace_whitespace(&mut previous.children[0].tokens[0], 0, 0, 1, state.column);
+            self.whitespace.replace_whitespace(&mut previous.children[0].tokens[0], 0, 0, spaces, state.column);
         }
-        *penalty += self.analyze_solution_space(&mut previous.children[0], state.column + 1, dry_run);
-        state.column += 1 + previous.children[0].tokens.last().unwrap().total_length;
+
+        state.column += spaces;
+        *penalty += self.analyze_solution_space(&mut previous.children[0], state.column, dry_run);
+        state.column += previous.children[0].tokens.last().unwrap().total_length;
 
         true
     }
