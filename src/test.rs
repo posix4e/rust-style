@@ -785,33 +785,33 @@ fn test_operator_spacing_generics() {
 #[test]
 fn test_binding_strength_cumulative_effect() {
     let tok = &annotated_lines("53 + 21")[0].tokens;
-    assert_eq!(0, tok[0].binding_strength);
-    assert_eq!(0, tok[1].binding_strength);
-    assert_eq!(0, tok[2].binding_strength);
+    assert_eq!(1, tok[0].binding_strength);
+    assert_eq!(1, tok[1].binding_strength);
+    assert_eq!(1, tok[2].binding_strength);
 
     let tok = &annotated_lines("(53 + 21) + 0")[0].tokens;
-    let paren_strength = tok[2].binding_strength;
+    let paren_strength = tok[2].binding_strength - 1;
     assert!(paren_strength > 0);
-    assert_eq!(tok[0].binding_strength, 0);
-    assert_eq!(tok[1].binding_strength, paren_strength);
-    assert_eq!(tok[2].binding_strength, paren_strength);
-    assert_eq!(tok[3].binding_strength, paren_strength);
-    assert_eq!(tok[4].binding_strength, paren_strength);
-    assert_eq!(tok[5].binding_strength, 0);
-    assert_eq!(tok[6].binding_strength, 0);
+    assert_eq!(tok[0].binding_strength, 1);
+    assert_eq!(tok[1].binding_strength, 1 + paren_strength);
+    assert_eq!(tok[2].binding_strength, 1 + paren_strength);
+    assert_eq!(tok[3].binding_strength, 1 + paren_strength);
+    assert_eq!(tok[4].binding_strength, 1 + paren_strength);
+    assert_eq!(tok[5].binding_strength, 1);
+    assert_eq!(tok[6].binding_strength, 1);
 
     let tok = &annotated_lines("(53 + (5 + 2)) + 2")[0].tokens;
-    assert_eq!(tok[0].binding_strength, 0);
-    assert_eq!(tok[1].binding_strength, paren_strength);
-    assert_eq!(tok[2].binding_strength, paren_strength);
-    assert_eq!(tok[3].binding_strength, paren_strength);
-    assert_eq!(tok[4].binding_strength, paren_strength * 2);
-    assert_eq!(tok[5].binding_strength, paren_strength * 2);
-    assert_eq!(tok[6].binding_strength, paren_strength * 2);
-    assert_eq!(tok[7].binding_strength, paren_strength * 2);
-    assert_eq!(tok[8].binding_strength, paren_strength);
-    assert_eq!(tok[9].binding_strength, 0);
-    assert_eq!(tok[10].binding_strength, 0);
+    assert_eq!(tok[0].binding_strength, 1);
+    assert_eq!(tok[1].binding_strength, 1 + paren_strength);
+    assert_eq!(tok[2].binding_strength, 1 + paren_strength);
+    assert_eq!(tok[3].binding_strength, 1 + paren_strength);
+    assert_eq!(tok[4].binding_strength, 1 + paren_strength * 2);
+    assert_eq!(tok[5].binding_strength, 1 + paren_strength * 2);
+    assert_eq!(tok[6].binding_strength, 1 + paren_strength * 2);
+    assert_eq!(tok[7].binding_strength, 1 + paren_strength * 2);
+    assert_eq!(tok[8].binding_strength, 1 + paren_strength);
+    assert_eq!(tok[9].binding_strength, 1);
+    assert_eq!(tok[10].binding_strength, 1);
 }
 
 #[test]
@@ -1527,6 +1527,13 @@ impl Foo {
                              .collect();
     }
 }");
+    assert_fmt_eq!("\
+impl Foo {
+    fn bar() {
+        state.stack_top_mut().fn_decl_param_extension =
+            state.stack_top().fn_decl_param_extension || start_params_extension;
+    }
+}");
 }
 
 #[test]
@@ -1578,4 +1585,14 @@ let a = something(aaaaaaaaaa, bbbbbbbbbbbb, ccccccccccc, dddddddddddd, eeeeeeeee
     assert_fmt_eq!(style, "\
 let a = something(aaaaaaaaaa, bbbbbbbbbbb, ccccccccccccccc, ddddddddddddddd, eeeeeeeeeeeeeeee,
                   fffffffffffffffffff, ggggggg, hhhhhhhhhhhhhhhhhhhhh);");
+}
+
+#[test]
+fn test_indentation_after_lambda() {
+    assert_fmt_eq!("\
+let a = |b| aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
+                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;");
+    assert_fmt_eq!("\
+let a = || aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
+               bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;");
 }

@@ -22,6 +22,7 @@ pub enum TokenType {
     UnaryOperator,
     LambdaParamsStart,
     LambdaParamsEnd,
+    LambdaParamsEmpty,
     FnDeclParamsStart,
     FnDeclParamsEnd,
     FnDeclArrow,
@@ -232,6 +233,7 @@ impl FormatToken {
         match self.tok {
             Token::OpenDelim(..) => true,
             Token::Lt => self.typ == TokenType::GenericBracket,
+            Token::BinOp(BinOpToken::Or) => self.typ == TokenType::LambdaParamsStart,
              _ => false,
         }
     }
@@ -240,6 +242,7 @@ impl FormatToken {
         match self.tok {
             Token::CloseDelim(..) => true,
             Token::Gt => self.typ == TokenType::GenericBracket,
+            Token::BinOp(BinOpToken::Or) => self.typ == TokenType::LambdaParamsEnd,
              _ => false,
         }
     }

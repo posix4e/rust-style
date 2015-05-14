@@ -114,13 +114,13 @@ impl<'a> AnnotatingParser<'a> {
     }
 
     fn context_binding_strength(&self) -> Penalty {
-        self.context_stack.last().map(|c| c.binding_strength).unwrap_or(0)
+        self.context_stack.last().map(|c| c.binding_strength).unwrap_or(1)
     }
 
     fn using_context<R, F: Fn(&mut Self) -> R>(&mut self, typ: ContextType, f: F) -> R {
         let new_context = Context {
             binding_strength: self.context_binding_strength() + match typ {
-                ContextType::Parens => 1,
+                ContextType::Parens => 2,
                 ContextType::Generics => 10,
                 ContextType::LambdaParams => 10,
                 ContextType::WhereClause => 10,
@@ -316,6 +316,10 @@ impl<'a> AnnotatingParser<'a> {
                 TokenType::UnaryOperator
             }
 
+            Token::OrOr if self.current_is_unary() => {
+                TokenType::LambdaParamsEmpty
+            }
+
             Token::BinOp(BinOpToken::Or)
                     if self.line.block == Block::Match && !self.in_pattern_guard => {
                 TokenType::PatternOr
@@ -433,11 +437,19 @@ impl<'a> ExpressionParser<'a> {
             if self.current().opens_scope() {
                 while self.has_current() && !self.current().closes_scope() {
                     // Inside a new delim scope
-                    let end_at_opening_brace = false;
                     self.next();
-                    self.parse(0, end_at_opening_brace);
+                    self.parse(0, false);
                 }
+
+                if self.has_current() && (self.current().typ == TokenType::LambdaParamsEnd) {
+                    self.next();
+                    self.parse(0, false);
+                } else {
+                    self.next();
+                }
+            } else if self.current().typ == TokenType::LambdaParamsEmpty {
                 self.next();
+                self.parse(0, false);
             } else {
                 if current_precedence == precedence {
                     latest_operator_index = Some(self.current_index);
@@ -660,6 +672,7 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         _ if prev.typ == TokenType::LambdaParamsStart => false,
         _ if prev.typ == TokenType::LambdaParamsEnd => true,
         _ if curr.typ == TokenType::LambdaParamsEnd => false,
+        _ if prev.typ == TokenType::LambdaParamsEmpty => true,
 
         _ if prev.typ == TokenType::PatternOr => true,
         _ if curr.typ == TokenType::PatternOr => true,
@@ -761,9 +774,9 @@ fn split_penalty(prev: &FormatToken, curr: &FormatToken) -> Penalty {
         (_, &Token::RArrow) => 1,
         (&Token::FatArrow, _) => 10,
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => 1,
-        (&Token::Eq, _) | (&Token::BinOpEq(..), _) => 100,
-        (&Token::CloseDelim(DelimToken::Paren), &Token::Dot) => 10,
-        (_, &Token::Dot) => 150,
+        (&Token::Eq, _) | (&Token::BinOpEq(..), _) => 50,
+        (&Token::CloseDelim(DelimToken::Paren), &Token::Dot) => 20,
+        (_, &Token::Dot) => 100,
         (_, &Token::OpenDelim(DelimToken::Brace)) => 1,
         _ => match prev.precedence() {
             None | Some(Precedence::Unknown) => 3,

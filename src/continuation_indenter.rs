@@ -237,7 +237,8 @@ impl<'a> ContinuationIndenter<'a> {
                    current.tok == Token::OpenDelim(DelimToken::Brace) &&
                        line.typ == LineType::Use ||
                    current.tok == Token::OpenDelim(DelimToken::Bracket) ||
-                   current.typ == TokenType::GenericBracket {
+                   current.typ == TokenType::GenericBracket ||
+                   current.typ == TokenType::LambdaParamsStart {
                 ParenState {
                     indent: state.column + 1,
                     nested_block_indent: top.nested_block_indent,
