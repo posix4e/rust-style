@@ -15,6 +15,7 @@ pub enum UseTabs {
 pub struct FormatStyle {
     pub bin_pack_arguments: bool,
     pub bin_pack_parameters: bool,
+    pub bin_pack_patterns: bool,
     pub column_limit: u32,
     pub indent_width: u32,
     pub continuation_indent_width: u32,
@@ -29,6 +30,7 @@ impl Default for FormatStyle {
         FormatStyle {
             bin_pack_arguments: true,
             bin_pack_parameters: true,
+            bin_pack_patterns: false,
             column_limit: 99,
             indent_width: 4,
             continuation_indent_width: 4,
@@ -62,6 +64,7 @@ impl FormatStyle {
         let style = process_fields!(default_style, parser_result, {
             bin_pack_arguments,
             bin_pack_parameters,
+            bin_pack_patterns,
             column_limit,
             indent_width,
             continuation_indent_width,

@@ -50,7 +50,7 @@ impl<'a> ContinuationIndenter<'a> {
         if current.must_break_before {
             return true;
         }
-        if state.stack_top().break_between_paramters && is_between_parameter(line, state) {
+        if state.stack_top().break_between_paramters && is_between_bin_pack(line, state) {
             return true;
         }
         if current.typ == TokenType::FnDeclArrow && state.fn_decl_arrow_must_break {
@@ -123,7 +123,7 @@ impl<'a> ContinuationIndenter<'a> {
             whitespace.replace_whitespace(state.current_mut(line), newlines, indent, spaces, state.column + spaces);
         }
 
-        if state.stack_top().avoid_bin_packing && is_between_parameter(line, state) {
+        if state.stack_top().avoid_bin_packing && is_between_bin_pack(line, state) {
             // Bin packing is being avoided, and this token was added to the current line.
             // Avoid breaking for the rest of this scope.
             state.stack_top_mut().no_line_break = true;
@@ -199,9 +199,10 @@ impl<'a> ContinuationIndenter<'a> {
                 indent: indent,
                 nested_block_indent: state.stack_top().nested_block_indent,
                 indent_level: state.stack_top().indent_level,
-                avoid_bin_packing: state.stack_top().avoid_bin_packing,
+                avoid_bin_packing: state.stack_top().avoid_bin_packing ||
+                                       !self.style.bin_pack_patterns && *p == Precedence::PatternOr,
                 break_between_paramters: state.stack_top().break_between_paramters &&
-                                            p.to_i32() <= Precedence::Comma.to_i32(),
+                                             p.to_i32() <= Precedence::Comma.to_i32(),
                 no_line_break: state.stack_top().no_line_break,
                 ..ParenState::default()
             };
@@ -300,7 +301,7 @@ impl<'a> ContinuationIndenter<'a> {
     }
 }
 
-fn is_between_parameter(line: &UnwrappedLine, state: &LineState) -> bool {
+fn is_between_bin_pack(line: &UnwrappedLine, state: &LineState) -> bool {
     let current = &line.tokens[state.next_token_index];
 
     if let Token::CloseDelim(DelimToken::Brace) = current.tok {
@@ -314,6 +315,10 @@ fn is_between_parameter(line: &UnwrappedLine, state: &LineState) -> bool {
         if let Token::OpenDelim(DelimToken::Brace) = previous.tok {
             return true;
         }
+    }
+
+    if current.typ == TokenType::PatternOr {
+        return true;
     }
 
     false

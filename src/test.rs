@@ -932,8 +932,16 @@ ccccccccccccccccc + cccccccccccccccccccccccccccccccc ==
 fn test_line_break_between_patterns() {
 assert_fmt_eq!("\
 match self.current().tok {
-    Token::Eq | Token::Le | Token::EqEq | Token::Ne | Token::Ge | Token::Gt | Token::AndAnd
-    | Token::OrOr | Token::BinOp(..) | Token::BinOpEq(..) => {
+    Token::Eq
+    | Token::Le
+    | Token::EqEq
+    | Token::Ne
+    | Token::Ge
+    | Token::Gt
+    | Token::AndAnd
+    | Token::OrOr
+    | Token::BinOp(..)
+    | Token::BinOpEq(..) => {
         TokenType::BinaryOperator
     }
 }");
@@ -1588,6 +1596,42 @@ let a = something(aaaaaaaaaa, bbbbbbbbbbb, ccccccccccccccc, ddddddddddddddd, eee
 }
 
 #[test]
+fn test_bin_pack_patterns() {
+    let style = &FormatStyle { bin_pack_patterns: true, ..FormatStyle::default() };
+    assert_fmt_eq!(style, "\
+match foo {
+    aaaaaaaaaa(bbbbbbbbbb) | aaaaaaaaaa(bbbbbbbbbb) | aaaaaaaaaa(bbbbbbbbbb) => {}
+}");
+    assert_fmt_eq!(style, "\
+match foo {
+    aaaaaaaaaa(bbbbbbbbbb) | aaaaaaaaaa(bbbbbbbbbb) | aaaaaaaaaa(bbbbbbbbbb)
+    | aaaaaaaaaa(bbbbbbbbbbbbb) | aaaaaaaa(bbbbbbbbbbbbb) => {}
+}");
+
+    let style = &FormatStyle { bin_pack_patterns: false, ..FormatStyle::default() };
+    assert_fmt_eq!(style, "\
+match foo {
+    aaaaaaaaaa(bbbbbbbbbb) | aaaaaaaaaa(bbbbbbbbbb) | aaaaaaaaaa(bbbbbbbbbb) => {}
+}");
+    assert_fmt_eq!(style, "\
+match foo {
+    aaaaaaaaaa(bbbbbbbbbb, bbbbbbbbb)
+    | aaaaaaaaaa(bbbbbbbbbb, bbbbbbbbb)
+    | aaaaaaaaaa(bbbbbbbbbb)
+    | aaaaaaaaaa(bbbbbbbbbb, bbbbbbbbb)
+    | aaaaaaaa(bbbbbbbbbbbbb) => {}
+}");
+    assert_fmt_eq!(style, "\
+match foo {
+    aaaaaaaaaa(bbbbbbbbbb, bbbbbbbbb)
+    | aaaaaaaaaa(bbbbbbbbbb, bbbbbbbbb)
+    | aaaaaaaaaa(bbbbbbbbbb)
+    | aaaaaaaaaa(bbbbbbbbbb, bbbbbbbbb)
+    | aaaaaaaa(bbbbbbbbbbbbb) if bar => {}
+}");
+}
+
+#[test]
 fn test_indentation_after_lambda() {
     assert_fmt_eq!("\
 let a = |b| aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
@@ -1659,3 +1703,4 @@ static AAAAAAAAAAAAAAAAAAAAAA: &'static str =
     \"This is a string. This is a string. This is a string. This is a string. This is a string.\";");
 
 }
+
