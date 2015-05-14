@@ -4,7 +4,7 @@ use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
 use syntax::codemap::{mk_sp, Span, BytePos};
 use syntax::parse::token::Token;
-use token::{FormatTokenLexer, FormatToken, FormatDecision};
+use token::{FormatTokenLexer, FormatToken};
 
 #[derive(Debug)]
 struct Change {
@@ -59,14 +59,8 @@ impl<'a> WhitespaceManager<'a> {
         }
     }
 
-    pub fn replace_whitespace(&mut self, tok: &mut FormatToken, newlines_before: u32,
+    pub fn replace_whitespace(&mut self, tok: &FormatToken, newlines_before: u32,
                               indent_level: u32, spaces: u32, start_of_token_column: u32) {
-        tok.decision = if newlines_before > 0 {
-            FormatDecision::Break
-        } else {
-            FormatDecision::Continue
-        };
-
         self.changes.push(Change {
             create_replacement: true,
             token: tok.tok.clone(),

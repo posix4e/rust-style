@@ -8,13 +8,6 @@ use syntax;
 use unwrapped_line::UnwrappedLine;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum FormatDecision {
-  Unformatted,
-  Continue,
-  Break,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TokenType {
     // only used for macro the exlam in invocations (for example "println!(...)")
     Postfix,
@@ -119,8 +112,6 @@ pub struct FormatToken {
     // Children lines that come after this token
     pub children: Vec<UnwrappedLine>,
     // Whether a break will appear before this token in the output.
-    pub decision: FormatDecision,
-    // The penalty value for inserting a line break before this token.
     pub split_penalty: Penalty,
     // Whether a space should be placed before this token.
     pub spaces_required_before: u32,
@@ -170,7 +161,6 @@ impl Default for FormatToken {
             column_width: 0,
             last_line_column_width: None,
             children: vec![],
-            decision: FormatDecision::Unformatted,
             split_penalty: 0,
             spaces_required_before: 0,
             can_break_before: false,
@@ -395,7 +385,6 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             newlines_before: newlines_before,
             original_column: column,
             original_row: row,
-            decision: FormatDecision::Unformatted,
             column_width: column_width,
             last_line_column_width: last_line_column_width,
             comment_type: comment_type,

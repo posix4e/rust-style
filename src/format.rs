@@ -4,7 +4,7 @@ use replacement::Replacement;
 use std::cmp::{self, Ordering};
 use std::collections::{BinaryHeap, HashSet, HashMap};
 use syntax::parse::token::{Token, DelimToken};
-use token::{FormatTokenLexer, FormatToken, FormatDecision};
+use token::{FormatTokenLexer, FormatToken};
 use typed_arena::Arena;
 use unwrapped_line::UnwrappedLine;
 use whitespace_manager::WhitespaceManager;
@@ -173,18 +173,8 @@ impl<'a> LineFormatter<'a> {
                 continue;
             }
 
-            match line.tokens[node.state.next_token_index].decision {
-                FormatDecision::Unformatted => {
-                    self.add_next_state_to_queue(penalty, node, false, &mut count, &mut queue, line);
-                    self.add_next_state_to_queue(penalty, node, true, &mut count, &mut queue, line);
-                },
-                FormatDecision::Continue => {
-                    self.add_next_state_to_queue(penalty, node, false, &mut count, &mut queue, line);
-                },
-                FormatDecision::Break => {
-                    self.add_next_state_to_queue(penalty, node, true, &mut count, &mut queue, line);
-                },
-            }
+            self.add_next_state_to_queue(penalty, node, false, &mut count, &mut queue, line);
+            self.add_next_state_to_queue(penalty, node, true, &mut count, &mut queue, line);
         }
 
         if !dry_run {
