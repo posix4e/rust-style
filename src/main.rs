@@ -143,6 +143,7 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
                 // recursively find all *.rs files
                 let pattern = path.join("**/*.rs");
                 let pattern = pattern.to_str().unwrap();
+                let pattern = pattern.replace("\\", "/");
 
                 // ignore files that start with '.'
                 let match_options = glob::MatchOptions {
@@ -150,7 +151,7 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
                     ..glob::MatchOptions::default()
                 };
 
-                let paths = try!(glob::glob_with(pattern, &match_options));
+                let paths = try!(glob::glob_with(&pattern, &match_options));
                 for result in paths {
                     let path = try!(result);
                     actions.push(try!(create_file_action(path, &args)));
