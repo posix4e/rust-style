@@ -36,7 +36,7 @@ Options:
     -h, --help                      - Show this message
     -w, --write                     - Overwrite the input files
     -V, --version                   - Print version info and exit
-    -j, --output-replacements-json  - Outputs replacements as JSON
+    --output-replacements-json      - Outputs replacements as JSON
     --lines=<string>                - Formats lines specified, where
                                       <string> is <uint>:<uint> -
                                       the line number ranges. The values
@@ -332,10 +332,10 @@ fn write_argument_error(error: &ArgsError) {
                 StyleParseError::InvalidKey(ref key, ref value) =>
                     format!("Invalid key for '{} = {}'", key, value),
                 StyleParseError::InvalidValue(ref key, ref value, ref expect) =>
-                    format!("Invalid value for '{} = {}'. Expecting value: {}.", value, key,
+                    format!("Invalid value for '{} = {}'. Expecting value: {}.", key, value,
                             expect),
                 StyleParseError::InvalidValueType(ref key, ref value, ref expect) =>
-                    format!("Invalid value type for '{} = {}'. Expecting type: {}.", value, key,
+                    format!("Invalid value type for '{} = {}'. Expecting type: {}.", key, value,
                             expect),
             };
             format!("Parsing error when loading style file '{}'. {}", path, msg)

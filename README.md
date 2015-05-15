@@ -35,7 +35,7 @@ If no file arguments are specified, input is read from standard input.
 -h, --help                      - Show this message
 -w, --write                     - Overwrite the input files
 -V, --version                   - Print version info and exit
--j, --output-replacements-json  - Outputs replacements as JSON
+--output-replacements-json      - Outputs replacements as JSON
 --lines=<string>                - Formats lines specified, where
                                   <string> is <uint>:<uint> -
                                   the line number ranges. The values
