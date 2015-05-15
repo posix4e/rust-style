@@ -1208,27 +1208,28 @@ match foo {
 
 #[test]
 fn test_fn_return_arrow_position() {
-    assert_fmt_eq!("\
+    let style = &FormatStyle { bin_pack_parameters: true, ..FormatStyle::default() };
+    assert_fmt_eq!(style, "\
 pub fn add_token_to_state(&self, line: &mut UnwrappedLine, state: &mut LineState, newline: bool,
                           dry_run: bool, whitespace: &mut WhitespaceManager, something: bool)
                           -> Penalty {
     let a = 2;
 }");
 
-    assert_fmt_eq!("\
+    assert_fmt_eq!(style, "\
 pub fn add_token_to_state(&self, line: &mut UnwrappedLine, state: &mut LineState, newline: bool,
                           dry_run: bool, whitespace: &mut WhitespaceManager) -> Penalty {
     let a = 2;
 }");
 
     // This may or may not be the desired formatting.
-    assert_fmt_eq!("\
+    assert_fmt_eq!(style, "\
 pub fn add_token_to_state(&self, line: &mut UnwrappedLine, state: &mut LineState, newline: bool)
                           -> Penalty {
     let a = 2;
 }");
 
-    assert_fmt_eq!("\
+    assert_fmt_eq!(style, "\
 fn aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa<R, F: Fn(&mut Self) -> R>(&mut self, typ: ContextType, f: F)
                                                                -> R {}");
 }
