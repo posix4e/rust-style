@@ -29,7 +29,7 @@ impl Default for FormatStyle {
     fn default() -> FormatStyle {
         FormatStyle {
             bin_pack_arguments: true,
-            bin_pack_parameters: true,
+            bin_pack_parameters: false,
             bin_pack_patterns: false,
             column_limit: 99,
             indent_width: 4,
