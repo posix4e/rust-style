@@ -21,6 +21,7 @@ This will result in a rust-style executable.
 ~~~
 rust-style [-w] [<file>]...
 rust-style [--lines=<string>]... [--output-replacements-json] [<file>]
+rust-style [--lines=<string>]... [--output-replacements-json] [--file-location <location>]
 rust-style [--output-replacements-json] [<file>]...
 rust-style (--help | --version)
 ~~~
@@ -39,6 +40,12 @@ If no file arguments are specified, input is read from standard input.
                                   <string> is <uint>:<uint> -
                                   the line number ranges. The values
                                   are 1-based and inclusive.
+--file-location                 - When reading from stdin, the file
+                                  specified is the location for which
+                                  rust-style config files will be
+                                  begin the search from. File specified
+                                  should be the location of the file 
+                                  sent to stdin.
 ~~~
 
 ###Editor Integration

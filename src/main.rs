@@ -28,6 +28,7 @@ If no file arguments are specified, input is read from standard input.
 
 Usage: rust-style [-w] [<file>]...
        rust-style [--lines=<string>]... [--output-replacements-json] [<file>]
+       rust-style [--lines=<string>]... [--output-replacements-json] [--file-location <location>]
        rust-style [--output-replacements-json] [<file>]...
        rust-style (--help | --version)
 
@@ -40,14 +41,22 @@ Options:
                                       <string> is <uint>:<uint> -
                                       the line number ranges. The values
                                       are 1-based and inclusive.
+    --file-location                 - When reading from stdin, the file
+                                      specified is the location for which
+                                      rust-style config files will be
+                                      begin the search from. File specified
+                                      should be the location of the file 
+                                      sent to stdin.
 ";
 
 #[derive(RustcDecodable, Debug)]
 struct Args {
     arg_file: Vec<String>,
-    flag_lines: Vec<String>,
     flag_write: bool,
+    flag_lines: Vec<String>,
     flag_output_replacements_json: bool,
+    flag_file_location: bool,
+    arg_location: Option<String>,
 }
 
 fn main() {
@@ -125,8 +134,16 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
     };
 
     let actions = if args.arg_file.is_empty() {
+        let style = if args.flag_file_location {
+            let path_string = args.arg_location.as_ref().unwrap();
+            let path: &Path = path_string.as_ref();
+            try!(search_style_format(&path))
+        } else {
+            FormatStyle::default()
+        };
+
         vec![Action {
-            style: FormatStyle::default(),
+            style: style,
             input: Input::StdIn,
             output: Output::StdOut,
         }]
@@ -184,7 +201,16 @@ fn create_file_action(input: PathBuf, args: &Args) -> ArgumentResult<Action> {
 
 fn search_style_format(start: &Path) -> ArgumentResult<FormatStyle> {
     let target = ".rust-style.toml";
-    let mut node = std::fs::canonicalize(start).unwrap();
+    let mut node = match std::fs::canonicalize(start) {
+        Ok(path) => path,
+        Err(err) => {
+            let string_path: String = match start.to_str().map(|s| s.to_owned()) {
+                Some(string) => string,
+                None => "non utf-8 valid path".to_string(),
+            };
+            return Err(ArgsError::InvalidFileLocation(string_path, err));
+        },
+    };
 
     // removes existing file component from the path
     if node.as_path()._is_file() {
@@ -289,6 +315,8 @@ fn write_argument_error(error: &ArgsError) {
             format!("Error occurred when parsing lines. {}.", err),
         ArgsError::ParseLinesError(ref err) =>
             format!("Error occurred when parsing lines. {}", err),
+        ArgsError::InvalidFileLocation(ref path, ref err) =>
+            format!("Invalid file location '{}' specified. {}", path, err),
         ArgsError::StyleLoadError(ref path, ref err) =>
             format!("Cannot load style file '{}'. {}", path, err),
         ArgsError::StyleParseError(ref path, ref err) => {
@@ -372,6 +400,7 @@ enum ArgsError {
     PatternError(glob::PatternError),
     ParseIntError(std::num::ParseIntError),
     ParseLinesError(&'static str),
+    InvalidFileLocation(/*path:*/ String, io::Error),
     StyleLoadError(/*path:*/ String, io::Error),
     StyleParseError(/*path:*/ String, StyleParseError),
 }
