@@ -40,3 +40,6 @@ If no file arguments are specified, input is read from standard input.
                                   the line number ranges. The values
                                   are 1-based and inclusive.
 ~~~
+
+###Editor Integration
+- Sublime Text 3 - https://github.com/kylepink/RustCodeFormatter
