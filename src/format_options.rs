@@ -1,3 +1,4 @@
+use rustc_serialize::{Encodable, Encoder};
 use std::cmp;
 use std::default::Default;
 use toml::{self, Value, Table};
@@ -11,7 +12,18 @@ pub enum UseTabs {
     ForIndentation,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+impl Encodable for UseTabs {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        let value = match *self {
+            UseTabs::Never => "Never",
+            UseTabs::Always => "Always",
+            UseTabs::ForIndentation => "ForIndentation",
+        };
+        s.emit_str(value)
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug, RustcEncodable)]
 pub struct FormatStyle {
     pub bin_pack_arguments: bool,
     pub bin_pack_parameters: bool,
@@ -80,6 +92,10 @@ impl FormatStyle {
         }
 
         Ok(style)
+    }
+
+    pub fn to_toml_str(&self) -> String {
+        toml::encode_str(self)
     }
 }
 
@@ -253,5 +269,14 @@ bin_pack_arguments = true
             Err(StyleParseError::InvalidValueType(..)) => {},
             val => panic!(format!("unexpected value: {:?}", val)),
         }
+    }
+
+    #[test]
+    fn test_toml_serialise_round_trip() {
+        let style = FormatStyle::default();
+        let style_toml_str = style.to_toml_str();
+        let style_again = FormatStyle::from_toml_str(&style_toml_str).unwrap();
+
+        assert_eq!(style, style_again);
     }
 }

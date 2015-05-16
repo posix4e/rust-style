@@ -3,8 +3,8 @@
 
 extern crate docopt;
 extern crate glob;
-extern crate rustc_serialize;
 extern crate rust_style;
+extern crate rustc_serialize;
 
 use docopt::Docopt;
 use rust_style::{reformat, Replacement, FormatStyle, StyleParseError};
@@ -30,12 +30,13 @@ Usage: rust-style [-w] [<file>]...
        rust-style [--lines=<string>]... [--output-replacements-json] [<file>]
        rust-style [--lines=<string>]... [--output-replacements-json] [--file-location <location>]
        rust-style [--output-replacements-json] [<file>]...
-       rust-style (--help | --version)
+       rust-style (--help | --version | --dump-style)
 
 Options:
     -h, --help                      - Show this message
     -w, --write                     - Overwrite the input files
     -V, --version                   - Print version info and exit
+    --dump-style                    - Dumps the default style content
     --output-replacements-json      - Outputs replacements as JSON
     --lines=<string>                - Formats lines specified, where
                                       <string> is <uint>:<uint> -
@@ -51,6 +52,7 @@ Options:
 
 #[derive(RustcDecodable, Debug)]
 struct Args {
+    flag_dump_style: bool,
     arg_file: Vec<String>,
     flag_write: bool,
     flag_lines: Vec<String>,
@@ -73,6 +75,12 @@ fn run() -> i32 {
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.version(Some(version)).help(true).decode())
         .unwrap_or_else(|e| e.exit());
+
+    if args.flag_dump_style {
+        let toml_string = FormatStyle::default().to_toml_str();
+        write!(&mut stdout(), "{}", toml_string).unwrap();
+        return 0;
+    }
 
     let args_result = get_actions(&args);
 
