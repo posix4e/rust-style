@@ -46,7 +46,7 @@ Options:
                                       specified is the location for which
                                       rust-style config files will be
                                       begin the search from. File specified
-                                      should be the location of the file 
+                                      should be the location of the file
                                       sent to stdin.
 ";
 
@@ -147,7 +147,10 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
             let path: &Path = path_string.as_ref();
             try!(search_style_format(&path))
         } else {
-            FormatStyle::default()
+            match std::env::current_dir() {
+                Ok(pwd) => try!(search_style_format(&pwd)),
+                Err(..) => FormatStyle::default(),
+            }
         };
 
         vec![Action {
