@@ -373,6 +373,8 @@ fn test_token_spacing() {
     assert_fmt_eq!("let x: fn() -> ! = panicer;");
     assert_fmt_eq!("fn fatal_proc_rec(err: &str, proc_res: &ProcRes) -> ! {}");
     assert_fmt_eq!("fn hello(a: fn() -> !, b: fn() -> !) {}");
+    assert_fmt_eq!("impl<T> !marker::Send for Rc<T> {}");
+    assert_fmt_eq!("impl<T> !marker::Sync for Rc<T> {}");
 }
 
 #[test]

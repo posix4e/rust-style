@@ -663,6 +663,8 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (_, &Token::Dot) => false,
         (&Token::Dot, _) => false,
 
+        (&Token::Gt, _) if prev.typ == TokenType::GenericBracket &&
+                           curr.typ == TokenType::UnaryOperator => true,
         (&Token::Gt, &Token::Eq) if prev.typ == TokenType::GenericBracket => true,
         (&Token::Gt, &Token::BinOp(..)) |
         (&Token::Gt, &Token::Ident(..)) if prev.typ == TokenType::GenericBracket => true,
