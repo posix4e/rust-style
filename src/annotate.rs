@@ -627,6 +627,7 @@ fn is_unary(prev: Option<&FormatToken>, curr: &FormatToken) -> bool {
                prev.tok.is_keyword(Keyword::If) ||
                prev.tok.is_keyword(Keyword::Let) ||
                prev.tok.is_keyword(Keyword::Mut) ||
+               prev.tok.is_keyword(Keyword::Const) ||
                prev.tok.is_keyword(Keyword::For) => true,
 
         _ if prev.typ == TokenType::BinaryOperator ||
