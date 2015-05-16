@@ -96,7 +96,9 @@ impl<'a> AnnotatingParser<'a> {
     }
 
     fn current_is_unary(&self) -> bool {
-        unary_follows(self.line.prev_non_comment_token(self.current_index))
+        let prev = self.line.prev_non_comment_token(self.current_index);
+        let curr = self.current();
+        is_unary(prev, curr)
     }
 
     fn is_after_non_keyword_ident(&self) -> bool {
@@ -590,13 +592,14 @@ fn calculate_formatting_information(line: &mut UnwrappedLine, style: &FormatStyl
     }
 }
 
-fn unary_follows(prev: Option<&FormatToken>) -> bool {
+fn is_unary(prev: Option<&FormatToken>, curr: &FormatToken) -> bool {
     let prev = match prev {
         None => return true,
         Some(prev) => prev,
     };
-
     match prev.tok {
+        Token::RArrow if curr.tok == Token::Not => false,
+
         Token::Eq |
         Token::EqEq |
         Token::Le |
@@ -624,6 +627,7 @@ fn unary_follows(prev: Option<&FormatToken>) -> bool {
                prev.tok.is_keyword(Keyword::If) ||
                prev.tok.is_keyword(Keyword::Let) ||
                prev.tok.is_keyword(Keyword::Mut) ||
+               prev.tok.is_keyword(Keyword::Const) ||
                prev.tok.is_keyword(Keyword::For) => true,
 
         _ if prev.typ == TokenType::BinaryOperator ||
@@ -660,6 +664,8 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (_, &Token::Dot) => false,
         (&Token::Dot, _) => false,
 
+        (&Token::Gt, _) if prev.typ == TokenType::GenericBracket &&
+                           curr.typ == TokenType::UnaryOperator => true,
         (&Token::Gt, &Token::Eq) if prev.typ == TokenType::GenericBracket => true,
         (&Token::Gt, &Token::BinOp(..)) |
         (&Token::Gt, &Token::Ident(..)) if prev.typ == TokenType::GenericBracket => true,

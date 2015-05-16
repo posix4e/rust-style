@@ -369,6 +369,14 @@ fn test_token_spacing() {
     assert_fmt_eq!("let a = &mut **self._ptr");
     assert_fmt_eq!("((p & !1) as *const TyDesc, p & 1 == 1)");
     assert_fmt_eq!("impl<'a, K, V> IntoIterator for &'a mut BTreeMap<K, V> {}");
+    assert_fmt_eq!("fn panicer() -> ! {}");
+    assert_fmt_eq!("let x: fn() -> ! = panicer;");
+    assert_fmt_eq!("fn fatal_proc_rec(err: &str, proc_res: &ProcRes) -> ! {}");
+    assert_fmt_eq!("fn hello(a: fn() -> !, b: fn() -> !) {}");
+    assert_fmt_eq!("impl<T> !marker::Send for Rc<T> {}");
+    assert_fmt_eq!("impl<T> !marker::Sync for Rc<T> {}");
+    assert_fmt_eq!("assume(!(*(&self._ptr as *const _ as *const *const ())).is_null());");
+    assert_fmt_eq!("assume(!(*(&self._ptr as *const _ as *mut *mut ())).is_null());");
 }
 
 #[test]
