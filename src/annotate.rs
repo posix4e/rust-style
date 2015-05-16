@@ -96,7 +96,9 @@ impl<'a> AnnotatingParser<'a> {
     }
 
     fn current_is_unary(&self) -> bool {
-        unary_follows(self.line.prev_non_comment_token(self.current_index))
+        let prev = self.line.prev_non_comment_token(self.current_index);
+        let curr = self.current();
+        is_unary(prev, curr)
     }
 
     fn is_after_non_keyword_ident(&self) -> bool {
@@ -590,13 +592,14 @@ fn calculate_formatting_information(line: &mut UnwrappedLine, style: &FormatStyl
     }
 }
 
-fn unary_follows(prev: Option<&FormatToken>) -> bool {
+fn is_unary(prev: Option<&FormatToken>, curr: &FormatToken) -> bool {
     let prev = match prev {
         None => return true,
         Some(prev) => prev,
     };
-
     match prev.tok {
+        Token::RArrow if curr.tok == Token::Not => false,
+
         Token::Eq |
         Token::EqEq |
         Token::Le |
