@@ -23,7 +23,7 @@ rust-style [-w] [<file>]...
 rust-style [--lines=<string>]... [--output-replacements-json] [<file>]
 rust-style [--lines=<string>]... [--output-replacements-json] [--file-location <location>]
 rust-style [--output-replacements-json] [<file>]...
-rust-style (--help | --version)
+rust-style (--help | --version | --dump-style)
 ~~~
 
 Formats the given files, and prints the result to standard output.
@@ -35,6 +35,7 @@ If no file arguments are specified, input is read from standard input.
 -h, --help                      - Show this message
 -w, --write                     - Overwrite the input files
 -V, --version                   - Print version info and exit
+--dump-style                    - Dumps the default style content
 --output-replacements-json      - Outputs replacements as JSON
 --lines=<string>                - Formats lines specified, where
                                   <string> is <uint>:<uint> -
