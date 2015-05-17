@@ -7,6 +7,7 @@ extern crate rust_style;
 extern crate rustc_serialize;
 
 use docopt::Docopt;
+use rust_style::unstable::PathExts;
 use rust_style::{reformat, Replacement, FormatStyle, StyleParseError};
 use rustc_serialize::json;
 use std::default::Default;
@@ -15,8 +16,8 @@ use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{stdin, stdout, stderr, self};
 use std::iter::FromIterator;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
-use rust_style::unstable::PathExts;
 
 static USAGE: &'static str = "
 Overview: A tool to format rust code.
@@ -123,16 +124,22 @@ fn get_actions(args: &Args) -> ArgumentResult<(Vec<Action>, ActionArgs)> {
             let range_values = Vec::<&str>::from_iter(range_string.split(':'));
             if range_values.len() != 2 {
                 return Err(ArgsError::ParseLinesError(
-                    "Incorrect format for line ranges, expecting --lines=<uint>:<uint>."));
+                    "Incorrect format for line ranges, expecting --lines=<uint>:<uint>."
+                        .to_string()));
             }
             let a = try!(range_values[0].parse::<u32>());
             let b = try!(range_values[1].parse::<u32>());
             if a == 0 || b == 0 {
-                return Err(ArgsError::ParseLinesError(
-                    "Cannot specify line 0, expecting 1-based line numbers."));
+                return Err(ArgsError::ParseLinesError(format!(
+                    "Cannot specify line 0, expecting 1-based line numbers. {}:{} was given.",
+                    a, b)));
             }
-            // converted from 1-based to 0-based
-            ranges.push((a - 1, b - 1));
+            if a > b {
+                return Err(ArgsError::ParseLinesError(format!(
+                    "First number must be <= than the second number. {}:{} was given.", a, b)));
+            }
+            // convert to rust Range (lower inclusive, upper exclusive)
+            ranges.push(a..b + 1);
         }
         Some(ranges)
     };
@@ -381,7 +388,7 @@ fn write_output_error(output_type: &Output, error: &io::Error) {
 }
 
 struct ActionArgs {
-    ranges: Option<Vec<(u32, u32)>>,
+    ranges: Option<Vec<Range<u32>>>,
     output_json: bool,
 }
 
@@ -410,7 +417,7 @@ enum ArgsError {
     GlobError(glob::GlobError),
     PatternError(glob::PatternError),
     ParseIntError(std::num::ParseIntError),
-    ParseLinesError(&'static str),
+    ParseLinesError(String),
     InvalidFileLocation(/*path:*/ String, io::Error),
     StyleLoadError(/*path:*/ String, io::Error),
     StyleParseError(/*path:*/ String, StyleParseError),

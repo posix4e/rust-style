@@ -24,6 +24,7 @@ pub use replacement::Replacement;
 mod internal {
     use format_options::{FormatStyle, LineRanges, LineEnding};
     use replacement::Replacement;
+    use std::ops::Range;
     use token::FormatTokenLexer;
     use unwrapped_line::UnwrappedLine;
     use {affected_lines, annotate, format, syntax};
@@ -35,8 +36,8 @@ mod internal {
     }
 
     /// Format a string, specifying style and the line ranges to be formatted.
-    /// Ranges are zero based, and inclusive. None means the whole string should be formatted.
-    pub fn reformat(source: &str, style: &FormatStyle, line_ranges: Option<&[(u32, u32)]>) -> Vec<Replacement> {
+    /// Ranges are one based. None means the whole string should be formatted.
+    pub fn reformat(source: &str, style: &FormatStyle, line_ranges: Option<&[Range<u32>]>) -> Vec<Replacement> {
         if source.chars().all(char::is_whitespace) {
             return vec![];
         }
@@ -47,7 +48,7 @@ mod internal {
         let lines = &mut annotated_lines(lexer, &style);
 
         if line_ranges.is_some() {
-            let line_ranges = LineRanges::new_from_tuples(line_ranges.unwrap());
+            let line_ranges = LineRanges::new(line_ranges.unwrap());
             affected_lines::compute_affected_lines(lines, &line_ranges);
         } else {
             affected_lines::mark_all_affected(lines);

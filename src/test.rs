@@ -2,6 +2,7 @@ use format_options::FormatStyle;
 use reformat;
 use replacement::Replacement;
 use std::default::Default;
+use std::ops::Range;
 use syntax::parse::token::{Token, DelimToken};
 use syntax;
 use token::{FormatTokenLexer, Precedence, TokenType};
@@ -18,7 +19,7 @@ fn fmt_style(source: &str, style: &FormatStyle) -> String {
     Replacement::apply_all(&replacements, source)
 }
 
-fn fmt_rng(source: &str, line_ranges: &[(u32, u32)]) -> String {
+fn fmt_rng(source: &str, line_ranges: &[Range<u32>]) -> String {
     let style = Default::default();
     let replacements = super::reformat(&source, &style, Some(line_ranges));
     Replacement::apply_all(&replacements, source)
@@ -1287,9 +1288,9 @@ let b =3 +4;
 let c = 5 + 6;
 ";
 
-    assert_eq!(fmt_rng(&input, vec![(0, 0)].as_ref()), expected_1);
-    assert_eq!(fmt_rng(&input, vec![(1, 1)].as_ref()), expected_2);
-    assert_eq!(fmt_rng(&input, vec![(2, 2)].as_ref()), expected_3);
+    assert_eq!(fmt_rng(&input, &[1..2]), expected_1);
+    assert_eq!(fmt_rng(&input, &[2..3]), expected_2);
+    assert_eq!(fmt_rng(&input, &[3..4]), expected_3);
 
 }
 
@@ -1316,9 +1317,9 @@ let b = 3 + 4;
 let c = 5 + 6;
 ";
 
-    assert_eq!(fmt_rng(&input, vec![(0, 1)].as_ref()), expected_1);
-    assert_eq!(fmt_rng(&input, vec![(1, 2)].as_ref()), expected_2);
-    assert_eq!(fmt_rng(&input, vec![(0, 2)].as_ref()), expected_3);
+    assert_eq!(fmt_rng(&input, &[1..3]), expected_1);
+    assert_eq!(fmt_rng(&input, &[2..4]), expected_2);
+    assert_eq!(fmt_rng(&input, &[1..4]), expected_3);
 }
 
 #[test]
@@ -1344,9 +1345,9 @@ let b =3 +4;
 let c = 5 + 6;
 ";
 
-    assert_eq!(fmt_rng(&input, vec![(0, 0), (1, 1)].as_ref()), expected_1);
-    assert_eq!(fmt_rng(&input, vec![(1, 1), (2, 2)].as_ref()), expected_2);
-    assert_eq!(fmt_rng(&input, vec![(0, 0), (2, 2)].as_ref()), expected_3);
+    assert_eq!(fmt_rng(&input, &[1..2, 2..3]), expected_1);
+    assert_eq!(fmt_rng(&input, &[2..3, 3..4]), expected_2);
+    assert_eq!(fmt_rng(&input, &[1..2, 3..4]), expected_3);
 }
 
 #[test]
@@ -1379,12 +1380,12 @@ let b = 3 + 4;
 let c= 5+6;
 ";
 
-    assert_eq!(fmt_rng(&input, vec![(0, 0)].as_ref()), expected_1);
-    assert_eq!(fmt_rng(&input, vec![(1, 1)].as_ref()), expected_2);
-    assert_eq!(fmt_rng(&input, vec![(2, 2)].as_ref()), expected_2);
-    assert_eq!(fmt_rng(&input, vec![(3, 3)].as_ref()), expected_2);
-    assert_eq!(fmt_rng(&input, vec![(4, 4)].as_ref()), expected_2);
-    assert_eq!(fmt_rng(&input, vec![(5, 5)].as_ref()), expected_3);
+    assert_eq!(fmt_rng(&input, &[1..2]), expected_1);
+    assert_eq!(fmt_rng(&input, &[2..3]), expected_2);
+    assert_eq!(fmt_rng(&input, &[3..4]), expected_2);
+    assert_eq!(fmt_rng(&input, &[4..5]), expected_2);
+    assert_eq!(fmt_rng(&input, &[5..6]), expected_2);
+    assert_eq!(fmt_rng(&input, &[6..7]), expected_3);
 }
 
 #[test]
@@ -1412,8 +1413,8 @@ let b = 3 + 4;
 let c= 5+6;
 ";
 
-    assert_eq!(fmt_rng(&input, vec![(3, 3)].as_ref()), expected_1);
-    assert_eq!(fmt_rng(&input, vec![(4, 4)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, &[4..5]), expected_1);
+    assert_eq!(fmt_rng(&input, &[5..6]), expected_2);
 }
 
 #[test]
@@ -1441,8 +1442,8 @@ let b = 3 + 4;
 let c= 5+6;
 ";
 
-    assert_eq!(fmt_rng(&input, vec![(3, 3)].as_ref()), expected_1);
-    assert_eq!(fmt_rng(&input, vec![(4, 4)].as_ref()), expected_2);
+    assert_eq!(fmt_rng(&input, &[4..5]), expected_1);
+    assert_eq!(fmt_rng(&input, &[5..6]), expected_2);
 }
 
 #[test]

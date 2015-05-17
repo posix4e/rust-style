@@ -1,6 +1,6 @@
 use rustc_serialize::{Encodable, Encoder};
-use std::cmp;
 use std::default::Default;
+use std::ops::Range;
 use toml::{self, Value, Table};
 
 pub type Penalty = u64;
@@ -177,21 +177,19 @@ impl LineEnding {
     }
 }
 
-pub struct LineRanges {
-    ranges: Vec<(u32, u32)>,
+pub struct LineRanges<'a> {
+    ranges: &'a [Range<u32>],
 }
 
-impl LineRanges {
-    pub fn new_from_tuples(lines: &[(u32, u32)]) -> LineRanges {
-        let ranges = lines.iter()
-                        .map(|&(start, end)| (cmp::min(start, end), cmp::max(start, end)))
-                        .collect();
-
+impl<'a> LineRanges<'a> {
+    pub fn new(ranges: &[Range<u32>]) -> LineRanges {
         LineRanges { ranges: ranges }
     }
 
     pub fn in_ranges(&self, line: u32) -> bool {
-        self.ranges.iter().any(|&(low, high)| line >= low && line <= high)
+        // convert line to from zero based to one based
+        let line = line + 1;
+        self.ranges.iter().any(|r| line >= r.start && line < r.end)
     }
 }
 
