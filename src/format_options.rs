@@ -273,7 +273,7 @@ bin_pack_arguments = true
 
     #[test]
     fn test_toml_serialise_round_trip() {
-        let style = FormatStyle::default();
+        let style = FormatStyle { column_limit: 555, ..FormatStyle::default() };
         let style_toml_str = style.to_toml_str();
         let style_again = FormatStyle::from_toml_str(&style_toml_str).unwrap();
 
