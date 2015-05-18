@@ -554,7 +554,7 @@ fn calculate_formatting_information(line: &mut UnwrappedLine, style: &FormatStyl
     line.tokens[0].total_length = line.tokens[0].column_width;
 
     for i in 1..line.tokens.len() {
-        let mut spaces_required_before = 0;
+        let spaces_required_before;
         let can_break_before_;
         let must_break_before_;
         let split_penalty_;
@@ -564,9 +564,9 @@ fn calculate_formatting_information(line: &mut UnwrappedLine, style: &FormatStyl
             let curr = &line.tokens[i];
             let prev = &line.tokens[i - 1];
 
-            if space_required_before(line, prev, curr) {
-                spaces_required_before = 1;
-            }
+            spaces_required_before = if curr.in_non_whitelisted_macro { curr.spaces_before }
+                                     else if space_required_before(line, prev, curr) { 1 }
+                                     else { 0 };
             must_break_before_ = must_break_before(line, prev, curr);
             can_break_before_ = must_break_before_ || can_break_before(prev, curr);
             split_penalty_ = 20 * curr.binding_strength + split_penalty(prev, curr);
@@ -748,10 +748,18 @@ fn must_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToke
     if curr.newlines_before > 0 && prev.tok == Token::OpenDelim(DelimToken::Brace) {
         return true;
     }
+    if curr.newlines_before > 0 && curr.in_non_whitelisted_macro {
+        return true;
+    }
+
     false
 }
 
 fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
+    if curr.newlines_before == 0 && curr.in_non_whitelisted_macro {
+        return false;
+    }
+
     match (&prev.tok, &curr.tok) {
         _ if prev.typ == TokenType::UnaryOperator => false,
         (&Token::OpenDelim(..), &Token::CloseDelim(..)) if prev.children.is_empty() => false,

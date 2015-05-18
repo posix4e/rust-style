@@ -4,6 +4,25 @@ use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken, Lit};
 use token::{FormatToken, FormatTokenLexer};
 
+const MACRO_WHITELIST: &'static [&'static str] = &[
+    "assert",
+    "assert_eq",
+    "debug_assert",
+    "debug_assert_eq",
+    "fail",
+    "format",
+    "local_data_key",
+    "print",
+    "println",
+    "select",
+    "try",
+    "unimplemented",
+    "unreachable",
+    "vec",
+    "write",
+    "writeln",
+];
+
 // An unwrapped line is a sequence of FormatTokens, that we would like to
 // put on a single line if there was no column limit. Changing the formatting
 // within an unwrapped line does not affect any other unwrapped lines.
@@ -50,6 +69,7 @@ impl UnwrappedLine {
             block_stack: vec![],
             level: 0,
             comments_before_next_token: vec![],
+            in_non_whitelisted_macro: false,
         };
 
         parser.parse();
@@ -91,6 +111,9 @@ struct UnwrappedLineParser<'a, 'b: 'a> {
     level: u32,
     // Comment tokens that appear before the next token
     comments_before_next_token: Vec<FormatToken>,
+    // Whether we are in a macro definition, or an invocation of a macro
+    // which doesn't appear on the whitelist.
+    in_non_whitelisted_macro: bool,
 }
 
 #[derive(Copy,Clone,Eq,PartialEq,Debug)]
@@ -99,7 +122,6 @@ pub enum Block {
     Statements,
     StructOrEnum,
     TopLevel,
-    MacroRules,
 }
 
 enum Context {
@@ -205,7 +227,6 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     match block {
                         Block::StructOrEnum => self.parse_enum_variant_or_struct_field(),
                         Block::Match => self.parse_match_arm(),
-                        Block::MacroRules => self.parse_macro_rule(),
                         Block::Statements |
                         Block::TopLevel => self.parse_stmt(),
                     }
@@ -385,7 +406,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     self.parse_generics();
                 },
                 Token::OpenDelim(d) => {
-                    self.parse_delim_pair(Context::Declaration, d);
+                    self.parse_delim_context(Context::Declaration, d);
                 }
                 _ => {
                     self.next_token();
@@ -403,7 +424,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
 
         if self.ftok.tok == Token::OpenDelim(DelimToken::Bracket) {
-            if self.parse_delim_pair(Context::Declaration, DelimToken::Bracket) {
+            if self.parse_delim_context(Context::Declaration, DelimToken::Bracket) {
                 self.add_line();
             }
         }
@@ -452,7 +473,38 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
-    fn parse_delim_pair(&mut self, context: Context, delim: DelimToken) -> bool {
+    // Parses everything up until the end of the delim pair
+    fn try_parse_delim_pair(&mut self) -> bool {
+        let delim = match self.ftok.tok {
+            Token::OpenDelim(delim) => delim,
+            _ => return false,
+        };
+        self.next_token();
+        loop {
+            match self.ftok.tok {
+                Token::Eof => {
+                    return false;
+                }
+                Token::CloseDelim(close) => {
+                    if close == delim {
+                        self.next_token();
+                        return true;
+                    }
+                    return false;
+                }
+                Token::OpenDelim(..) => {
+                    if !self.try_parse_delim_pair() {
+                        return false;
+                    }
+                }
+                _ => {
+                    self.next_token();
+                }
+            }
+        }
+    }
+
+    fn parse_delim_context(&mut self, context: Context, delim: DelimToken) -> bool {
         let open = Token::OpenDelim(delim);
         let close = Token::CloseDelim(delim);
 
@@ -504,7 +556,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     break;
                 },
                 Token::OpenDelim(delim) => {
-                    self.parse_delim_pair(Context::Declaration, delim);
+                    self.parse_delim_context(Context::Declaration, delim);
                 },
                 Token::Lt => {
                     self.parse_generics();
@@ -540,21 +592,13 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                 },
                 Token::OpenDelim(DelimToken::Brace) if may_be_struct_init => {
                     // struct inits on same line
-                    self.parse_delim_pair(Context::Statements, DelimToken::Brace);
+                    self.parse_delim_context(Context::Statements, DelimToken::Brace);
                 },
-                Token::OpenDelim(DelimToken::Brace) => {
-                    self.parse_child_block(Block::Statements);
-                },
-                Token::OpenDelim(DelimToken::Bracket) => {
-                    self.parse_child_block(Block::Statements);
-                },
-                Token::OpenDelim(DelimToken::Paren) => {
-                    self.parse_delim_pair(Context::Statements, DelimToken::Paren);
+                Token::OpenDelim(delim) => {
+                    self.parse_delim_expr(delim);
                 },
                 Token::Ident(..) if self.is_macro_invocation() => {
-                    self.next_token(); // macro name
-                    self.next_token(); // macro exclamation mark
-                    if self.try_parse_brace_block(Block::Statements) {
+                    if self.parse_macro_invocation() {
                         self.add_line();
                         return false;
                     }
@@ -590,6 +634,21 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
+    fn parse_delim_expr(&mut self, delim: DelimToken) {
+        assert_eq!(self.ftok.tok, Token::OpenDelim(delim));
+        match delim {
+            DelimToken::Brace => {
+                self.parse_child_block(Block::Statements);
+            },
+            DelimToken::Bracket => {
+                self.parse_child_block(Block::Statements);
+            },
+            DelimToken::Paren => {
+                self.parse_delim_context(Context::Statements, DelimToken::Paren);
+            },
+        }
+    }
+
     fn parse_decl_up_to<P>(&mut self, pred: P) -> bool where P: Fn(&Token) -> bool {
         loop {
             if pred(&self.ftok.tok) {
@@ -604,7 +663,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
                     return false;
                 },
                 Token::OpenDelim(delim) => {
-                    self.parse_delim_pair(Context::Declaration, delim);
+                    self.parse_delim_context(Context::Declaration, delim);
                 },
                 Token::Lt => {
                     self.parse_generics();
@@ -693,34 +752,45 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
     fn parse_macro_rules(&mut self) {
         assert!(self.is_macro_rules());
-        self.next_token(); // skip "macro_rules" identifiers
+        self.next_token(); // skip "macro_rules" identifier
         self.next_token(); // skip ! token
 
         if let Token::Ident(..) = self.ftok.tok {
             self.next_token(); // macro name
-            if let Token::OpenDelim(..) = self.ftok.tok {
-                self.parse_block(Block::MacroRules);
-                self.next_token_if(&Token::Semi);
-                self.add_line();
-            }
+            self.parse_in_macro(false, |this| {
+                this.try_parse_delim_pair();
+                this.next_token_if(&Token::Semi);
+            })
         }
-    }
-
-    fn parse_macro_rule(&mut self) {
-        if self.parse_decl_up_to(|t| *t == Token::FatArrow) {
-            self.next_token();
-            if let Token::OpenDelim(..) = self.ftok.tok {
-                self.parse_block(Block::Statements);
-                self.next_token_if(&Token::Semi);
-                self.add_line();
-            }
-        }
+        self.add_line();
     }
 
     fn is_macro_rules(&self) -> bool {
         self.is_macro_invocation() && self.lexer.span_str(self.ftok.span) == "macro_rules"
     }
 
+    // returns if it was a brace macro
+    fn parse_macro_invocation(&mut self) -> bool {
+        assert!(self.is_macro_invocation());
+        let whitelisted = MACRO_WHITELIST.contains(&self.lexer.span_str(self.ftok.span));
+        self.next_token(); // macro name
+        self.next_token(); // macro exclamation mark
+
+        let delim = match self.ftok.tok {
+            Token::OpenDelim(delim) => delim,
+            _ => return false,
+        };
+
+        self.parse_in_macro(whitelisted, |this| {
+            let is_brace = delim == DelimToken::Brace;
+            if whitelisted {
+                this.parse_delim_expr(delim);
+                is_brace
+            } else {
+                this.try_parse_delim_pair() && is_brace
+            }
+        })
+    }
 
     // Checks for an identifier, then a !
     fn is_macro_invocation(&self) -> bool {
@@ -728,6 +798,18 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
             Token::Ident(..) => self.lexer.peek() == &Token::Not,
             _ => false,
         }
+    }
+
+    fn parse_in_macro<F, R>(&mut self, whitelisted: bool, f: F) -> R
+        where F: Fn(&mut Self) -> R
+    {
+        let initial_in_macro = self.in_non_whitelisted_macro;
+        self.in_non_whitelisted_macro = initial_in_macro || !whitelisted;
+
+        let result = f(self);
+
+        self.in_non_whitelisted_macro = initial_in_macro;
+        result
     }
 
     fn next_token_if(&mut self, token: &Token) {
@@ -792,7 +874,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         }
     }
 
-    fn push_token(&mut self, token: FormatToken) {
+    fn push_token(&mut self, mut token: FormatToken) {
+        token.in_non_whitelisted_macro = self.in_non_whitelisted_macro;
         self.line_stack.last_mut().unwrap().push(token);
     }
 
@@ -857,3 +940,4 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
         self.push_token(ftok);
     }
 }
+

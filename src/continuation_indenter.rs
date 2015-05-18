@@ -282,6 +282,10 @@ impl<'a> ContinuationIndenter<'a> {
         let stack_top = state.stack_top();
         let current = &line.tokens[state.next_token_index];
 
+        if current.in_non_whitelisted_macro {
+            return current.original_column;
+        }
+
         if current.tok == Token::CloseDelim(DelimToken::Brace) && state.stack.len() > 1 {
             return state.stack[state.stack.len() - 2].nested_block_indent;
         }

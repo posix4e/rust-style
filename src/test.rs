@@ -858,7 +858,7 @@ fn foo() {
 }
 
 #[test]
-fn test_spacing_macro_corner_cases() {
+fn test_spacing_return_not() {
     assert_fmt_eq!("\
 fn foo() -> bool {
     let bar = true;
@@ -1110,7 +1110,7 @@ struct TyDesc {
 }
 
 #[test]
-fn test_macro_invokation_brace() {
+fn test_macro_invocation_brace() {
     assert_fmt_eq!("\
 from_str_radix_float_impl! {
     f32
@@ -1714,3 +1714,44 @@ static AAAAAAAAAAAAAAAAAAAAAA: &'static str =
 
 }
 
+#[test]
+fn test_dont_format_macro_rules() {
+    assert_fmt_eq!("\
+macro_rules! assert_fmt_eq(
+    ($style:expr, $text:            expr) => (
+    assert_eq!(fmt_style($text, $style), $text)
+);
+                  ($text:expr) =>         (
+            assert_eq!  (fmt($text), $text)
+    )
+);");
+
+    assert_fmt_eq!("\
+macro_rules! assert_fmt_eq(
+    ($style:expr, $text:expr) => (assert_eq!(fmt_style($text, $style), $text));
+    ($text:expr) => (assert_eq!  (fmt($text), $text))
+);");
+}
+
+#[test]
+fn test_dont_format_custom_macros() {
+    assert_fmt_eq!("\
+some_custom_macro! { impl  Foo and Bar }
+some_custom_macro! { impl Bar  and Foo }
+fn foo() {}");
+    assert_fmt_eq!("\
+    let a = not_format!(\"{} is something {} {}\", aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccc);");
+}
+
+#[test]
+fn test_format_std_macros() {
+    let input = "\
+    let a = format!(\"{} is something {} {}\", aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccc);";
+    let expected = "\
+let a = format!(\"{} is something {} {}\", aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
+                cccccccccccccccccccc);";
+    assert_eq!(fmt(input), expected);
+}

@@ -128,7 +128,7 @@ impl<'a> LineFormatter<'a> {
         let mut penalty = 0;
         let mut state = self.indenter.get_initial_state(line, indent);
 
-        // first token alread formatted
+        // first token already formatted
         while !state.path_complete(line) {
             self.format_children(newline, dry_run, &mut penalty, &mut state, line);
             self.indenter.add_token_to_state(line, &mut state, newline, dry_run, &mut self.whitespace);

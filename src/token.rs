@@ -97,6 +97,8 @@ pub struct FormatToken {
     pub is_first_token: bool,
     // The number of new lines preceding this token in the original input
     pub newlines_before: u32,
+    // The number of spaces preceding this token (after the newlines) in the original input
+    pub spaces_before: u32,
     // The character position (not bytes) of the start of the token
     // in the original input
     pub original_column: u32,
@@ -143,6 +145,9 @@ pub struct FormatToken {
 
     // The index of the matching real paren, if this is a real paren
     pub matching_paren: Option<usize>,
+    // Whether this token is inside a macro definition, or an invocation of a macro
+    // which doesn't appear on the whitelist.
+    pub in_non_whitelisted_macro: bool,
 }
 
 impl Default for FormatToken {
@@ -159,6 +164,7 @@ impl Default for FormatToken {
             original_row: 0,
             total_length: 0,
             column_width: 0,
+            spaces_before: 0,
             last_line_column_width: None,
             children: vec![],
             split_penalty: 0,
@@ -174,6 +180,7 @@ impl Default for FormatToken {
             fake_lparens: vec![],
             fake_rparens: 0,
             matching_paren: None,
+            in_non_whitelisted_macro: false,
         }
     }
 }
@@ -321,6 +328,7 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             return None;
         }
 
+        let prev_column = self.column;
         let mut column = self.column;
         let mut row = self.row;
         let mut tok_sp = self.lexer.next_token();
@@ -383,6 +391,8 @@ impl<'s> Iterator for FormatTokenLexer<'s> {
             preceding_whitespace_span: mk_sp(self.previous_token_span.hi, tok_sp.sp.lo),
             is_first_token: self.is_first_token,
             newlines_before: newlines_before,
+            spaces_before: if newlines_before > 0 { column }
+                           else { column - prev_column },
             original_column: column,
             original_row: row,
             column_width: column_width,
