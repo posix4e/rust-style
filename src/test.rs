@@ -1500,8 +1500,8 @@ match something {
 #[test]
 fn test_break_add_before_dot() {
     assert_fmt_eq!("\
-child_lengthhhhhhhhhhhhhhhhh = prev.children[0].tokens.last().unwrap().total_length +
-                               style.column_limit;
+child_lengthhhhhhhhhhhhhhhhh =
+    prev.children[0].tokens.last().unwrap().total_length + style.column_limit;
 ");
     assert_fmt_eq!("\
 child_lengthhhhhhhhhhhhhhhhh =
@@ -1644,11 +1644,11 @@ match foo {
 #[test]
 fn test_indentation_after_lambda() {
     assert_fmt_eq!("\
-let a = |b| aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
-                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;");
+let a = |b| aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
+                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;");
     assert_fmt_eq!("\
-let a = || aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
-               bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;");
+let a = || aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +
+               bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;");
 }
 
 #[test]
@@ -1754,4 +1754,13 @@ let a = format!(\"{} is something {} {}\", aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
                 cccccccccccccccccccc);";
     assert_eq!(fmt(input), expected);
+}
+
+#[test]
+fn test_bad_case_1() {
+    let style = &FormatStyle { column_limit: 80, ..FormatStyle::default() };
+    assert_fmt_eq!(style, "\
+llllllllllllline.children_affected =
+    compute_affected_lines(&mut token.children, ranges) ||
+    line.children_affected;");
 }

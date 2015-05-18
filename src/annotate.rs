@@ -788,7 +788,6 @@ fn split_penalty(prev: &FormatToken, curr: &FormatToken) -> Penalty {
         (_, &Token::RArrow) => 1,
         (&Token::FatArrow, _) => 10,
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => 1,
-        (&Token::Eq, _) | (&Token::BinOpEq(..), _) => 50,
         (&Token::CloseDelim(DelimToken::Paren), &Token::Dot) => 20,
         (_, &Token::Dot) => 100,
         (_, &Token::OpenDelim(DelimToken::Brace)) => 1,
