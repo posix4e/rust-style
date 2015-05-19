@@ -380,11 +380,18 @@ fn test_token_spacing() {
     assert_fmt_eq!("assume(!(*(&self._ptr as *const _ as *mut *mut ())).is_null());");
     assert_fmt_eq!("let a = |&n| n == 0");
     assert_fmt_eq!("let a = |&&n| n == 0");
+    assert_fmt_eq!("pub fn to_mut(&mut self) -> &mut <B as ToOwned>::Owned {}");
+    assert_fmt_eq!("pub fn to_mut(&mut self) -> *mut <B as ToOwned>::Owned {}");
+    assert_fmt_eq!("pub fn to_mut(&mut self) -> &const <B as ToOwned>::Owned {}");
+    assert_fmt_eq!("pub fn to_mut(&mut self) -> *const <B as ToOwned>::Owned {}");
+    assert_fmt_eq!("pub fn to_mut(&mut self) -> &<B as ToOwned>::Owned {}");
+    assert_fmt_eq!("pub fn to_mut(&mut self) -> *<B as ToOwned>::Owned {}");
 }
 
 #[test]
 fn test_for_loop_indentation() {
-    assert_fmt_eq!("for a in b {
+    assert_fmt_eq!("\
+for a in b {
     let cccc = dd;
     let ee = fffff;
 }

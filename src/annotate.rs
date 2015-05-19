@@ -641,13 +641,16 @@ fn is_unary(prev: Option<&FormatToken>, curr: &FormatToken) -> bool {
 
 fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> bool {
     match (&prev.tok, &curr.tok) {
+        (&Token::Ident(..), _) if prev.tok.is_keyword(Keyword::Mut) => true,
+        (&Token::Ident(..), _) if prev.tok.is_keyword(Keyword::Const) => true,
+
         (_, &Token::Comma) => false,
         (_, &Token::Semi) => false,
 
         // spacing after macro invocation
         (&Token::Not, &Token::OpenDelim(DelimToken::Paren)) |
-        (&Token::Not, &Token::OpenDelim(DelimToken::Bracket)) if prev.typ == TokenType::Postfix
-            => false,
+        (&Token::Not, &Token::OpenDelim(DelimToken::Bracket))
+            if prev.typ == TokenType::Postfix => false,
         (&Token::Not, _) if prev.typ == TokenType::Postfix => true,
 
         (_, &Token::CloseDelim(DelimToken::Paren)) => false,
@@ -724,7 +727,6 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         // fn keyword as a type
         (&Token::Ident(..), &Token::OpenDelim(DelimToken::Paren))
             if prev.tok.is_keyword(Keyword::Fn) => false,
-
         (&Token::Ident(..), _) if is_spaced_keyword(&prev.tok) => true,
         (_, &Token::Ident(..)) if is_spaced_keyword(&curr.tok) => true,
 
