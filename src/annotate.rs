@@ -676,7 +676,7 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (&Token::Gt, &Token::Ident(..)) if prev.typ == TokenType::GenericBracket => true,
         (_, &Token::OpenDelim(DelimToken::Brace)) if prev.typ == TokenType::GenericBracket => true,
         _ if prev.typ == TokenType::GenericBracket => false,
-        _ if curr.typ == TokenType::GenericBracket => false,
+        (&Token::Ident(..), _) if curr.typ == TokenType::GenericBracket => false,
 
         _ if prev.typ == TokenType::UnaryOperator => false,
 

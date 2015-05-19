@@ -386,6 +386,7 @@ fn test_token_spacing() {
     assert_fmt_eq!("pub fn to_mut(&mut self) -> *const <B as ToOwned>::Owned {}");
     assert_fmt_eq!("pub fn to_mut(&mut self) -> &<B as ToOwned>::Owned {}");
     assert_fmt_eq!("pub fn to_mut(&mut self) -> *<B as ToOwned>::Owned {}");
+    assert_fmt_eq!("pub fn into_owned(self) -> <B as ToOwned>::Owned {}");
 }
 
 #[test]
