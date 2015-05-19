@@ -378,6 +378,8 @@ fn test_token_spacing() {
     assert_fmt_eq!("impl<T> !marker::Sync for Rc<T> {}");
     assert_fmt_eq!("assume(!(*(&self._ptr as *const _ as *const *const ())).is_null());");
     assert_fmt_eq!("assume(!(*(&self._ptr as *const _ as *mut *mut ())).is_null());");
+    assert_fmt_eq!("let a = |&n| n == 0");
+    assert_fmt_eq!("let a = |&&n| n == 0");
 }
 
 #[test]

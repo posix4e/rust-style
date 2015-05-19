@@ -311,6 +311,7 @@ impl<'a> AnnotatingParser<'a> {
         let prev = self.line.prev_non_comment_token(self.current_index);
 
         match self.current().tok {
+            Token::AndAnd |
             Token::Not |
             Token::BinOp(BinOpToken::Star) |
             Token::BinOp(BinOpToken::And) |
@@ -631,7 +632,8 @@ fn is_unary(prev: Option<&FormatToken>, curr: &FormatToken) -> bool {
                prev.tok.is_keyword(Keyword::For) => true,
 
         _ if prev.typ == TokenType::BinaryOperator ||
-             prev.typ == TokenType::UnaryOperator => true,
+             prev.typ == TokenType::UnaryOperator ||
+             prev.typ == TokenType::LambdaParamsStart => true,
 
         _ => false,
     }
