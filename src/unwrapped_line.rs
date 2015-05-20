@@ -201,8 +201,13 @@ impl<'a> UnwrappedLineParser<'a> {
                                     self.ftok.tok.is_keyword(Keyword::Type) => {
                     self.parse_decl(Block::Statements);
                 }
-                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) ||
-                                    self.ftok.tok.is_keyword(Keyword::Unsafe) => {
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Pub) => {
+                    self.next_token();
+                }
+                Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Unsafe) &&
+                                    self.input.last()
+                                        .map(|t| t.tok.is_any_keyword())
+                                        .unwrap_or(false) => {
                     self.next_token();
                 }
                 Token::Ident(..) if self.ftok.tok.is_keyword(Keyword::Extern) => {
@@ -447,6 +452,7 @@ impl<'a> UnwrappedLineParser<'a> {
         self.next_token();
         if self.parse_stmt_up_to(|t| *t == Token::OpenDelim(DelimToken::Brace)) {
             if self.try_parse_brace_block(Block::Statements) {
+                self.next_token_if(&Token::Semi);
                 self.add_line();
             }
         }

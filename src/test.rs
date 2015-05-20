@@ -313,6 +313,12 @@ let e = 5;");
 }
 
 #[test]
+fn test_block_trailing_semi() {
+    assert_fmt_eq!("for _ in mem::replace(self, BTreeMap::with_b(b)) {};");
+    assert_fmt_eq!("unsafe { heap::deallocate(*self.ptr, size, alignment) };");
+}
+
+#[test]
 fn test_token_spacing() {
     assert_fmt_eq!("for i in 5..10 {\n    let b = i;\n}");
     assert_fmt_eq!("let foo = bar.something;");
