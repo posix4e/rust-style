@@ -1,11 +1,11 @@
 use format_options::FormatStyle;
 use reformat;
 use replacement::Replacement;
+use source::Source;
 use std::default::Default;
 use std::ops::Range;
 use syntax::parse::token::{Token, DelimToken};
-use syntax;
-use token::{FormatTokenLexer, Precedence, TokenType};
+use token::{Precedence, TokenType};
 use unwrapped_line::UnwrappedLine;
 
 fn fmt(source: &str) -> String {
@@ -31,10 +31,9 @@ fn replacements(source: &str) -> Vec<Replacement> {
 }
 
 fn annotated_lines(source: &str) -> Vec<UnwrappedLine> {
-    let session = syntax::parse::new_parse_sess();
     let style = Default::default();
-    let lexer = &mut FormatTokenLexer::new(source, &session, &style);
-    super::internal::annotated_lines(lexer, &style)
+    let source = Source::new(source);
+    super::internal::annotated_lines(&source, &style)
 }
 
 macro_rules! assert_fmt_eq(

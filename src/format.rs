@@ -1,15 +1,16 @@
 use continuation_indenter::ContinuationIndenter;
 use format_options::{FormatStyle, Penalty, LineEnding};
 use replacement::Replacement;
+use source::Source;
 use std::cmp::{self, Ordering};
 use std::collections::{BinaryHeap, HashSet, HashMap};
 use syntax::parse::token::{Token, DelimToken};
-use token::{FormatTokenLexer, FormatToken};
+use token::FormatToken;
 use typed_arena::Arena;
 use unwrapped_line::UnwrappedLine;
 use whitespace_manager::WhitespaceManager;
 
-pub fn format(lexer: &FormatTokenLexer, style: &FormatStyle, line_ending: LineEnding,
+pub fn format(source: &Source, style: &FormatStyle, line_ending: LineEnding,
               lines: &mut [UnwrappedLine]) -> Vec<Replacement> {
     let mut formatter = LineFormatter {
         style: style,
@@ -20,7 +21,7 @@ pub fn format(lexer: &FormatTokenLexer, style: &FormatStyle, line_ending: LineEn
     };
 
     formatter.format(lines, false, 0, false);
-    formatter.whitespace.generate_replacements(lexer)
+    formatter.whitespace.generate_replacements(source)
 }
 
 struct LineFormatter<'a> {

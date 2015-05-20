@@ -9,6 +9,7 @@ mod continuation_indenter;
 mod format;
 mod format_options;
 mod replacement;
+mod source;
 mod token;
 mod unwrapped_line;
 mod whitespace_manager;
@@ -24,13 +25,14 @@ pub use replacement::Replacement;
 mod internal {
     use format_options::{FormatStyle, LineRanges, LineEnding};
     use replacement::Replacement;
+    use source::Source;
     use std::ops::Range;
-    use token::FormatTokenLexer;
     use unwrapped_line::UnwrappedLine;
-    use {affected_lines, annotate, format, syntax};
+    use {affected_lines, annotate, format};
 
-    pub fn annotated_lines(lexer: &mut FormatTokenLexer, style: &FormatStyle) -> Vec<UnwrappedLine> {
-        let mut lines = UnwrappedLine::parse_lines(lexer);
+    pub fn annotated_lines(source: &Source, style: &FormatStyle) -> Vec<UnwrappedLine> {
+        let tokens = source.format_token_lexer(style).collect();
+        let mut lines = UnwrappedLine::parse_lines(source, tokens);
         annotate::annotate_lines(&mut lines[..], style);
         lines
     }
@@ -43,9 +45,8 @@ mod internal {
         }
 
         let line_ending = LineEnding::derive_from_source(source);
-        let session = syntax::parse::new_parse_sess();
-        let lexer = &mut FormatTokenLexer::new(source, &session, &style);
-        let lines = &mut annotated_lines(lexer, &style);
+        let source = &Source::new(source);
+        let lines = &mut annotated_lines(source, &style);
 
         if line_ranges.is_some() {
             let line_ranges = LineRanges::new(line_ranges.unwrap());
@@ -54,10 +55,10 @@ mod internal {
             affected_lines::mark_all_affected(lines);
         }
 
-        let mut replacements = format::format(lexer, style, line_ending, lines);
+        let mut replacements = format::format(source, style, line_ending, lines);
         // TODO: assert for replacement duplicates somewhere
         // Remove replacements that do not change anything
-        replacements.retain(|r| r.text != lexer.src_str(r.start_byte, r.end_byte));
+        replacements.retain(|r| r.text != source.src_str(r.start_byte, r.end_byte));
         replacements
     }
 }

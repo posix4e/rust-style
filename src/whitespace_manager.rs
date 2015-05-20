@@ -4,7 +4,8 @@ use std::cmp::{self, PartialOrd, Ordering};
 use std::mem;
 use syntax::codemap::{mk_sp, Span, BytePos};
 use syntax::parse::token::Token;
-use token::{FormatTokenLexer, FormatToken};
+use token::FormatToken;
+use source::Source;
 
 #[derive(Debug)]
 struct Change {
@@ -74,7 +75,7 @@ impl<'a> WhitespaceManager<'a> {
     }
 
 
-    pub fn generate_replacements(mut self, lexer: &FormatTokenLexer) -> Vec<Replacement> {
+    pub fn generate_replacements(mut self, source: &Source) -> Vec<Replacement> {
         let mut replacements = vec![];
         let mut changes = mem::replace(&mut self.changes, vec![]);
 
@@ -110,13 +111,13 @@ impl<'a> WhitespaceManager<'a> {
                 // measures chars from previous measure to start_byte
                 character_span.lo = character_span.hi;
                 character_span.hi.0 = start_byte;
-                character_index += lexer.span_str(character_span).chars().count();
+                character_index += source.span_str(character_span).chars().count();
                 let start_character = character_index;
 
                 // measures chars from start_byte to end_byte
                 character_span.lo = character_span.hi;
                 character_span.hi.0 = end_byte;
-                character_index += lexer.span_str(character_span).chars().count();
+                character_index += source.span_str(character_span).chars().count();
                 let end_character = character_index;
 
                 replacements.push(Replacement {

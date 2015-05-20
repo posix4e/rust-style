@@ -2,7 +2,8 @@ use std::mem;
 use syntax::codemap::{mk_sp, BytePos};
 use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken, BinOpToken, Lit};
-use token::{FormatToken, FormatTokenLexer};
+use token::FormatToken;
+use source::Source;
 
 const MACRO_WHITELIST: &'static [&'static str] = &[
     "assert",
@@ -59,9 +60,13 @@ pub enum LineType {
 
 impl UnwrappedLine {
     // Takes a stream of tokens (from the lexer), and divides them into logical lines.
-    pub fn parse_lines(lexer: &mut FormatTokenLexer) -> Vec<UnwrappedLine> {
+    pub fn parse_lines(source: &Source, tokens: Vec<FormatToken>) -> Vec<UnwrappedLine> {
+        let mut input = tokens;
+        input.reverse();
+
         let mut parser = UnwrappedLineParser {
-            lexer: lexer,
+            source: source,
+            input: input,
             output: vec![],
             // FIXME: Placeholder token. Change to an Option?
             ftok: FormatToken::default(),
@@ -94,11 +99,13 @@ impl UnwrappedLine {
     }
 }
 
-struct UnwrappedLineParser<'a, 'b: 'a> {
+struct UnwrappedLineParser<'a> {
+    // The source string
+    source: &'a Source<'a>,
+    // Input tokens, read in reverse order
+    input: Vec<FormatToken>,
     // Completed lines
     output: Vec<UnwrappedLine>,
-    // Input token source
-    lexer: &'a mut FormatTokenLexer<'b>,
     // The current token being processed
     ftok: FormatToken,
     // A stack of lines that is currently being processed.
@@ -129,7 +136,7 @@ enum Context {
     Statements,
 }
 
-impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
+impl<'a> UnwrappedLineParser<'a> {
     fn parse(&mut self) {
         self.read_token();
         self.parse_level(Block::TopLevel);
@@ -766,13 +773,13 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     }
 
     fn is_macro_rules(&self) -> bool {
-        self.is_macro_invocation() && self.lexer.span_str(self.ftok.span) == "macro_rules"
+        self.is_macro_invocation() && self.source.span_str(self.ftok.span) == "macro_rules"
     }
 
     // returns if it was a brace macro
     fn parse_macro_invocation(&mut self) -> bool {
         assert!(self.is_macro_invocation());
-        let whitelisted = MACRO_WHITELIST.contains(&self.lexer.span_str(self.ftok.span));
+        let whitelisted = MACRO_WHITELIST.contains(&self.source.span_str(self.ftok.span));
         self.next_token(); // macro name
         self.next_token(); // macro exclamation mark
 
@@ -794,10 +801,8 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
 
     // Checks for an identifier, then a !
     fn is_macro_invocation(&self) -> bool {
-        match self.ftok.tok {
-            Token::Ident(..) => self.lexer.peek() == &Token::Not,
-            _ => false,
-        }
+        self.ftok.tok.is_ident() &&
+            self.input.last().map(|t| t.tok == Token::Not).unwrap_or(false)
     }
 
     fn parse_in_macro<F, R>(&mut self, whitelisted: bool, f: F) -> R
@@ -857,7 +862,7 @@ impl<'a, 'b> UnwrappedLineParser<'a, 'b> {
     fn read_token(&mut self) {
         let mut comments_in_line = true;
         loop {
-            let ftok = self.lexer.next().unwrap();
+            let ftok = self.input.pop().unwrap();
             if ftok.is_comment() {
                 if ftok.is_on_newline() || ftok.is_first_token {
                     comments_in_line = false;
