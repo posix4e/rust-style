@@ -1779,3 +1779,15 @@ llllllllllllline.children_affected =
     compute_affected_lines(&mut token.children, ranges) ||
     line.children_affected;");
 }
+
+fn test_lifetime_before_array() {
+    assert_fmt_eq!("\
+struct NodeSlice<'a, K: 'a, V: 'a> {
+    keys: &'a [K],
+    vals: &'a [V],
+    pub edges: &'a [Node<K, V>],
+}
+");
+    assert_fmt_eq!("\
+pub fn submit_slice<'r>(&'r [K]) {}");
+}
