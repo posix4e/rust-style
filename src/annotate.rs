@@ -747,6 +747,9 @@ fn must_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToke
     if curr.newlines_before > 1 {
         return true;
     }
+    if curr.newlines_before > 0 && curr.is_comment() {
+        return true;
+    }
     if prev.is_trailing_comment(line) {
         return true;
     }

@@ -1780,6 +1780,7 @@ llllllllllllline.children_affected =
     line.children_affected;");
 }
 
+#[test]
 fn test_lifetime_before_array() {
     assert_fmt_eq!("\
 struct NodeSlice<'a, K: 'a, V: 'a> {
@@ -1790,4 +1791,34 @@ struct NodeSlice<'a, K: 'a, V: 'a> {
 ");
     assert_fmt_eq!("\
 pub fn submit_slice<'r>(&'r [K]) {}");
+}
+
+#[test]
+fn test_line_comments_remain_inplace() {
+    assert_fmt_eq!("\
+// Some comment
+let mut parser = UnwrappedLineParser {
+    // Some comment
+    pub output: vec![],
+    // Some comment
+    ftok: FormatToken::default(),
+    // Some comment
+};");
+    assert_fmt_eq!("\
+
+// Some comment
+function(aaaaaaaaaa,
+         // Some comment
+         bbbbbbbbbbb,
+         // Some comment
+         ccccccccc);");
+
+    assert_fmt_eq!("\
+struct State {
+    // Some comment
+    output: Vec<X>,
+    // Some comment
+    ftok: FormatToken,
+    // Some comment
+}");
 }
