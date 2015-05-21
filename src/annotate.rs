@@ -720,6 +720,7 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (&Token::Literal(..), _) => true,
         (_, &Token::Literal(..)) => true,
 
+        (&Token::Lifetime(..), &Token::OpenDelim(DelimToken::Bracket)) => true,
         (&Token::Lifetime(..), &Token::OpenDelim(DelimToken::Paren)) => true,
         (&Token::Lifetime(..), &Token::Ident(..)) => true,
         (&Token::Ident(..), &Token::Ident(..)) => true,
@@ -744,6 +745,9 @@ fn is_spaced_keyword(token: &Token) -> bool {
 
 fn must_break_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> bool {
     if curr.newlines_before > 1 {
+        return true;
+    }
+    if curr.newlines_before > 0 && curr.is_comment() {
         return true;
     }
     if prev.is_trailing_comment(line) {
