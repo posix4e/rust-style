@@ -1,11 +1,11 @@
 use format::{LineState, ParenState};
 use format_options::{FormatStyle, Penalty};
 use std::cmp;
+use syntax::parse::token::keywords::Keyword;
 use syntax::parse::token::{Token, DelimToken};
-use token::{FormatToken, Precedence, TokenType};
+use token::{Precedence, TokenType};
 use unwrapped_line::{UnwrappedLine, LineType};
 use whitespace_manager::WhitespaceManager;
-
 
 pub struct ContinuationIndenter<'a> {
     pub style: &'a FormatStyle,
@@ -20,8 +20,9 @@ impl<'a> ContinuationIndenter<'a> {
             fn_decl_arrow_indent: None,
             fn_decl_arrow_must_break: false,
             stack: vec![ParenState {
-                indent: first_indent + self.style.continuation_indent_width,
+                indent: first_indent,
                 nested_block_indent: first_indent,
+                last_space: first_indent,
                 indent_level: line.level,
                 ..ParenState::default()
             }],
@@ -50,7 +51,7 @@ impl<'a> ContinuationIndenter<'a> {
         if current.must_break_before {
             return true;
         }
-        if state.stack_top().break_between_paramters && is_between_bin_pack(line, state) {
+        if state.stack_top().break_before_parameter && is_between_parameter(line, state) {
             return true;
         }
         if current.typ == TokenType::FnDeclArrow && state.fn_decl_arrow_must_break {
@@ -79,7 +80,7 @@ impl<'a> ContinuationIndenter<'a> {
                                  dry_run: bool, whitespace: &mut WhitespaceManager) -> Penalty {
         let mut penalty = 0;
 
-        // The first line break on any NestingLevel causes an extra
+        // The first line break on any nesting level causes an extra
         // penalty in order prefer similar line breaks.
         if !state.stack_top().contains_line_break {
             penalty += 15;
@@ -87,9 +88,18 @@ impl<'a> ContinuationIndenter<'a> {
         }
 
         penalty += state.current(line).split_penalty;
-        let newline_column = self.get_newline_column(line, state);
-        state.column = newline_column;
-        state.stack_top_mut().nested_block_indent = newline_column;
+        state.column = self.get_newline_column(line, state);
+        state.stack_top_mut().nested_block_indent = state.column;
+        if !state.current(line).is_trailing_comment(line) {
+            state.stack_top_mut().last_space = state.column;
+        }
+
+        if state.previous(line).tok == Token::Comma && !state.stack_top().avoid_bin_packing ||
+           state.previous(line).typ == TokenType::BinaryOperator {
+            // We have broken after a parameter, and we are not binpacking
+            // Do not break before the next parameter
+            state.stack_top_mut().break_before_parameter = false;
+        }
 
         if !dry_run {
             let current = state.current_mut(line);
@@ -100,7 +110,7 @@ impl<'a> ContinuationIndenter<'a> {
         if state.stack_top().avoid_bin_packing {
             // Bin packing is being avoided, and this token was added to a new line.
             // Ensure breaking occurs between every parameter for the rest of this scope.
-            state.stack_top_mut().break_between_paramters = true;
+            state.stack_top_mut().break_before_parameter = true;
             state.fn_decl_arrow_must_break = true;
         }
 
@@ -108,7 +118,14 @@ impl<'a> ContinuationIndenter<'a> {
             // A break occured before method call.
             // Calculate the indentation for following chained calls.
             // Following chained calls will always break.s
-            state.stack_top_mut().method_chain_indent = Some(newline_column);
+            state.stack_top_mut().method_chain_indent = Some(state.column);
+        }
+
+        // We broke on this level, we need to also break
+        // before all parameters on the lower levels of the stack.
+        let below = state.stack.len() - 1;
+        for level in &mut state.stack[0..below] {
+            level.break_before_parameter = true;
         }
 
         penalty
@@ -123,7 +140,7 @@ impl<'a> ContinuationIndenter<'a> {
             whitespace.replace_whitespace(state.current_mut(line), newlines, indent, spaces, state.column + spaces);
         }
 
-        if state.stack_top().avoid_bin_packing && is_between_bin_pack(line, state) {
+        if state.stack_top().avoid_bin_packing && is_between_parameter(line, state) {
             // Bin packing is being avoided, and this token was added to the current line.
             // Avoid breaking for the rest of this scope.
             state.stack_top_mut().no_line_break = true;
@@ -133,6 +150,13 @@ impl<'a> ContinuationIndenter<'a> {
             // A break did not occur before the method call.
             // Never break on method calls in future.
             state.stack_top_mut().unwrapped_method_chain = true;
+        }
+
+        let previous = state.previous(line);
+        if previous.tok == Token::Comma ||
+           previous.typ == TokenType::BinaryOperator &&
+               previous.precedence() != Some(Precedence::Assignment) {
+            state.stack_top_mut().last_space = state.column;
         }
 
         state.column += spaces;
@@ -165,54 +189,56 @@ impl<'a> ContinuationIndenter<'a> {
     }
 
     fn excess_character_penalty(&self, state: &LineState) -> Penalty {
-        if state.column <= self.style.column_limit {
+        if state.column < self.style.column_limit {
             return 0;
         }
-        let excess_characters = (state.column - self.style.column_limit) as Penalty;
+        let excess_characters = (state.column - self.style.column_limit + 1) as Penalty;
         self.style.penalty_excess_character * excess_characters
     }
 
     fn move_state_past_fake_lparens(&self, line: &UnwrappedLine, state: &mut LineState) {
         let current = state.current(line);
-        let prev: Option<&FormatToken> = line.prev_non_comment_token(state.next_token_index);
-
-        let mut indent = state.column + self.style.continuation_indent_width;
+        let prev = line.prev_non_comment_token(state.next_token_index);
+        let mut skip_first_extra_indent = false;
 
         if let Some(prev) = prev {
-            // Special case indentation when fake parens coincides with real scope open,
-            // Or it is an assignment.
-            if prev.precedence() == Some(Precedence::Assignment) ||
+            skip_first_extra_indent =
+                prev.precedence() == Some(Precedence::Assignment) ||
+                prev.tok == Token::Colon ||
                 prev.tok == Token::OpenDelim(DelimToken::Bracket) ||
                 prev.tok == Token::OpenDelim(DelimToken::Paren) ||
-                prev.tok == Token::Lt && prev.typ == TokenType::GenericBracket {
-                // Align token with opening brace.
-                indent = state.column;
-            } else if prev.tok == Token::OpenDelim(DelimToken::Brace) {
-                // Regular indent for braces.
-                // It has already been applied in move_state_past_delim_open.
-                indent = state.stack_top().indent;
-            }
-        }
+                prev.tok == Token::Lt &&
+                    prev.typ == TokenType::GenericBracket ||
+                prev.tok.is_keyword(Keyword::If) ||
+                prev.tok.is_keyword(Keyword::Match) ||
+                prev.tok.is_keyword(Keyword::Return) ||
+                prev.tok.is_keyword(Keyword::While);
+        };
 
         for p in &current.fake_lparens {
-            let mut new_state = ParenState {
-                indent: indent,
-                nested_block_indent: state.stack_top().nested_block_indent,
-                indent_level: state.stack_top().indent_level,
-                avoid_bin_packing: state.stack_top().avoid_bin_packing ||
-                                       !self.style.bin_pack_patterns && *p == Precedence::PatternOr,
-                break_between_paramters: state.stack_top().break_between_paramters &&
-                                             p.to_i32() <= Precedence::Comma.to_i32(),
-                no_line_break: state.stack_top().no_line_break,
-                ..ParenState::default()
-            };
+            let mut new_state = state.stack_top().clone();
 
-            // No indentation for breaking on PatternOr
-            if *p == Precedence::PatternOr {
-                new_state.indent = state.column;
+            new_state.avoid_bin_packing =
+                new_state.avoid_bin_packing ||
+                !self.style.bin_pack_patterns && *p == Precedence::PatternOr;
+
+            new_state.break_before_parameter =
+                new_state.break_before_parameter && p.to_i32() <= Precedence::Comma.to_i32();
+
+            if !current.is_trailing_comment(line) {
+                new_state.indent = cmp::max(state.column,
+                            cmp::max(state.stack_top().indent,
+                                     state.stack_top().last_space));
+            }
+
+            // Apply continuation indent
+            if !skip_first_extra_indent && !current.is_trailing_comment(line) &&
+               p != &Precedence::Comma && p != &Precedence::PatternOr {
+                new_state.indent += self.style.continuation_indent_width;
             }
 
             state.stack.push(new_state);
+            skip_first_extra_indent = false;
         }
     }
 
@@ -234,17 +260,20 @@ impl<'a> ContinuationIndenter<'a> {
 
         let new_paren_state = {
             let top = state.stack_top();
-            if current.tok == Token::OpenDelim(DelimToken::Paren) ||
-                   current.tok == Token::OpenDelim(DelimToken::Brace) &&
-                       line.typ == LineType::Use ||
-                   current.tok == Token::OpenDelim(DelimToken::Bracket) ||
-                   current.typ == TokenType::GenericBracket ||
-                   current.typ == TokenType::LambdaParamsStart {
+            let is_use_brace =
+                current.tok == Token::OpenDelim(DelimToken::Brace) && line.typ == LineType::Use;
+
+            if current.tok == Token::OpenDelim(DelimToken::Paren) || is_use_brace ||
+               current.tok == Token::OpenDelim(DelimToken::Bracket) ||
+               current.typ == TokenType::GenericBracket ||
+               current.typ == TokenType::LambdaParamsStart {
                 ParenState {
-                    indent: state.column + 1,
+                    indent: if is_use_brace { state.column + 1 }
+                            else { top.last_space + self.style.continuation_indent_width },
                     nested_block_indent: top.nested_block_indent,
                     indent_level: top.indent_level,
                     no_line_break: top.no_line_break,
+                    last_space: top.last_space,
                     avoid_bin_packing: !self.style.bin_pack_parameters &&
                                            current.typ == TokenType::FnDeclParamsStart ||
                                        !self.style.bin_pack_arguments &&
@@ -258,6 +287,7 @@ impl<'a> ContinuationIndenter<'a> {
                     indent_level: top.indent_level + 1,
                     avoid_bin_packing: true,
                     no_line_break: top.no_line_break,
+                    last_space: top.last_space,
                     ..ParenState::default()
                 }
             } else {
@@ -281,12 +311,14 @@ impl<'a> ContinuationIndenter<'a> {
     fn get_newline_column(&self, line: &UnwrappedLine, state: &LineState) -> u32 {
         let stack_top = state.stack_top();
         let current = &line.tokens[state.next_token_index];
+        let previous = line.prev_non_comment_token(state.next_token_index).map(|t| &t.tok);
 
         if current.in_non_whitelisted_macro {
             return current.original_column;
         }
 
-        if current.tok == Token::CloseDelim(DelimToken::Brace) && state.stack.len() > 1 {
+        if (current.tok == Token::CloseDelim(DelimToken::Brace) ||
+            current.tok == Token::CloseDelim(DelimToken::Bracket)) && state.stack.len() > 1 {
             return state.stack[state.stack.len() - 2].nested_block_indent;
         }
 
@@ -301,12 +333,26 @@ impl<'a> ContinuationIndenter<'a> {
             return state.fn_decl_arrow_indent.unwrap();
         }
 
+        if current.typ == TokenType::PatternGuardIf {
+            // FIXME: This is pretty hacky. Consider as binary expression? That could be worse.
+            return stack_top.nested_block_indent + self.style.continuation_indent_width;
+        }
+
+        if let Some(&Token::FatArrow) = previous {
+            // FIXME: This is pretty hacky. Consider as binary expression? That could be worse.
+            return stack_top.nested_block_indent + self.style.continuation_indent_width;
+        }
+
         stack_top.indent
     }
 }
 
-fn is_between_bin_pack(line: &UnwrappedLine, state: &LineState) -> bool {
+fn is_between_parameter(line: &UnwrappedLine, state: &LineState) -> bool {
     let current = &line.tokens[state.next_token_index];
+
+    if line.typ == LineType::Use {
+        return false;
+    }
 
     if let Token::CloseDelim(DelimToken::Brace) = current.tok {
         return true;

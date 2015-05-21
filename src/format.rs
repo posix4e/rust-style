@@ -301,6 +301,8 @@ impl<'a> LineFormatter<'a> {
 pub struct ParenState {
     // The column to start at if a line break occurs.
     pub indent: u32,
+    // The column of the last space on this level.
+    pub last_space: u32,
     // The number of indents to appear at the start of the line if a line break occurs
     pub indent_level: u32,
     // The column to start at if a line break occurs in a nested block.
@@ -312,8 +314,8 @@ pub struct ParenState {
     pub avoid_bin_packing: bool,
     // If true, line breaks will never on this state.
     pub no_line_break: bool,
-    // If true, line breaks will always occur between parameters.
-    pub break_between_paramters: bool,
+    // If true, a line break will occur before the next parameter.
+    pub break_before_parameter: bool,
     // If a method call expression was broken, the column
     // the start column of the second line.
     pub method_chain_indent: Option<u32>,
@@ -331,9 +333,9 @@ pub struct LineState {
     pub first_indent: u32,
     // A stack keeping track of properties applying to indentation scope.
     pub stack: Vec<ParenState>,
-    // If some, the column to indent when breaking on function return type arrow
+    // If some, the column to indent when breaking on function return type arrow.
     pub fn_decl_arrow_indent: Option<u32>,
-    // If true, the return type arrow must indent
+    // If true, the return type arrow must indent.
     pub fn_decl_arrow_must_break: bool,
 }
 
@@ -356,6 +358,10 @@ impl LineState {
 
     pub fn current<'a>(&self, line: &'a UnwrappedLine) -> &'a FormatToken {
         &line.tokens[self.next_token_index]
+    }
+
+    pub fn previous<'a>(&self, line: &'a UnwrappedLine) -> &'a FormatToken {
+        &line.tokens[self.next_token_index - 1]
     }
 }
 

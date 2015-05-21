@@ -48,7 +48,7 @@ impl Precedence {
     pub fn from_i32(val: i32) -> Option<Precedence> {
         // FIXME: This is error prone, and really shouldn't be necessary.
         //        But FromPrimitive was removed. Fix this with its safe replacement.
-        Some(match val {
+        let prec = match val {
             0  => Precedence::Unknown,
             1  => Precedence::Comma,
             2  => Precedence::PatternOr,
@@ -64,7 +64,10 @@ impl Precedence {
             12 => Precedence::Multiplictive,
             13 => Precedence::As,
             _  => return None,
-        })
+        };
+
+        assert_eq!(prec.to_i32(), val);
+        Some(prec)
     }
 
     pub fn to_i32(&self) -> i32 {

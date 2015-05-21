@@ -641,6 +641,9 @@ fn is_unary(prev: Option<&FormatToken>, curr: &FormatToken) -> bool {
 
 fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &FormatToken) -> bool {
     match (&prev.tok, &curr.tok) {
+        _ if prev.is_comment() => true,
+        _ if curr.is_comment() => true,
+
         (&Token::Ident(..), _) if prev.tok.is_keyword(Keyword::Mut) => true,
         (&Token::Ident(..), _) if prev.tok.is_keyword(Keyword::Const) => true,
 
@@ -714,9 +717,6 @@ fn space_required_before(line: &UnwrappedLine, prev: &FormatToken, curr: &Format
         (&Token::CloseDelim(DelimToken::Brace), _) => true,
         (_, &Token::CloseDelim(DelimToken::Brace)) => true,
 
-        _ if prev.is_comment() => true,
-        _ if curr.is_comment() => true,
-
         (&Token::Literal(..), _) => true,
         (_, &Token::Literal(..)) => true,
 
@@ -764,12 +764,15 @@ fn can_break_before(prev: &FormatToken, curr: &FormatToken) -> bool {
         return false;
     }
 
+
     match (&prev.tok, &curr.tok) {
         _ if prev.typ == TokenType::UnaryOperator => false,
         (&Token::OpenDelim(..), &Token::CloseDelim(..)) if prev.children.is_empty() => false,
 
         (&Token::OpenDelim(DelimToken::Brace), _) => true,
         (_, &Token::CloseDelim(DelimToken::Brace)) => true,
+
+        (&Token::OpenDelim(DelimToken::Paren), _) => true,
 
         (_, &Token::Ident(..)) if curr.typ == TokenType::PatternGuardIf => true,
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => true,
@@ -794,6 +797,7 @@ fn split_penalty(prev: &FormatToken, curr: &FormatToken) -> Penalty {
         (_, &Token::Ident(..)) if curr.tok.is_keyword(Keyword::Where) => 1,
         (&Token::CloseDelim(DelimToken::Paren), &Token::Dot) => 20,
         (_, &Token::Dot) => 100,
+        (&Token::OpenDelim(DelimToken::Paren), _) => 200,
         (_, &Token::OpenDelim(DelimToken::Brace)) => 1,
         _ => match prev.precedence() {
             None | Some(Precedence::Unknown) => 3,

@@ -1184,12 +1184,12 @@ let output = input.filter(|&item| item % 2 == 0) // Keep Evens
 fn test_continuation_indent_after_non_value_keyword() {
     assert_fmt_eq!("\
 if aaaaaaaaaaaaaaa && bbbbbbbbbb && ccccccccccccccccccccccccccccccccccccccccccccc &&
-       dddddddddddddddddd {
+   dddddddddddddddddd {
     let a = 1;
 }");
     assert_fmt_eq!("\
 while aaaaaaaaaaaaaaa && bbbbbbbbbb && ccccccccccccccccccccccccccccccccccccccccccccc &&
-          dddddddddddddddddd {
+      dddddddddddddddddd {
     let a = 1;
 }");
 }
@@ -1496,7 +1496,7 @@ fn test_boolean_expr_in_match_guard() {
     assert_fmt_eq!("\
 match whatever {
     Token::RArrow if self.line.typ == LineType::FnDecl && !self.seen_fn_decl_arrow &&
-                         self.context_stack.is_empty() => {
+                     self.context_stack.is_empty() => {
         TokenType::FnDeclArrow
     }
 }");
@@ -1546,7 +1546,7 @@ fn test_binary_expr_in_struct_init() {
 let a = SomeStruct {
     blah: 123,
     break_between_paramters: state.stack_top().break_between_paramters &&
-                                 p.to_i32() <= Precedence::Comma.to_i32(),
+                             p.to_i32() <= Precedence::Comma.to_i32(),
 };");
 }
 
@@ -1555,7 +1555,7 @@ fn test_method_chaining_with_parens() {
     assert_fmt_eq!("\
 impl Foo {
     fn bar() {
-        let categories = elem.get_children(\"category\", None)
+        let categories = elem.get_children(bbbbbbbbb, None)
                              .map(|e| ViaXml::from_xml(e.clone()).unwrap())
                              .collect();
     }
@@ -1778,4 +1778,61 @@ fn test_bad_case_1() {
 llllllllllllline.children_affected =
     compute_affected_lines(&mut token.children, ranges) ||
     line.children_affected;");
+}
+
+#[test]
+fn test_newline_after_paren() {
+    assert_fmt_eq!("\
+let x = format(
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+    5);");
+
+    assert_fmt_eq!("\
+let x = format(
+    format(
+        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+    5);");
+
+    assert_fmt_eq!("\
+let x = format(fucntion(
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+    5));");
+
+    assert_fmt_eq!("\
+let x = format(fucntion( // Some comment
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+    5));");
+
+    assert_fmt_eq!("\
+format(x,
+       format(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa));");
+
+    assert_fmt_eq!("\
+let a = function(function(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+                          aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+                          hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh),
+                 function(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+                          aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+                          hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh));");
+}
+
+#[test]
+fn test_nested_indent_binary_expr() {
+    assert_fmt_eq!("\
+!self.style.bin_pack_parameters &&
+        current.typpppppppppppppppppppppppppppppp == TokenType::FnDeclParamsStart ||
+    !self.style.bin_pack_arguments &&
+        current.typpppppppppppppppppppppppppppppp != TokenType::FnDeclParamsStart");
+}
+
+#[test]
+fn test_match_break_after_fat_arrow() {
+    assert_fmt_eq!("\
+match something {
+    ArgsError::PatternError(ref err) =>
+        format(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, err),
+    AAAAAAAAAAAA | BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB =>
+        format(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, err),
+}");
 }
