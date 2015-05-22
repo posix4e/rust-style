@@ -1879,3 +1879,13 @@ struct State {
     // Some comment
 }");
 }
+
+#[test]
+fn test_return_skip_first_indent() {
+    assert_fmt_eq!("\
+return aaaaaaaaaaaaaaaaaaaaa && aaaaaaaaaaaaaaaaaaaaaaaaaaaaa && aaaaaaaaaa ||
+       aaaaaaaaaa && aaaaaaaaaaaaaaaaaaa && aaaaaaaaaaaaaa ||
+       aaaaaaaaaaaaaaa && aaaaaaaaaaaaa && aaaaaaaaaaaa && aaaaaaaaaaaa && aaaaaaaaaaaaaa &&
+           aaaaaaaaaaaaaa && aaaaaaaaaaaaaaaaaaaa && aaaaaaaaaaaaaaa ||
+       aaaaaaaaaaaaa && aaaaaaaaaaa;");
+}
