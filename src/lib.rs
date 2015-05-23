@@ -5,6 +5,8 @@ extern crate toml;
 
 mod affected_lines;
 mod annotate;
+#[cfg(test)]
+mod annotate_test;
 mod continuation_indenter;
 mod format;
 mod format_options;
@@ -15,8 +17,6 @@ mod unwrapped_line;
 mod whitespace_manager;
 pub mod unstable;
 
-#[cfg(test)]
-mod test;
 
 pub use format_options::{FormatStyle, StyleParseError, Penalty, UseTabs};
 pub use internal::reformat;
