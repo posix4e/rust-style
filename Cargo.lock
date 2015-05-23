@@ -2,6 +2,7 @@
 name = "rust-style"
 version = "0.0.1"
 dependencies = [
+ "diff 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.64 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -12,6 +13,11 @@ dependencies = [
 
 [[package]]
 name = "bitflags"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "diff"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
